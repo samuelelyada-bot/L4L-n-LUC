@@ -236,9 +236,8 @@ if len(gross_req) > 0:
             st.pyplot(fig)
             
         with col_g2:
-            # FITUR IMPROVEMENT 1: Analisis Sensitivitas Dinamis (What-If)
             st.markdown("### Grafik Analisis Sensitivitas (Perubahan Demand)")
-            scale_factors = np.arange(0.7, 1.35, 0.05) # Simulasi demand -30% sampai +30%
+            scale_factors = np.arange(0.7, 1.35, 0.05)
             l4l_sens = []
             luc_sens = []
             percentages = []
@@ -260,12 +259,16 @@ if len(gross_req) > 0:
             plt.xticks(rotation=45)
             st.pyplot(fig2)
 
-    # Fungsi pewarnaan tabel untuk mendeteksi Overcapacity Gudang & Stop Log
+    # Fungsi pewarnaan tabel untuk mendeteksi Overcapacity Gudang (Mendukung Pandas versi baru dengan .map)
     def style_mrp_table(df):
         def color_poh(val):
-            # Jika nilai Projected On Hand melebihi kapasitas maksimum gudang
             return 'background-color: #ffe6cc; color: #cc6600; font-weight: bold;' if val > max_capacity else ''
-        return df.style.applymap(color_poh, subset=['Projected On Hand'])
+        
+        # Menggunakan .map() jika tersedia (Pandas >= 2.1.0), jika tidak fallback ke .applymap()
+        if hasattr(df.style, 'map'):
+            return df.style.map(color_poh, subset=['Projected On Hand'])
+        else:
+            return df.style.applymap(color_poh, subset=['Projected On Hand'])
 
     with tab2:
         st.subheader("Tabel Hasil Analisis MRP - Lot-for-Lot")
@@ -277,10 +280,8 @@ if len(gross_req) > 0:
             'Planned Order Releases': res['l4l']['rel']
         }, index=[f"P{i+1}" for i in range(num_periods)]).T
         
-        # Tampilkan tabel dengan highlight kapasitas gudang
         st.dataframe(style_mrp_table(df_l4l_mrp), use_container_width=True)
         
-        # Cek Alert Overcapacity
         if max(res['l4l']['poh']) > max_capacity:
             st.warning(f"⚠️ **Peringatan Kapasitas:** Persediaan pada metode L4L melebihi kapasitas maksimum gudang ({max_capacity} Unit) di beberapa periode (Ditandai warna Orange).")
 
@@ -308,10 +309,8 @@ if len(gross_req) > 0:
             'Planned Order Releases': res['luc']['rel']
         }, index=[f"P{i+1}" for i in range(num_periods)]).T
         
-        # Tampilkan tabel dengan highlight kapasitas gudang
         st.dataframe(style_mrp_table(df_luc_mrp), use_container_width=True)
         
-        # Cek Alert Overcapacity
         if max(res['luc']['poh']) > max_capacity:
             st.error(f"⚠️ **Peringatan Kapasitas Kritis:** Metode LUC mengakumulasikan lot pesanan hingga melampaui daya tampung maksimum gudang ({max_capacity} Unit). Anda mungkin memerlukan ruang tambahan atau memperkecil parameter lotting.")
 
