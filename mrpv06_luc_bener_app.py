@@ -203,7 +203,7 @@ if len(gross_req) > 0:
     with c2:
         cost_diff = res['l4l']['total'] - res['luc']['total']
         delta_label = f"-Rp {cost_diff:,.0f} Lebih Hemat" if cost_diff >= 0 else f"+Rp {abs(cost_diff):,.0f} Lebih Mahal"
-        st.metric(label="Total Biaya Least Unit Cost (LUC)", value=f"Rp {res['luc']['total']:,.0f}", delta=delta_label, delta_color="normal" if cost_diff >= 0 else "inverse")
+        st.metric(label="Total Biaya Least Unit Cost (LUC)", value=f"Rp {res['luc']['total']:,.0f}", delta=delta_label, delta_color="inverse" if cost_diff >= 0 else "normal")
     with c3:
         efficiency = (cost_diff / res['l4l']['total']) * 100 if res['l4l']['total'] > 0 else 0
         st.metric(label="Efisiensi Anggaran (LUC vs L4L)", value=f"{efficiency:.2f} %")
