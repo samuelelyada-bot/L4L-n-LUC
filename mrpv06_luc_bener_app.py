@@ -191,8 +191,8 @@ if len(gross_req) > 0:
     res = calculate_mrp(gross_req, setup_cost, holding_cost, initial_inv, safety_stock, lead_time)
     num_periods = len(gross_req)
 
-    # ==========================================
-    # 5. DISPLAY DASHBOARD OUTPUT (KOMPARASI DUA ARAH)
+# ==========================================
+    # 5. DISPLAY DASHBOARD OUTPUT (FIX WARNA & PANAH)
     # ==========================================
     st.markdown("---")
     st.header("🏁 Hasil Komparasi Performa")
@@ -200,50 +200,42 @@ if len(gross_req) > 0:
     cost_diff = res['l4l']['total'] - res['luc']['total']
     abs_diff = abs(cost_diff)
     
+    # Menentukan teks, warna (HTML), dan panah berdasarkan pemenang biaya
     if cost_diff > 0:
-        # Kasus: LUC Lebih Hemat (Maka L4L Lebih Boros)
-        l4l_delta_text = f"Rp {abs_diff:,.0f} Lebih Boros"
-        luc_delta_text = f"Rp {abs_diff:,.0f} Lebih Hemat"
-        l4l_arrow = "normal"   # Positif normal = Merah (karena boros)
-        luc_arrow = "inverse"  # Negatif inverse = Hijau (karena hemat)
-        
+        # Kasus: LUC Lebih Hemat (L4L Lebih Boros)
+        l4l_sub = f"<span style='color: #d9534f; font-weight: bold;'>↓ Rp {abs_diff:,.0f} Lebih Boros</span>"
+        luc_sub = f"<span style='color: #5cb85c; font-weight: bold;'>↑ Rp {abs_diff:,.0f} Lebih Hemat</span>"
+        pemenang = "LUC"
     elif cost_diff < 0:
-        # Kasus: L4L Lebih Hemat (Maka LUC Lebih Boros)
-        l4l_delta_text = f"Rp {abs_diff:,.0f} Lebih Hemat"
-        luc_delta_text = f"Rp {abs_diff:,.0f} Lebih Boros"
-        l4l_arrow = "inverse"  
-        luc_arrow = "normal"   
+        # Kasus: L4L Lebih Hemat (LUC Lebih Boros)
+        l4l_sub = f"<span style='color: #5cb85c; font-weight: bold;'>↑ Rp {abs_diff:,.0f} Lebih Hemat</span>"
+        luc_sub = f"<span style='color: #d9534f; font-weight: bold;'>↓ Rp {abs_diff:,.0f} Lebih Boros</span>"
+        pemenang = "L4L"
     else:
         # Kasus: Biaya Sama Saja
-        l4l_delta_text = "Biaya Setara"
-        luc_delta_text = "Biaya Setara"
-        l4l_arrow = "off"
-        luc_arrow = "off"
+        l4l_sub = "<span style='color: #777; font-weight: bold;'>• Biaya Setara</span>"
+        luc_sub = "<span style='color: #777; font-weight: bold;'>• Biaya Setara</span>"
+        pemenang = "Seimbang"
 
+    efficiency = (abs_diff / max(res['l4l']['total'], 1)) * 100
+
+    # Tampilan menggunakan susunan box kustom yang warnanya presisi
     c1, c2, c3 = st.columns(3)
     with c1:
-        st.metric(
-            label="Total Biaya Lot-for-Lot (L4L)", 
-            value=f"Rp {res['l4l']['total']:,.0f}", 
-            delta=l4l_delta_text if l4l_arrow != "off" else None, 
-            delta_color=l4l_arrow
-        )
+        st.markdown("##### Total Biaya Lot-for-Lot (L4L)")
+        st.markdown(f"## Rp {res['l4l']['total']:,.0f}")
+        st.markdown(l4l_sub, unsafe_allow_html=True)
     with c2:
-        st.metric(
-            label="Total Biaya Least Unit Cost (LUC)", 
-            value=f"Rp {res['luc']['total']:,.0f}", 
-            delta=luc_delta_text if luc_arrow != "off" else None, 
-            delta_color=luc_arrow
-        )
+        st.markdown("##### Total Biaya Least Unit Cost (LUC)")
+        st.markdown(f"## Rp {res['luc']['total']:,.0f}")
+        st.markdown(luc_sub, unsafe_allow_html=True)
     with c3:
-        efficiency = (abs_diff / max(res['l4l']['total'], 1)) * 100
-        pemenang = "LUC" if cost_diff > 0 else "L4L"
-        st.metric(
-            label=f"Efisiensi Anggaran ({pemenang})", 
-            value=f"{efficiency:.2f} %",
-            delta="Optimalisasi Biaya" if cost_diff != 0 else "Seimbang",
-            delta_color="off"
-        )
+        st.markdown(f"##### Efisiensi Anggaran ({pemenang})")
+        st.markdown(f"## {efficiency:.2f} %")
+        if cost_diff != 0:
+            st.markdown(f"<span style='color: #0275d8; font-weight: bold;'>⚡ Optimalisasi Biaya</span>", unsafe_allow_html=True)
+        else:
+            st.markdown(f"<span style='color: #777; font-weight: bold;'>• Seimbang</span>", unsafe_allow_html=True)
 
     st.markdown(" ")
     if cost_diff > 0:
