@@ -76,7 +76,7 @@ else:
     gross_req = df_input['gr'].tolist()
 
 # ==========================================
-# FUNCTION UNTUK PERHITUNGAN MRP (REUSABLE FOR SENSITIVITY)
+# FUNCTION UNTUK PERHITUNGAN MRP (FIX LOGIKA POREL)
 # ==========================================
 def calculate_mrp(demands, setup, hold, init_inv, ss, lt):
     n = len(demands)
@@ -85,7 +85,7 @@ def calculate_mrp(demands, setup, hold, init_inv, ss, lt):
     l4l_net = []
     l4l_poh = []
     l4l_rec = []
-    l4l_rel = [0] * n
+    l4l_rel = [0] * n # Diinisialisasi dengan angka 0 di setiap periode
     
     prev_inv = init_inv
     for i in range(n):
@@ -101,13 +101,14 @@ def calculate_mrp(demands, setup, hold, init_inv, ss, lt):
         l4l_poh.append(curr_poh)
         prev_inv = curr_poh
         
+    # FIX LOGIKA KUMULATIF POREL L4L
     for i in range(n):
         if l4l_rec[i] > 0:
             target = i - lt
             if target >= 0:
-                l4l_rel[target] = l4l_rec[i]
+                l4l_rel[target] += l4l_rec[i] # Ditambah secara akumulatif, bukan ditimpa
             else:
-                l4l_rel[0] += l4l_rec[i]
+                l4l_rel[0] += l4l_rec[i]      # Jika bergeser <= Periode 1, akumulasikan total di P1 (index 0)
                 
     c_l4l_setup = sum(1 for x in l4l_rec if x > 0) * setup
     c_l4l_hold = sum(l4l_poh) * hold
@@ -125,7 +126,7 @@ def calculate_mrp(demands, setup, hold, init_inv, ss, lt):
             prev_inv = prev_inv - demands[i]
             
     luc_rec = [0] * n
-    luc_rel = [0] * n
+    luc_rel = [0] * n # Diinisialisasi dengan angka 0 di setiap periode
     luc_iters = []
     
     idx = 0
@@ -158,13 +159,16 @@ def calculate_mrp(demands, setup, hold, init_inv, ss, lt):
         luc_iters.append(pd.DataFrame(t_log))
         lot_size = sum(luc_net[idx:best_k+1])
         luc_rec[idx] = lot_size
-        
-        target = idx - lt
-        if target >= 0:
-            luc_rel[target] = lot_size
-        else:
-            luc_rel[0] += lot_size
         idx = best_k + 1
+        
+    # FIX LOGIKA KUMULATIF POREL LUC
+    for i in range(n):
+        if luc_rec[i] > 0:
+            target = i - lt
+            if target >= 0:
+                luc_rel[target] += luc_rec[i] # Ditambah secara akumulatif, bukan ditimpa
+            else:
+                luc_rel[0] += luc_rec[i]      # Jika bergeser <= Periode 1, akumulasikan total di P1 (index 0)
         
     luc_poh = []
     r_inv_luc = init_inv
@@ -259,10 +263,9 @@ if len(gross_req) > 0:
             plt.xticks(rotation=45)
             st.pyplot(fig2)
 
-    # --- FUNGSI FIX TOTAL ANTI-EROR: Warnai baris secara horizontal di DataFrame Transpose ---
+    # --- FUNGSI WARNA HORIZONTAL ---
     def get_styled_mrp_table(df_mrp_transposed):
         def highlight_row_capacity(row):
-            # Jika baris ini adalah 'Projected On Hand', lakukan pengecekan per nilai kriteria kapasitas
             if row.name == 'Projected On Hand':
                 return ['background-color: #ffe6cc; color: #cc6600; font-weight: bold;' if val > max_capacity else '' for val in row]
             return [''] * len(row)
@@ -277,9 +280,8 @@ if len(gross_req) > 0:
             'Net Requirements': res['l4l']['net'],
             'Planned Order Receipts': res['l4l']['rec'],
             'Planned Order Releases': res['l4l']['rel']
-        }, index=[f"P{i+1}" for i in range(num_periods)]).T # Transpose langsung jadi tabel horizontal
+        }, index=[f"P{i+1}" for i in range(num_periods)]).T
         
-        # Kirim dataframe horizontal ke fungsi style horizontal
         st.dataframe(get_styled_mrp_table(df_l4l_mrp), use_container_width=True)
         
         if max(res['l4l']['poh']) > max_capacity:
@@ -307,9 +309,8 @@ if len(gross_req) > 0:
             'Net Requirements': res['luc']['net'],
             'Planned Order Receipts': res['luc']['rec'],
             'Planned Order Releases': res['luc']['rel']
-        }, index=[f"P{i+1}" for i in range(num_periods)]).T # Transpose langsung jadi tabel horizontal
+        }, index=[f"P{i+1}" for i in range(num_periods)]).T
         
-        # Kirim dataframe horizontal ke fungsi style horizontal
         st.dataframe(get_styled_mrp_table(df_luc_mrp), use_container_width=True)
         
         if max(res['luc']['poh']) > max_capacity:
