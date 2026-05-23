@@ -72,13 +72,11 @@ if len(gross_req) > 0:
     
     current_inv = initial_inv
     for i in range(num_periods):
-        # Proyeksi persediaan sebelum dikurangi kebutuhan periode ini
-        # Kebutuhan bersih muncul jika inventory dikurangi safety stock tidak cukup memenuhi gross req
         needed = gross_req[i] + safety_stock - current_inv
         if needed > 0:
             net_amt = gross_req[i] - max(0, current_inv - safety_stock)
             net_req.append(net_amt)
-            current_inv = safety_stock # Inventory tersisa di level safety stock setelah dipenuhi kelak
+            current_inv = safety_stock
         else:
             net_req.append(0)
             current_inv = current_inv - gross_req[i]
@@ -109,7 +107,7 @@ if len(gross_req) > 0:
     # --- METODE 2: LEAST UNIT COST (LUC) ---
     luc_rec = [0] * num_periods
     luc_rel = [0] * num_periods
-    luc_iterations = [] # Untuk menampung log langkah iterasi
+    luc_iterations = []
     
     i = 0
     while i < num_periods:
@@ -117,7 +115,6 @@ if len(gross_req) > 0:
             i += 1
             continue
             
-        # Mulai iterasi pencarian unit cost terkecil
         best_k = i
         min_unit_cost = float('inf')
         accum_demand = 0
@@ -127,7 +124,6 @@ if len(gross_req) > 0:
         
         for k in range(i, num_periods):
             accum_demand += net_req[k]
-            # Biaya simpan dihitung berdasarkan jarak periode dari titik pemesanan (i)
             accum_holding += net_req[k] * holding_cost * (k - i)
             total_temp_cost = setup_cost + accum_holding
             
@@ -158,13 +154,11 @@ if len(gross_req) > 0:
             
         luc_iterations.append(pd.DataFrame(temp_iter_log))
         
-        # Eksekusi lot size optimal yang terpilih
         lot_size = sum(net_req[i:best_k+1])
         luc_rec[i] = lot_size
         if (i - lead_time) >= 0:
             luc_rel[i - lead_time] = lot_size
             
-        # Lompat ke periode setelah blok yang digabungkan tadi
         i = best_k + 1
 
     # Hitung inventory riil & biaya untuk LUC
@@ -183,12 +177,11 @@ if len(gross_req) > 0:
     total_cost_luc = total_luc_setup + total_luc_hold
 
     # ==========================================
-    # 5. DISPLAY 3 PILAR UTAMA (DASHBOARD OUTPUT)
+    # 5. DISPLAY DASHBOARD OUTPUT
     # ==========================================
     st.markdown("---")
     st.header("🏁 Hasil Komparasi Performa")
     
-    # PILAR 3: Dasbor Total Biaya (Cost Summary) via Metric Columns
     c1, c2, c3 = st.columns(3)
     with c1:
         st.metric(label="Total Biaya Lot-for-Lot (L4L)", 
@@ -204,7 +197,6 @@ if len(gross_req) > 0:
         efficiency = (cost_diff / total_cost_l4l) * 100 if total_cost_l4l > 0 else 0
         st.metric(label="Efisiensi Anggaran (LUC vs L4L)", value=f"{efficiency:.2f} %")
 
-    # Rekomendasi Pintar Operasional
     st.markdown(" ")
     if total_cost_luc < total_cost_l4l:
         st.success(f"💡 **Rekomendasi Sistem:** Struktur biaya Anda menunjukkan bahwa metode **Least Unit Cost (LUC)** lebih optimal dengan penghematan sebesar **Rp {cost_diff:,.0f}**.")
@@ -213,7 +205,6 @@ if len(gross_req) > 0:
     else:
         st.warning("💡 **Rekomendasi Sistem:** Kedua metode menghasilkan total biaya operasional yang sama persis.")
 
-    # Tampilan Detail Menggunakan Kombinasi Tabs
     tab1, tab2, tab3 = st.tabs(["📉 Grafik Tren Finansial", "📋 Metode Lot-for-Lot (L4L)", "🔍 Metode Least Unit Cost (LUC)"])
 
     with tab1:
@@ -251,7 +242,6 @@ if len(gross_req) > 0:
         st.dataframe(df_l4l_mrp, use_container_width=True)
 
     with tab3:
-        # PINTU TUNTUTAN USER: Tampilkan tabel iterasi LUC terlebih dahulu di dalam Expander
         st.subheader("Proses & Tabel Analisis MRP - Least Unit Cost")
         
         with st.expander("🔬 KLIK DI SINI UNTUK MELIHAT LOG ITERASI PERHITUNGAN DETAIL (LUC)"):
@@ -261,29 +251,28 @@ if len(gross_req) > 0:
                 st.dataframe(df_iter, hide_index=True, use_container_width=True)
                 st.markdown("---")
 
-        # Tabel Utama MRP LUC di bawah log iterasi
         st.markdown("### Hasil Akhir Tabel MRP (LUC)")
-df_luc_mrp = pd.DataFrame({
+        df_luc_mrp = pd.DataFrame({
             'Gross Requirements': gross_req,
-            'Projected On Hand': luc_on_hand,  # <--- Sudah diganti langsung ke variabelnya
+            'Projected On Hand': luc_on_hand,
             'Net Requirements': net_req,
             'Planned Order Receipts': luc_rec,
             'Planned Order Releases': luc_rel
         }, index=[f"P{i+1}" for i in range(num_periods)]).T
+        st.dataframe(df_luc_mrp, use_container_width=True)
 
-# --- FITUR DOWNLOAD REPORT ---
+    # --- FITUR DOWNLOAD REPORT ---
     st.markdown(" ")
     st.subheader("💾 Ekspor Hasil Perhitungan")
     
-    # Membuat file excel di memory ram untuk langsung di-download
     with pd.ExcelWriter("Hasil_MRP_Komparasi.xlsx", engine='openpyxl') as writer:
         df_l4l_mrp.to_excel(writer, sheet_name="Metode L4L")
         df_luc_mrp.to_excel(writer, sheet_name="Metode LUC")
         
     with open("Hasil_MRP_Komparasi.xlsx", "rb") as file:
-         st.download_button(
-             label="📥 Download Hasil Perhitungan Berformat Excel",
-             data=file,
-             file_name="Hasil_MRP_Komparasi.xlsx",
-             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-         )
+        st.download_button(
+            label="📥 Download Hasil Perhitungan Berformat Excel",
+            data=file,
+            file_name="Hasil_MRP_Komparasi.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
