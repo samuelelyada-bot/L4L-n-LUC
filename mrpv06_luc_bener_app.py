@@ -198,3 +198,95 @@ if len(gross_req) > 0:
     
     c1, c2, c3 = st.columns(3)
     with c1:
+        st.metric(label="Total Biaya Lot-for-Lot (L4L)", 
+                  value=f"Rp {total_cost_l4l:,.0f}", 
+                  delta="Metode Basis", delta_color="off")
+    with c2:
+        cost_diff = total_cost_l4l - total_cost_luc
+        delta_label = f"-Rp {cost_diff:,.0f} Lebih Hemat" if cost_diff >= 0 else f"+Rp {abs(cost_diff):,.0f} Lebih Mahal"
+        st.metric(label="Total Biaya Least Unit Cost (LUC)", 
+                  value=f"Rp {total_cost_luc:,.0f}", 
+                  delta=delta_label, delta_color="normal" if cost_diff >= 0 else "inverse")
+    with c3:
+        efficiency = (cost_diff / total_cost_l4l) * 100 if total_cost_l4l > 0 else 0
+        st.metric(label="Efisiensi Anggaran (LUC vs L4L)", value=f"{efficiency:.2f} %")
+
+    st.markdown(" ")
+    if total_cost_luc < total_cost_l4l:
+        st.success(f"💡 **Rekomendasi Sistem:** Struktur biaya Anda menunjukkan bahwa metode **Least Unit Cost (LUC)** lebih optimal dengan penghematan sebesar **Rp {cost_diff:,.0f}**.")
+    elif total_cost_luc > total_cost_l4l:
+        st.info(f"💡 **Rekomendasi Sistem:** Metode **Lot-for-Lot (L4L)** terbukti lebih ekonomis untuk pola *demand* ini sebesar **Rp {abs(cost_diff):,.0f}**.")
+    else:
+        st.warning("💡 **Rekomendasi Sistem:** Kedua metode menghasilkan total biaya operasional yang sama persis.")
+
+    tab1, tab2, tab3 = st.tabs(["📉 Grafik Tren Finansial", "📋 Metode Lot-for-Lot (L4L)", "🔍 Metode Least Unit Cost (LUC)"])
+
+    with tab1:
+        st.subheader("Perbandingan Akumulasi Struktur Biaya")
+        fig, ax = plt.subplots(figsize=(10, 4))
+        categories = ['Biaya Pesan (Setup)', 'Biaya Simpan (Holding)', 'Total Biaya']
+        
+        l4l_costs = [total_l4l_setup, total_l4l_hold, total_cost_l4l]
+        luc_costs = [total_luc_setup, total_luc_hold, total_cost_luc]
+        
+        x = np.arange(len(categories))
+        width = 0.35
+        
+        ax.bar(x - width/2, l4l_costs, width, label='L4L', color='#FF6B6B')
+        ax.bar(x + width/2, luc_costs, width, label='LUC', color='#4D96FF')
+        
+        ax.set_ylabel('Rupiah (Rp)')
+        ax.set_title('Komparasi Komponen Biaya Eksplisit')
+        ax.set_xticks(x)
+        ax.set_xticklabels(categories)
+        ax.legend()
+        ax.grid(axis='y', linestyle='--', alpha=0.5)
+        
+        st.pyplot(fig)
+
+    with tab2:
+        st.subheader("Tabel Hasil Analisis MRP - Lot-for-Lot")
+        df_l4l_mrp = pd.DataFrame({
+            'Gross Requirements': gross_req,
+            'Projected On Hand': l4l_on_hand,
+            'Net Requirements': net_req,
+            'Planned Order Receipts': l4l_rec,
+            'Planned Order Releases': l4l_rel
+        }, index=[f"P{i+1}" for i in range(num_periods)]).T
+        st.dataframe(df_l4l_mrp, use_container_width=True)
+
+    with tab3:
+        st.subheader("Proses & Tabel Analisis MRP - Least Unit Cost")
+        
+        with st.expander("🔬 KLIK DI SINI UNTUK MELIHAT LOG ITERASI PERHITUNGAN DETAIL (LUC)"):
+            st.markdown("Sistem melakukan perhitungan penambahan periode kumulatif untuk mencari ongkos per unit paling minimal:")
+            for idx, df_iter in enumerate(luc_iterations):
+                st.markdown(f"**Langkah Pembentukan Lot Ke-{idx+1}:**")
+                st.dataframe(df_iter, hide_index=True, use_container_width=True)
+                st.markdown("---")
+
+        st.markdown("### Hasil Akhir Tabel MRP (LUC)")
+        df_luc_mrp = pd.DataFrame({
+            'Gross Requirements': gross_req,
+            'Projected On Hand': luc_on_hand,
+            'Net Requirements': net_req,
+            'Planned Order Receipts': luc_rec,
+            'Planned Order Releases': luc_rel
+        }, index=[f"P{i+1}" for i in range(num_periods)]).T
+        st.dataframe(df_luc_mrp, use_container_width=True)
+
+    # --- FITUR DOWNLOAD REPORT ---
+    st.markdown(" ")
+    st.subheader("💾 Ekspor Hasil Perhitungan")
+    
+    with pd.ExcelWriter("Hasil_MRP_Komparasi.xlsx", engine='openpyxl') as writer:
+        df_l4l_mrp.to_excel(writer, sheet_name="Metode L4L")
+        df_luc_mrp.to_excel(writer, sheet_name="Metode LUC")
+        
+    with open("Hasil_MRP_Komparasi.xlsx", "rb") as file:
+        st.download_button(
+            label="📥 Download Hasil Perhitungan Berformat Excel",
+            data=file,
+            file_name="Hasil_MRP_Komparasi.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
