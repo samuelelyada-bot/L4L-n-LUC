@@ -22,7 +22,7 @@ initial_inv = st.sidebar.number_input("Persediaan Awal (Initial Inventory)", min
 safety_stock = st.sidebar.number_input("Safety Stock", min_value=0, value=1, step=1)
 lead_time = st.sidebar.number_input("Lead Time (Periode)", min_value=0, value=1, step=1)
 
-# FITUR IMPROVEMENT 2: Constraint Kapasitas Gudang
+# FITUR IMPROVEMENT: Constraint Kapasitas Gudang
 st.sidebar.markdown("---")
 st.sidebar.header("🏬 Batasan Operasional")
 max_capacity = st.sidebar.number_input("Kapasitas Maksimum Gudang (Unit)", min_value=1, value=100, step=10)
@@ -76,7 +76,7 @@ else:
     gross_req = df_input['gr'].tolist()
 
 # ==========================================
-# FUNCTION UNTUK PERHITUNGAN MRP (FIX LOGIKA POREL)
+# FUNCTION UNTUK PERHITUNGAN MRP (CORE ENGINE)
 # ==========================================
 def calculate_mrp(demands, setup, hold, init_inv, ss, lt):
     n = len(demands)
@@ -85,7 +85,7 @@ def calculate_mrp(demands, setup, hold, init_inv, ss, lt):
     l4l_net = []
     l4l_poh = []
     l4l_rec = []
-    l4l_rel = [0] * n # Diinisialisasi dengan angka 0 di setiap periode
+    l4l_rel = [0] * n
     
     prev_inv = init_inv
     for i in range(n):
@@ -101,14 +101,14 @@ def calculate_mrp(demands, setup, hold, init_inv, ss, lt):
         l4l_poh.append(curr_poh)
         prev_inv = curr_poh
         
-    # FIX LOGIKA KUMULATIF POREL L4L
+    # Logika Kumulatif PORel L4L di P1
     for i in range(n):
         if l4l_rec[i] > 0:
             target = i - lt
             if target >= 0:
-                l4l_rel[target] += l4l_rec[i] # Ditambah secara akumulatif, bukan ditimpa
+                l4l_rel[target] += l4l_rec[i]
             else:
-                l4l_rel[0] += l4l_rec[i]      # Jika bergeser <= Periode 1, akumulasikan total di P1 (index 0)
+                l4l_rel[0] += l4l_rec[i]
                 
     c_l4l_setup = sum(1 for x in l4l_rec if x > 0) * setup
     c_l4l_hold = sum(l4l_poh) * hold
@@ -126,7 +126,7 @@ def calculate_mrp(demands, setup, hold, init_inv, ss, lt):
             prev_inv = prev_inv - demands[i]
             
     luc_rec = [0] * n
-    luc_rel = [0] * n # Diinisialisasi dengan angka 0 di setiap periode
+    luc_rel = [0] * n
     luc_iters = []
     
     idx = 0
@@ -161,14 +161,14 @@ def calculate_mrp(demands, setup, hold, init_inv, ss, lt):
         luc_rec[idx] = lot_size
         idx = best_k + 1
         
-    # FIX LOGIKA KUMULATIF POREL LUC
+    # Logika Kumulatif PORel LUC di P1
     for i in range(n):
         if luc_rec[i] > 0:
             target = i - lt
             if target >= 0:
-                luc_rel[target] += luc_rec[i] # Ditambah secara akumulatif, bukan ditimpa
+                luc_rel[target] += luc_rec[i]
             else:
-                luc_rel[0] += luc_rec[i]      # Jika bergeser <= Periode 1, akumulasikan total di P1 (index 0)
+                luc_rel[0] += luc_rec[i]
         
     luc_poh = []
     r_inv_luc = init_inv
@@ -185,36 +185,73 @@ def calculate_mrp(demands, setup, hold, init_inv, ss, lt):
     }
 
 # ==========================================
-# 4. EKSEKUSI ALGORITMA UTAMA
+# 4. EKSEKUSI JALANNYA PROGRAM
 # ==========================================
 if len(gross_req) > 0:
     res = calculate_mrp(gross_req, setup_cost, holding_cost, initial_inv, safety_stock, lead_time)
     num_periods = len(gross_req)
 
     # ==========================================
-    # 5. DISPLAY DASHBOARD OUTPUT
+    # 5. DISPLAY DASHBOARD OUTPUT (KOMPARASI DUA ARAH)
     # ==========================================
     st.markdown("---")
     st.header("🏁 Hasil Komparasi Performa")
     
+    cost_diff = res['l4l']['total'] - res['luc']['total']
+    abs_diff = abs(cost_diff)
+    
+    if cost_diff > 0:
+        # Kasus: LUC Lebih Hemat (Maka L4L Lebih Boros)
+        l4l_delta_text = f"Rp {abs_diff:,.0f} Lebih Boros"
+        luc_delta_text = f"Rp {abs_diff:,.0f} Lebih Hemat"
+        l4l_arrow = "normal"   # Positif normal = Merah (karena boros)
+        luc_arrow = "inverse"  # Negatif inverse = Hijau (karena hemat)
+        
+    elif cost_diff < 0:
+        # Kasus: L4L Lebih Hemat (Maka LUC Lebih Boros)
+        l4l_delta_text = f"Rp {abs_diff:,.0f} Lebih Hemat"
+        luc_delta_text = f"Rp {abs_diff:,.0f} Lebih Boros"
+        l4l_arrow = "inverse"  
+        luc_arrow = "normal"   
+    else:
+        # Kasus: Biaya Sama Saja
+        l4l_delta_text = "Biaya Setara"
+        luc_delta_text = "Biaya Setara"
+        l4l_arrow = "off"
+        luc_arrow = "off"
+
     c1, c2, c3 = st.columns(3)
     with c1:
-        st.metric(label="Total Biaya Lot-for-Lot (L4L)", value=f"Rp {res['l4l']['total']:,.0f}", delta="Metode Basis", delta_color="off")
+        st.metric(
+            label="Total Biaya Lot-for-Lot (L4L)", 
+            value=f"Rp {res['l4l']['total']:,.0f}", 
+            delta=l4l_delta_text if l4l_arrow != "off" else None, 
+            delta_color=l4l_arrow
+        )
     with c2:
-        cost_diff = res['l4l']['total'] - res['luc']['total']
-        delta_label = f"-Rp {cost_diff:,.0f} Lebih Hemat" if cost_diff >= 0 else f"+Rp {abs(cost_diff):,.0f} Lebih Mahal"
-        st.metric(label="Total Biaya Least Unit Cost (LUC)", value=f"Rp {res['luc']['total']:,.0f}", delta=delta_label, delta_color="inverse" if cost_diff >= 0 else "normal")
+        st.metric(
+            label="Total Biaya Least Unit Cost (LUC)", 
+            value=f"Rp {res['luc']['total']:,.0f}", 
+            delta=luc_delta_text if luc_arrow != "off" else None, 
+            delta_color=luc_arrow
+        )
     with c3:
-        efficiency = (cost_diff / res['l4l']['total']) * 100 if res['l4l']['total'] > 0 else 0
-        st.metric(label="Efisiensi Anggaran (LUC vs L4L)", value=f"{efficiency:.2f} %")
+        efficiency = (abs_diff / max(res['l4l']['total'], 1)) * 100
+        pemenang = "LUC" if cost_diff > 0 else "L4L"
+        st.metric(
+            label=f"Efisiensi Anggaran ({pemenang})", 
+            value=f"{efficiency:.2f} %",
+            delta="Optimalisasi Biaya" if cost_diff != 0 else "Seimbang",
+            delta_color="off"
+        )
 
     st.markdown(" ")
-    if res['luc']['total'] < res['l4l']['total']:
-        st.success(f"💡 **Rekomendasi Sistem:** Struktur biaya menunjukkan metode **Least Unit Cost (LUC)** lebih optimal dengan penghematan **Rp {cost_diff:,.0f}**.")
-    elif res['luc']['total'] > res['l4l']['total']:
-        st.info(f"💡 **Rekomendasi Sistem:** Metode **Lot-for-Lot (L4L)** lebih ekonomis sebesar **Rp {abs(cost_diff):,.0f}**.")
+    if cost_diff > 0:
+        st.success(f"💡 **Rekomendasi Sistem:** Struktur biaya menunjukkan metode **Least Unit Cost (LUC)** lebih optimal dengan penghematan **Rp {abs_diff:,.0f}** dibanding L4L.")
+    elif cost_diff < 0:
+        st.info(f"💡 **Rekomendasi Sistem:** Metode **Lot-for-Lot (L4L)** justru lebih ekonomis sebesar **Rp {abs_diff:,.0f}** dibanding LUC.")
     else:
-        st.warning("💡 **Rekomendasi Sistem:** Kedua metode menghasilkan biaya yang setara.")
+        st.warning("💡 **Rekomendasi Sistem:** Kedua metode menghasilkan struktur biaya yang sama persis.")
 
     tab1, tab2, tab3 = st.tabs(["📉 Analisis Finansial & Sensitivitas", "📋 Metode Lot-for-Lot (L4L)", "🔍 Metode Least Unit Cost (LUC)"])
 
@@ -263,7 +300,7 @@ if len(gross_req) > 0:
             plt.xticks(rotation=45)
             st.pyplot(fig2)
 
-    # --- FUNGSI WARNA HORIZONTAL ---
+    # --- FUNGSI WARNA HORIZONTAL ANTI-ERROR ---
     def get_styled_mrp_table(df_mrp_transposed):
         def highlight_row_capacity(row):
             if row.name == 'Projected On Hand':
