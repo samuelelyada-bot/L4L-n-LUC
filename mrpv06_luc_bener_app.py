@@ -271,7 +271,7 @@ df_luc_mrp = pd.DataFrame({
             'Planned Order Releases': luc_rel
         }, index=[f"P{i+1}" for i in range(num_periods)]).T
 
-    # --- FITUR DOWNLOAD REPORT ---
+# --- FITUR DOWNLOAD REPORT ---
     st.markdown(" ")
     st.subheader("💾 Ekspor Hasil Perhitungan")
     
