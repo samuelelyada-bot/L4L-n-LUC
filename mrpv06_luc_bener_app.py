@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 # ==========================================
 st.set_page_config(page_title="MRP Calculator - L4L vs LUC", layout="wide")
 st.title("📦 Aplikasi Perencanaan Kebutuhan Material (MRP)")
-st.caption("Pendekatan Metode Lot-for-Lot (L4L) dan Least Unit Cost (LUC) - Versi Sempurna")
+st.caption("Pendekatan Metode Lot-for-Lot (L4L) dan Least Unit Cost (LUC) - Edisi Decision Support System")
 st.markdown("---")
 
 # ==========================================
@@ -21,6 +21,11 @@ holding_cost = st.sidebar.number_input("Holding Cost (Rp / unit / periode)", min
 initial_inv = st.sidebar.number_input("Persediaan Awal (Initial Inventory)", min_value=0, value=0, step=5)
 safety_stock = st.sidebar.number_input("Safety Stock", min_value=0, value=1, step=1)
 lead_time = st.sidebar.number_input("Lead Time (Periode)", min_value=0, value=1, step=1)
+
+# FITUR IMPROVEMENT 2: Constraint Kapasitas Gudang
+st.sidebar.markdown("---")
+st.sidebar.header("🏬 Batasan Operasional")
+max_capacity = st.sidebar.number_input("Kapasitas Maksimum Gudang (Unit)", min_value=1, value=100, step=10)
 
 # ==========================================
 # 3. AREA DATA INPUT (MANUAL ATAU UPLOAD)
@@ -71,195 +76,213 @@ else:
     gross_req = df_input['gr'].tolist()
 
 # ==========================================
-# 4. LOGIKA & ALGORITMA MRP (FIXED TOTAL)
+# FUNCTION UNTUK PERHITUNGAN MRP (REUSABLE FOR SENSITIVITY)
 # ==========================================
-if len(gross_req) > 0:
-    num_periods = len(gross_req)
+def calculate_mrp(demands, setup, hold, init_inv, ss, lt):
+    n = len(demands)
     
-    # ------------------------------------------
-    # PERHITUNGAN 1: METODE LOT-FOR-LOT (L4L)
-    # ------------------------------------------
-    l4l_net_req = []
-    l4l_on_hand = []
+    # 1. Lot-for-Lot
+    l4l_net = []
+    l4l_poh = []
     l4l_rec = []
-    l4l_rel = [0] * num_periods
+    l4l_rel = [0] * n
     
-    prev_inv = initial_inv
-    for i in range(num_periods):
-        net_val = gross_req[i] + safety_stock - prev_inv
-        
+    prev_inv = init_inv
+    for i in range(n):
+        net_val = demands[i] + ss - prev_inv
         if net_val > 0:
-            l4l_net_req.append(net_val)
-            l4l_rec.append(net_val) 
-            current_on_hand = prev_inv + net_val - gross_req[i]
+            l4l_net.append(net_val)
+            l4l_rec.append(net_val)
+            curr_poh = prev_inv + net_val - demands[i]
         else:
-            l4l_net_req.append(0)
+            l4l_net.append(0)
             l4l_rec.append(0)
-            current_on_hand = prev_inv - gross_req[i]
-            
-        l4l_on_hand.append(current_on_hand)
-        prev_inv = current_on_hand
-
-    # Pemetaan PORel L4L (Logika Fleksibel Sam: Geser vs Kumulatif P1)
-    for i in range(num_periods):
+            curr_poh = prev_inv - demands[i]
+        l4l_poh.append(curr_poh)
+        prev_inv = curr_poh
+        
+    for i in range(n):
         if l4l_rec[i] > 0:
-            target_period = i - lead_time
-            if target_period >= 0:
-                # Kondisi Normal: Geser biasa ke periode tujuan
-                l4l_rel[target_period] = l4l_rec[i]
+            target = i - lt
+            if target >= 0:
+                l4l_rel[target] = l4l_rec[i]
             else:
-                # Kondisi Mentok: Akumulasikan secara kumulatif di Periode 1 (Index 0)
                 l4l_rel[0] += l4l_rec[i]
-
-    # Hitung Biaya L4L
-    total_l4l_setup = sum(1 for x in l4l_rec if x > 0) * setup_cost
-    total_l4l_hold = sum(l4l_on_hand) * holding_cost
-    total_cost_l4l = total_l4l_setup + total_l4l_hold
-
-    # ------------------------------------------
-    # PERHITUNGAN 2: METODE LEAST UNIT COST (LUC)
-    # ------------------------------------------
-    luc_net_req = []
-    
-    prev_inv = initial_inv
-    for i in range(num_periods):
-        net_val = gross_req[i] + safety_stock - prev_inv
-        if net_val > 0:
-            luc_net_req.append(net_val)
-            prev_inv = safety_stock
-        else:
-            luc_net_req.append(0)
-            prev_inv = prev_inv - gross_req[i]
-
-    luc_rec = [0] * num_periods
-    luc_rel = [0] * num_periods
-    luc_iterations = []
-    
-    i = 0
-    while i < num_periods:
-        if luc_net_req[i] == 0:
-            i += 1
-            continue
-            
-        best_k = i
-        min_unit_cost = float('inf')
-        accum_demand = 0
-        accum_holding = 0
-        
-        temp_iter_log = []
-        
-        for k in range(i, num_periods):
-            accum_demand += luc_net_req[k]
-            accum_holding += luc_net_req[k] * holding_cost * (k - i)
-            total_temp_cost = setup_cost + accum_holding
-            
-            if accum_demand > 0:
-                unit_cost = total_temp_cost / accum_demand
-            else:
-                unit_cost = float('inf')
                 
+    c_l4l_setup = sum(1 for x in l4l_rec if x > 0) * setup
+    c_l4l_hold = sum(l4l_poh) * hold
+    
+    # 2. Least Unit Cost
+    luc_net = []
+    prev_inv = init_inv
+    for i in range(n):
+        net_val = demands[i] + ss - prev_inv
+        if net_val > 0:
+            luc_net.append(net_val)
+            prev_inv = ss
+        else:
+            luc_net.append(0)
+            prev_inv = prev_inv - demands[i]
+            
+    luc_rec = [0] * n
+    luc_rel = [0] * n
+    luc_iters = []
+    
+    idx = 0
+    while idx < n:
+        if luc_net[idx] == 0:
+            idx += 1
+            continue
+        best_k = idx
+        min_uc = float('inf')
+        acc_d = 0
+        acc_h = 0
+        t_log = []
+        
+        for k in range(idx, n):
+            acc_d += luc_net[k]
+            acc_h += luc_net[k] * hold * (k - idx)
+            t_cost = setup + acc_h
+            uc = t_cost / acc_d if acc_d > 0 else float('inf')
+            
             status = "Lanjut"
-            if unit_cost <= min_unit_cost:
-                min_unit_cost = unit_cost
+            if uc <= min_uc:
+                min_uc = uc
                 best_k = k
                 status = "Terpilih (Min)"
-                temp_iter_log.append({
-                    'Iterasi Dari': f"P{i+1}", 'Hingga': f"P{k+1}", 'Total Unit': accum_demand,
-                    'Biaya Pesan': setup_cost, 'Biaya Simpan': accum_holding, 
-                    'Total Biaya': total_temp_cost, 'LUC (Cost/Unit)': round(unit_cost, 2), 'Status': status
-                })
+                t_log.append({'Iterasi Dari': f"P{idx+1}", 'Hingga': f"P{k+1}", 'Total Unit': acc_d, 'Biaya Pesan': setup, 'Biaya Simpan': acc_h, 'Total Biaya': t_cost, 'LUC (Cost/Unit)': round(uc, 2), 'Status': status})
             else:
                 status = "Stop! Biaya Naik"
-                temp_iter_log.append({
-                    'Iterasi Dari': f"P{i+1}", 'Hingga': f"P{k+1}", 'Total Unit': accum_demand,
-                    'Biaya Pesan': setup_cost, 'Biaya Simpan': accum_holding, 
-                    'Total Biaya': total_temp_cost, 'LUC (Cost/Unit)': round(unit_cost, 2), 'Status': status
-                })
+                t_log.append({'Iterasi Dari': f"P{idx+1}", 'Hingga': f"P{k+1}", 'Total Unit': acc_d, 'Biaya Pesan': setup, 'Biaya Simpan': acc_h, 'Total Biaya': t_cost, 'LUC (Cost/Unit)': round(uc, 2), 'Status': status})
                 break
-            
-        luc_iterations.append(pd.DataFrame(temp_iter_log))
+        luc_iters.append(pd.DataFrame(t_log))
+        lot_size = sum(luc_net[idx:best_k+1])
+        luc_rec[idx] = lot_size
         
-        lot_size = sum(luc_net_req[i:best_k+1])
-        luc_rec[i] = lot_size
-        
-        # Pemetaan PORel LUC (Logika Fleksibel Sam: Geser vs Kumulatif P1)
-        target_period = i - lead_time
-        if target_period >= 0:
-            # Kondisi Normal: Geser biasa ke periode tujuan
-            luc_rel[target_period] = lot_size
+        target = idx - lt
+        if target >= 0:
+            luc_rel[target] = lot_size
         else:
-            # Kondisi Mentok: Akumulasikan secara kumulatif di Periode 1 (Index 0)
             luc_rel[0] += lot_size
-            
-        i = best_k + 1
-
-    # Hitung ulang Real On Hand & Biaya Nyata untuk LUC setelah lotting terbentuk
-    luc_on_hand = []
-    real_inv_luc = initial_inv
-    for i in range(num_periods):
-        real_inv_luc += luc_rec[i] - gross_req[i]
-        luc_on_hand.append(real_inv_luc)
+        idx = best_k + 1
         
-    total_luc_setup = sum(1 for x in luc_rec if x > 0) * setup_cost
-    total_luc_hold = sum(luc_on_hand) * holding_cost
-    total_cost_luc = total_luc_setup + total_luc_hold
+    luc_poh = []
+    r_inv_luc = init_inv
+    for i in range(n):
+        r_inv_luc += luc_rec[i] - demands[i]
+        luc_poh.append(r_inv_luc)
+        
+    c_luc_setup = sum(1 for x in luc_rec if x > 0) * setup
+    c_luc_hold = sum(luc_poh) * hold
+    
+    return {
+        'l4l': {'net': l4l_net, 'poh': l4l_poh, 'rec': l4l_rec, 'rel': l4l_rel, 'setup': c_l4l_setup, 'hold': c_l4l_hold, 'total': c_l4l_setup + c_l4l_hold},
+        'luc': {'net': luc_net, 'poh': luc_poh, 'rec': luc_rec, 'rel': luc_rel, 'setup': c_luc_setup, 'hold': c_luc_hold, 'total': c_luc_setup + c_luc_hold, 'iters': luc_iters}
+    }
 
 # ==========================================
-# 5. DISPLAY DASHBOARD OUTPUT
+# 4. EKSEKUSI ALGORITMA UTAMA
 # ==========================================
-st.markdown("---")
-st.header("🏁 Hasil Komparasi Performa")
-
 if len(gross_req) > 0:
+    res = calculate_mrp(gross_req, setup_cost, holding_cost, initial_inv, safety_stock, lead_time)
+    num_periods = len(gross_req)
+
+    # ==========================================
+    # 5. DISPLAY DASHBOARD OUTPUT
+    # ==========================================
+    st.markdown("---")
+    st.header("🏁 Hasil Komparasi Performa")
+    
     c1, c2, c3 = st.columns(3)
     with c1:
-        st.metric(label="Total Biaya Lot-for-Lot (L4L)", value=f"Rp {total_cost_l4l:,.0f}", delta="Metode Basis", delta_color="off")
+        st.metric(label="Total Biaya Lot-for-Lot (L4L)", value=f"Rp {res['l4l']['total']:,.0f}", delta="Metode Basis", delta_color="off")
     with c2:
-        cost_diff = total_cost_l4l - total_cost_luc
+        cost_diff = res['l4l']['total'] - res['luc']['total']
         delta_label = f"-Rp {cost_diff:,.0f} Lebih Hemat" if cost_diff >= 0 else f"+Rp {abs(cost_diff):,.0f} Lebih Mahal"
-        st.metric(label="Total Biaya Least Unit Cost (LUC)", value=f"Rp {total_cost_luc:,.0f}", delta=delta_label, delta_color="normal" if cost_diff >= 0 else "inverse")
+        st.metric(label="Total Biaya Least Unit Cost (LUC)", value=f"Rp {res['luc']['total']:,.0f}", delta=delta_label, delta_color="normal" if cost_diff >= 0 else "inverse")
     with c3:
-        efficiency = (cost_diff / total_cost_l4l) * 100 if total_cost_l4l > 0 else 0
+        efficiency = (cost_diff / res['l4l']['total']) * 100 if res['l4l']['total'] > 0 else 0
         st.metric(label="Efisiensi Anggaran (LUC vs L4L)", value=f"{efficiency:.2f} %")
 
     st.markdown(" ")
-    if total_cost_luc < total_cost_l4l:
+    if res['luc']['total'] < res['l4l']['total']:
         st.success(f"💡 **Rekomendasi Sistem:** Struktur biaya menunjukkan metode **Least Unit Cost (LUC)** lebih optimal dengan penghematan **Rp {cost_diff:,.0f}**.")
-    elif total_cost_luc > total_cost_l4l:
+    elif res['luc']['total'] > res['l4l']['total']:
         st.info(f"💡 **Rekomendasi Sistem:** Metode **Lot-for-Lot (L4L)** lebih ekonomis sebesar **Rp {abs(cost_diff):,.0f}**.")
     else:
         st.warning("💡 **Rekomendasi Sistem:** Kedua metode menghasilkan biaya yang setara.")
 
-    tab1, tab2, tab3 = st.tabs(["📉 Grafik Tren Finansial", "📋 Metode Lot-for-Lot (L4L)", "🔍 Metode Least Unit Cost (LUC)"])
+    tab1, tab2, tab3 = st.tabs(["📉 Analisis Finansial & Sensitivitas", "📋 Metode Lot-for-Lot (L4L)", "🔍 Metode Least Unit Cost (LUC)"])
 
     with tab1:
-        st.subheader("Perbandingan Akumulasi Struktur Biaya")
-        fig, ax = plt.subplots(figsize=(10, 4))
-        categories = ['Biaya Pesan (Setup)', 'Biaya Simpan (Holding)', 'Total Biaya']
-        l4l_costs = [total_l4l_setup, total_l4l_hold, total_cost_l4l]
-        luc_costs = [total_luc_setup, total_luc_hold, total_cost_luc]
+        col_g1, col_g2 = st.columns(2)
         
-        x = np.arange(len(categories))
-        width = 0.35
-        ax.bar(x - width/2, l4l_costs, width, label='L4L', color='#FF6B6B')
-        ax.bar(x + width/2, luc_costs, width, label='LUC', color='#4D96FF')
-        ax.set_ylabel('Rupiah (Rp)')
-        ax.set_xticks(x)
-        ax.set_xticklabels(categories)
-        ax.legend()
-        ax.grid(axis='y', linestyle='--', alpha=0.5)
-        st.pyplot(fig)
+        with col_g1:
+            st.markdown("### Perbandingan Komponen Biaya")
+            fig, ax = plt.subplots(figsize=(6, 4))
+            categories = ['Biaya Pesan', 'Biaya Simpan', 'Total Biaya']
+            l4l_costs = [res['l4l']['setup'], res['l4l']['hold'], res['l4l']['total']]
+            luc_costs = [res['luc']['setup'], res['luc']['hold'], res['luc']['total']]
+            
+            x = np.arange(len(categories))
+            width = 0.35
+            ax.bar(x - width/2, l4l_costs, width, label='L4L', color='#FF6B6B')
+            ax.bar(x + width/2, luc_costs, width, label='LUC', color='#4D96FF')
+            ax.set_ylabel('Rupiah (Rp)')
+            ax.set_xticks(x)
+            ax.set_xticklabels(categories)
+            ax.legend()
+            ax.grid(axis='y', linestyle='--', alpha=0.5)
+            st.pyplot(fig)
+            
+        with col_g2:
+            # FITUR IMPROVEMENT 1: Analisis Sensitivitas Dinamis (What-If)
+            st.markdown("### Grafik Analisis Sensitivitas (Perubahan Demand)")
+            scale_factors = np.arange(0.7, 1.35, 0.05) # Simulasi demand -30% sampai +30%
+            l4l_sens = []
+            luc_sens = []
+            percentages = []
+            
+            for f in scale_factors:
+                sim_demand = [max(1, int(d * f)) for d in gross_req]
+                sim_res = calculate_mrp(sim_demand, setup_cost, holding_cost, initial_inv, safety_stock, lead_time)
+                l4l_sens.append(sim_res['l4l']['total'])
+                luc_sens.append(sim_res['luc']['total'])
+                percentages.append(f"{int((f-1)*100):+d}%")
+                
+            fig2, ax2 = plt.subplots(figsize=(6, 4))
+            ax2.plot(percentages, l4l_sens, marker='o', label='Total Cost L4L', color='#FF6B6B', linewidth=2)
+            ax2.plot(percentages, luc_sens, marker='s', label='Total Cost LUC', color='#4D96FF', linewidth=2)
+            ax2.set_ylabel('Total Biaya (Rp)')
+            ax2.set_xlabel('Fluktuasi Kebutuhan Kotor (Gross Demand)')
+            ax2.grid(True, linestyle=':', alpha=0.6)
+            ax2.legend()
+            plt.xticks(rotation=45)
+            st.pyplot(fig2)
+
+    # Fungsi pewarnaan tabel untuk mendeteksi Overcapacity Gudang & Stop Log
+    def style_mrp_table(df):
+        def color_poh(val):
+            # Jika nilai Projected On Hand melebihi kapasitas maksimum gudang
+            return 'background-color: #ffe6cc; color: #cc6600; font-weight: bold;' if val > max_capacity else ''
+        return df.style.applymap(color_poh, subset=['Projected On Hand'])
 
     with tab2:
         st.subheader("Tabel Hasil Analisis MRP - Lot-for-Lot")
         df_l4l_mrp = pd.DataFrame({
             'Gross Requirements': gross_req,
-            'Projected On Hand': l4l_on_hand,
-            'Net Requirements': l4l_net_req,
-            'Planned Order Receipts': l4l_rec,
-            'Planned Order Releases': l4l_rel
+            'Projected On Hand': res['l4l']['poh'],
+            'Net Requirements': res['l4l']['net'],
+            'Planned Order Receipts': res['l4l']['rec'],
+            'Planned Order Releases': res['l4l']['rel']
         }, index=[f"P{i+1}" for i in range(num_periods)]).T
-        st.dataframe(df_l4l_mrp, use_container_width=True)
+        
+        # Tampilkan tabel dengan highlight kapasitas gudang
+        st.dataframe(style_mrp_table(df_l4l_mrp), use_container_width=True)
+        
+        # Cek Alert Overcapacity
+        if max(res['l4l']['poh']) > max_capacity:
+            st.warning(f"⚠️ **Peringatan Kapasitas:** Persediaan pada metode L4L melebihi kapasitas maksimum gudang ({max_capacity} Unit) di beberapa periode (Ditandai warna Orange).")
 
     with tab3:
         st.subheader("Proses & Tabel Analisis MRP - Least Unit Cost")
@@ -270,7 +293,7 @@ if len(gross_req) > 0:
             def highlight_stop(row):
                 return ['background-color: #ffcccc; color: black' if row['Status'] == 'Stop! Biaya Naik' else '' for _ in row]
 
-            for idx, df_iter in enumerate(luc_iterations):
+            for idx, df_iter in enumerate(res['luc']['iters']):
                 st.markdown(f"**Langkah Pembentukan Lot Ke-{idx+1}:**")
                 styled_df = df_iter.style.apply(highlight_stop, axis=1)
                 st.dataframe(styled_df, hide_index=True, use_container_width=True)
@@ -279,12 +302,18 @@ if len(gross_req) > 0:
         st.markdown("### Hasil Akhir Tabel MRP (LUC)")
         df_luc_mrp = pd.DataFrame({
             'Gross Requirements': gross_req,
-            'Projected On Hand': luc_on_hand,
-            'Net Requirements': luc_net_req,
-            'Planned Order Receipts': luc_rec,
-            'Planned Order Releases': luc_rel
+            'Projected On Hand': res['luc']['poh'],
+            'Net Requirements': res['luc']['net'],
+            'Planned Order Receipts': res['luc']['rec'],
+            'Planned Order Releases': res['luc']['rel']
         }, index=[f"P{i+1}" for i in range(num_periods)]).T
-        st.dataframe(df_luc_mrp, use_container_width=True)
+        
+        # Tampilkan tabel dengan highlight kapasitas gudang
+        st.dataframe(style_mrp_table(df_luc_mrp), use_container_width=True)
+        
+        # Cek Alert Overcapacity
+        if max(res['luc']['poh']) > max_capacity:
+            st.error(f"⚠️ **Peringatan Kapasitas Kritis:** Metode LUC mengakumulasikan lot pesanan hingga melampaui daya tampung maksimum gudang ({max_capacity} Unit). Anda mungkin memerlukan ruang tambahan atau memperkecil parameter lotting.")
 
     # --- FITUR DOWNLOAD REPORT ---
     st.markdown(" ")
