@@ -263,14 +263,13 @@ if len(gross_req) > 0:
 
         # Tabel Utama MRP LUC di bawah log iterasi
         st.markdown("### Hasil Akhir Tabel MRP (LUC)")
-        df_luc_mrp = pd.DataFrame({
+df_luc_mrp = pd.DataFrame({
             'Gross Requirements': gross_req,
-            'Projected On Hand': luc_luc_on_hand := luc_on_hand,
+            'Projected On Hand': luc_on_hand,  # <--- Sudah diganti langsung ke variabelnya
             'Net Requirements': net_req,
             'Planned Order Receipts': luc_rec,
             'Planned Order Releases': luc_rel
         }, index=[f"P{i+1}" for i in range(num_periods)]).T
-        st.dataframe(df_luc_mrp, use_container_width=True)
 
     # --- FITUR DOWNLOAD REPORT ---
     st.markdown(" ")
