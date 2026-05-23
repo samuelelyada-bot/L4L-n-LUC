@@ -259,33 +259,28 @@ if len(gross_req) > 0:
             plt.xticks(rotation=45)
             st.pyplot(fig2)
 
-    # --- FUNGSI FIX: Warnai dulu saat masih jadi kolom biasa, baru di-transpose (.T) ---
-    def get_styled_mrp_styler(df_normal):
-        def color_poh(val):
-            return 'background-color: #ffe6cc; color: #cc6600; font-weight: bold;' if val > max_capacity else ''
-        
-        # Berikan style ke kolom 'Projected On Hand' saat posisi df masih vertikal (normal)
-        if hasattr(df_normal.style, 'map'):
-            styler = df_normal.style.map(color_poh, subset=['Projected On Hand'])
-        else:
-            styler = df_normal.style.applymap(color_poh, subset=['Projected On Hand'])
-        
-        # Setelah diberi warna, baru kita balik formatnya ke samping (.T) agar sesuai selera user
-        return styler.transpose()
+    # --- FUNGSI FIX TOTAL ANTI-EROR: Warnai baris secara horizontal di DataFrame Transpose ---
+    def get_styled_mrp_table(df_mrp_transposed):
+        def highlight_row_capacity(row):
+            # Jika baris ini adalah 'Projected On Hand', lakukan pengecekan per nilai kriteria kapasitas
+            if row.name == 'Projected On Hand':
+                return ['background-color: #ffe6cc; color: #cc6600; font-weight: bold;' if val > max_capacity else '' for val in row]
+            return [''] * len(row)
+            
+        return df_mrp_transposed.style.apply(highlight_row_capacity, axis=1)
 
     with tab2:
         st.subheader("Tabel Hasil Analisis MRP - Lot-for-Lot")
-        # Kita buat dataframe posisi vertikal (normal) dulu untuk diproses pewarnaan
-        df_l4l_normal = pd.DataFrame({
+        df_l4l_mrp = pd.DataFrame({
             'Gross Requirements': gross_req,
             'Projected On Hand': res['l4l']['poh'],
             'Net Requirements': res['l4l']['net'],
             'Planned Order Receipts': res['l4l']['rec'],
             'Planned Order Releases': res['l4l']['rel']
-        }, index=[f"P{i+1}" for i in range(num_periods)])
+        }, index=[f"P{i+1}" for i in range(num_periods)]).T # Transpose langsung jadi tabel horizontal
         
-        # Panggil fungsi warna (otomatis di-transpose di dalam fungsi)
-        st.dataframe(get_styled_mrp_styler(df_l4l_normal), use_container_width=True)
+        # Kirim dataframe horizontal ke fungsi style horizontal
+        st.dataframe(get_styled_mrp_table(df_l4l_mrp), use_container_width=True)
         
         if max(res['l4l']['poh']) > max_capacity:
             st.warning(f"⚠️ **Peringatan Kapasitas:** Persediaan pada metode L4L melebihi kapasitas maksimum gudang ({max_capacity} Unit) di beberapa periode (Ditandai warna Orange).")
@@ -306,28 +301,27 @@ if len(gross_req) > 0:
                 st.markdown("---")
 
         st.markdown("### Hasil Akhir Tabel MRP (LUC)")
-        # Buat dataframe posisi vertikal (normal) dulu
-        df_luc_normal = pd.DataFrame({
+        df_luc_mrp = pd.DataFrame({
             'Gross Requirements': gross_req,
             'Projected On Hand': res['luc']['poh'],
             'Net Requirements': res['luc']['net'],
             'Planned Order Receipts': res['luc']['rec'],
             'Planned Order Releases': res['luc']['rel']
-        }, index=[f"P{i+1}" for i in range(num_periods)])
+        }, index=[f"P{i+1}" for i in range(num_periods)]).T # Transpose langsung jadi tabel horizontal
         
-        # Panggil fungsi warna (otomatis di-transpose di dalam fungsi)
-        st.dataframe(get_styled_mrp_styler(df_luc_normal), use_container_width=True)
+        # Kirim dataframe horizontal ke fungsi style horizontal
+        st.dataframe(get_styled_mrp_table(df_luc_mrp), use_container_width=True)
         
         if max(res['luc']['poh']) > max_capacity:
             st.error(f"⚠️ **Peringatan Kapasitas Kritis:** Metode LUC mengakumulasikan lot pesanan hingga melampaui daya tampung maksimum gudang ({max_capacity} Unit). Anda mungkin memerlukan ruang tambahan atau memperkecil parameter lotting.")
 
-    # --- FITUR DOWNLOAD REPORT (Tetap di-transpose biar file Excel rapi ke samping) ---
+    # --- FITUR DOWNLOAD REPORT ---
     st.markdown(" ")
     st.subheader("💾 Ekspor Hasil Perhitungan")
     
     with pd.ExcelWriter("Hasil_MRP_Komparasi.xlsx", engine='openpyxl') as writer:
-        df_l4l_normal.T.to_excel(writer, sheet_name="Metode L4L")
-        df_luc_normal.T.to_excel(writer, sheet_name="Metode LUC")
+        df_l4l_mrp.to_excel(writer, sheet_name="Metode L4L")
+        df_luc_mrp.to_excel(writer, sheet_name="Metode LUC")
         
     with open("Hasil_MRP_Komparasi.xlsx", "rb") as file:
         st.download_button(
