@@ -327,9 +327,11 @@ if df_kerja is not None and not df_kerja.empty:
             ax.grid(axis='y', linestyle='--', alpha=0.5)
             st.pyplot(fig)
             
-        with col_g2:
+with col_g2:
             st.markdown("### Grafik Analisis Sensitivitas (Perubahan Demand)")
-            scale_factors = np.arange(0.7, 1.35, 0.05)
+            
+            # Mengubah interval skala menjadi per 5% (-30% sampai +30%)
+            scale_factors = np.arange(0.70, 1.35, 0.05)
             l4l_sens = []
             luc_sens = []
             percentages = []
@@ -339,7 +341,13 @@ if df_kerja is not None and not df_kerja.empty:
                 sim_res = calculate_mrp(sim_demand, sched_rec, setup_cost, holding_cost, initial_inv, safety_stock, lead_time)
                 l4l_sens.append(sim_res['l4l']['total'])
                 luc_sens.append(sim_res['luc']['total'])
-                percentages.append(f"{int((f-1)*100):+d}%")
+                
+                # Format penamaan label agar rapi: -30%, -25%, dst.
+                pct_val = int(round((f - 1) * 100))
+                if pct_val > 0:
+                    percentages.append(f"+{pct_val}%")
+                else:
+                    percentages.append(f"{pct_val}%")
                 
             fig2, ax2 = plt.subplots(figsize=(6, 4))
             ax2.plot(percentages, l4l_sens, marker='o', label='Total Cost L4L', color='#FF6B6B', linewidth=2)
@@ -348,9 +356,10 @@ if df_kerja is not None and not df_kerja.empty:
             ax2.set_xlabel('Fluktuasi Kebutuhan Kotor (Gross Demand)')
             ax2.grid(True, linestyle=':', alpha=0.6)
             ax2.legend()
+            
+            # Rotasi label sumbu X agar terbaca dengan jelas
             plt.xticks(rotation=45)
             st.pyplot(fig2)
-
     # --- FUNGSI STYLING TABEL ---
     def get_styled_mrp_table(df_mrp_transposed):
         def highlight_row_capacity(row):
