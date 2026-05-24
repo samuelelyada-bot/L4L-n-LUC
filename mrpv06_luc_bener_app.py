@@ -232,8 +232,8 @@ if df_kerja is not None and not df_kerja.empty:
     res = calculate_mrp(gross_req, sched_rec, setup_cost, holding_cost, initial_inv, safety_stock, lead_time)
     num_periods = len(gross_req)
 
-    # ==========================================
-    # 5. DISPLAY DASHBOARD OUTPUT (FIX LOGIKA PANAH & WARNA)
+# ==========================================
+    # 5. DISPLAY DASHBOARD OUTPUT (FIX PANAH & WARNA TOTAL)
     # ==========================================
     st.markdown("---")
     st.header("🏁 Hasil Komparasi Performa")
@@ -241,61 +241,60 @@ if df_kerja is not None and not df_kerja.empty:
     cost_diff = res['l4l']['total'] - res['luc']['total']
     abs_diff = abs(cost_diff)
     
-    # Rekayasa nilai delta agar arah panah st.metric sinkron dengan logika industri
-    # Menghemat = Biaya turun (minus), Memboros = Biaya naik (positif)
+    # Kustomisasi Box menggunakan HTML & CSS agar warna dan panah 100% Akurat
     if cost_diff > 0:
         # Kasus: LUC Lebih Hemat (L4L Lebih Boros)
-        l4l_delta_val = abs_diff     # Positif -> Panah ke atas (Merah karena inverse)
-        l4l_delta_txt = f"Rp {abs_diff:,.0f} Lebih Boros"
-        l4l_color_mode = "inverse"   
-        
-        luc_delta_val = -abs_diff    # Negatif -> Panah ke bawah (Hijau karena inverse)
-        luc_delta_txt = f"Rp {abs_diff:,.0f} Lebih Hemat"
-        luc_color_mode = "inverse"   
+        l4l_sub = f"<div style='color: #d9534f; font-size: 16px; font-weight: bold; margin-top: 4px;'>↓ Rp {abs_diff:,.0f} Lebih Boros</div>"
+        luc_sub = f"<div style='color: #5cb85c; font-size: 16px; font-weight: bold; margin-top: 4px;'>↑ Rp {abs_diff:,.0f} Lebih Hemat</div>"
         pemenang = "LUC"
     elif cost_diff < 0:
         # Kasus: L4L Lebih Hemat (LUC Lebih Boros)
-        l4l_delta_val = -abs_diff    # Negatif -> Panah ke bawah (Hijau karena inverse)
-        l4l_delta_txt = f"Rp {abs_diff:,.0f} Lebih Hemat"
-        l4l_color_mode = "inverse"
-        
-        luc_delta_val = abs_diff     # Positif -> Panah ke atas (Merah karena inverse)
-        luc_delta_txt = f"Rp {abs_diff:,.0f} Lebih Boros"
-        luc_color_mode = "inverse"
+        l4l_sub = f"<div style='color: #5cb85c; font-size: 16px; font-weight: bold; margin-top: 4px;'>↑ Rp {abs_diff:,.0f} Lebih Hemat</div>"
+        luc_sub = f"<div style='color: #d9534f; font-size: 16px; font-weight: bold; margin-top: 4px;'>↓ Rp {abs_diff:,.0f} Lebih Boros</div>"
         pemenang = "L4L"
     else:
-        l4l_delta_val = 0
-        l4l_delta_txt = "Biaya Setara"
-        l4l_color_mode = "off"
-        
-        luc_delta_val = 0
-        luc_delta_txt = "Biaya Setara"
-        luc_color_mode = "off"
+        # Kasus: Seimbang
+        l4l_sub = "<div style='color: #777777; font-size: 16px; font-weight: bold; margin-top: 4px;'>• Biaya Setara</div>"
+        luc_sub = "<div style='color: #777777; font-size: 16px; font-weight: bold; margin-top: 4px;'>• Biaya Setara</div>"
         pemenang = "Seimbang"
 
     efficiency = (abs_diff / max(res['l4l']['total'], 1)) * 100
 
+    # Render tampilan visual box metrik kustom
     c1, c2, c3 = st.columns(3)
     with c1:
-        st.metric(
-            label="Total Biaya Lot-for-Lot (L4L)",
-            value=f"Rp {res['l4l']['total']:,.0f}",
-            delta=l4l_delta_txt,
-            delta_color=l4l_color_mode
+        st.markdown(
+            f"""
+            <div style='background-color: #f8f9fa; padding: 16px; border-radius: 8px; border-left: 5px solid #ccc;'>
+                <div style='color: #666; font-size: 14px; font-weight: 500;'>Total Biaya Lot-for-Lot (L4L)</div>
+                <div style='font-size: 28px; font-weight: bold; color: #111; margin-top: 8px;'>Rp {res['l4l']['total']:,.0f}</div>
+                {l4l_sub}
+            </div>
+            """, 
+            unsafe_allow_html=True
         )
     with c2:
-        st.metric(
-            label="Total Biaya Least Unit Cost (LUC)",
-            value=f"Rp {res['luc']['total']:,.0f}",
-            delta=luc_delta_txt,
-            delta_color=luc_color_mode
+        st.markdown(
+            f"""
+            <div style='background-color: #f8f9fa; padding: 16px; border-radius: 8px; border-left: 5px solid #ccc;'>
+                <div style='color: #666; font-size: 14px; font-weight: 500;'>Total Biaya Least Unit Cost (LUC)</div>
+                <div style='font-size: 28px; font-weight: bold; color: #111; margin-top: 8px;'>Rp {res['luc']['total']:,.0f}</div>
+                {luc_sub}
+            </div>
+            """, 
+            unsafe_allow_html=True
         )
     with c3:
-        st.metric(
-            label=f"Efisiensi Anggaran ({pemenang})",
-            value=f"{efficiency:.2f} %",
-            delta="Optimalisasi Biaya" if cost_diff != 0 else "Seimbang",
-            delta_color="off"
+        opt_text = "<span style='color: #0275d8;'>⚡ Optimalisasi Biaya</span>" if cost_diff != 0 else "<span style='color: #777;'>• Seimbang</span>"
+        st.markdown(
+            f"""
+            <div style='background-color: #f8f9fa; padding: 16px; border-radius: 8px; border-left: 5px solid #0275d8;'>
+                <div style='color: #666; font-size: 14px; font-weight: 500;'>Efisiensi Anggaran ({pemenang})</div>
+                <div style='font-size: 28px; font-weight: bold; color: #111; margin-top: 8px;'>{efficiency:.2f} %</div>
+                <div style='font-size: 16px; font-weight: bold; margin-top: 4px;'>{opt_text}</div>
+            </div>
+            """, 
+            unsafe_allow_html=True
         )
 
     st.markdown(" ")
