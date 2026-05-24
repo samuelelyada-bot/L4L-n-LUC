@@ -47,7 +47,6 @@ input_method = st.radio(
     ["Upload File (Excel / CSV)", "Input Manual Langsung di Aplikasi", "Gunakan Data Contoh (Template)"]
 )
 
-# Inisialisasi DataFrame Dasar sebagai tempat penyimpanan data kerja aktif
 df_kerja = None
 
 if input_method == "Upload File (Excel / CSV)":
@@ -59,12 +58,10 @@ if input_method == "Upload File (Excel / CSV)":
             else:
                 df_raw = pd.read_excel(uploaded_file)
                 
-            # Pemetaan nama kolom pintar dari kiriman user
             col_periode = dapatkan_kolom_cocok(df_raw.columns, ['periode', 'mingguke', 'p', 'minggu'])
             col_gr = dapatkan_kolom_cocok(df_raw.columns, ['gr', 'grossrequirement', 'grossrequirements', 'kebutuhankotor'])
             col_sr = dapatkan_kolom_cocok(df_raw.columns, ['sr', 'scheduledreceipt', 'scheduledreceipts', 'penerimaanterjadwal'])
             
-            # Buat kerangka DataFrame standar internal aplikasi
             df_kerja = pd.DataFrame()
             
             if col_periode and col_periode in df_raw.columns:
@@ -80,7 +77,7 @@ if input_method == "Upload File (Excel / CSV)":
             if col_sr and col_sr in df_raw.columns:
                 df_kerja['Scheduled Receipts'] = df_raw[col_sr].fillna(0).astype(int)
             else:
-                df_kerja['Scheduled Receipts'] = 0 # Default jika di excel tidak disediakan
+                df_kerja['Scheduled Receipts'] = 0
                 
         except Exception as e:
             st.error(f"Gagal membaca file. Error: {e}")
@@ -88,7 +85,6 @@ if input_method == "Upload File (Excel / CSV)":
 elif input_method == "Input Manual Langsung di Aplikasi":
     num_periods_input = st.number_input("Tentukan Jumlah Periode Perencanaan:", min_value=1, max_value=52, value=8, step=1)
     
-    # Sediakan struktur data kosong bawaan
     init_data = {
         'Periode': [f"P{i+1}" for i in range(num_periods_input)],
         'Gross Requirements': [0] * num_periods_input,
@@ -97,11 +93,9 @@ elif input_method == "Input Manual Langsung di Aplikasi":
     df_empty = pd.DataFrame(init_data)
     
     st.info("💡 **Petunjuk:** Silakan isi langsung data kebutuhan (Gross Requirements) dan penerimaan terjadwal (Scheduled Receipts) pada baris tabel di bawah ini.")
-    # Fitur data editor interaktif untuk pengisian langsung
     df_kerja = st.data_editor(df_empty, use_container_width=True, hide_index=True)
 
 else:
-    # Opsi Gunakan Data Contoh / Template Sistem
     default_data = {
         'Periode': [f"P{i+1}" for i in range(1, 9)],
         'Gross Requirements': [30, 40, 20, 70, 40, 10, 30, 60],
@@ -109,37 +103,29 @@ else:
     }
     df_kerja = pd.DataFrame(default_data)
 
-# Tampilkan preview horizontal dan penanganan data akhir jika df_kerja berhasil terbentuk
 if df_kerja is not None and not df_kerja.empty:
-    
-    # Validasi & pembersihan tipe data akhir sebelum masuk ke algoritma perhitungan
     gross_req = df_kerja['Gross Requirements'].fillna(0).astype(int).tolist()
     sched_rec = df_kerja['Scheduled Receipts'].fillna(0).astype(int).tolist()
     period_labels = df_kerja['Periode'].astype(str).tolist()
     
-    # Menampilkan Preview Data Input Secara Menyamping (HORIZONTAL) Sesuai Permintaan
     st.markdown("##### 🔍 Preview Ringkasan Data Input Aktif")
     df_preview_transposed = pd.DataFrame({
         'Gross Requirements': gross_req,
         'Scheduled Receipts': sched_rec
     }, index=period_labels).T
     
-    # Tampilkan preview editor interaktif agar user bisa merevisi langsung lewat tombol pensil bawaan editor
     df_edited_preview = st.data_editor(df_preview_transposed, use_container_width=True)
     
-    # Sinkronisasi balik jika user melakukan perubahan data di tabel preview horizontal
     gross_req = df_edited_preview.loc['Gross Requirements'].astype(int).tolist()
     sched_rec = df_edited_preview.loc['Scheduled Receipts'].astype(int).tolist()
 
     # ==========================================
-    # FUNCTION UNTUK PERHITUNGAN MRP (DENGAN INTEGRASI SR)
+    # FUNCTION PERHITUNGAN ALGORITMA MRP
     # ==========================================
     def calculate_mrp(demands, s_receipts, setup, hold, init_inv, ss, lt):
         n = len(demands)
         
-        # ----------------------------------------
-        # PERHITUNGAN METODE 1: Lot-for-Lot (L4L)
-        # ----------------------------------------
+        # 1. Lot-for-Lot (L4L)
         l4l_net = []
         l4l_poh = []
         l4l_rec = []
@@ -147,24 +133,18 @@ if df_kerja is not None and not df_kerja.empty:
         
         prev_inv = init_inv
         for i in range(n):
-            # Rumus Baku POH dengan keterlibatan Scheduled Receipts (SR) sebelum dikurangi Kebutuhan
-            # Net Requirement = Kebutuhan + Safety Stock - POH_lalu - SR
             net_val = demands[i] + ss - prev_inv - s_receipts[i]
-            
             if net_val > 0:
                 l4l_net.append(net_val)
                 l4l_rec.append(net_val)
-                # POH Akhir Periode = POH_lalu + SR + PORec - GR
                 curr_poh = prev_inv + s_receipts[i] + net_val - demands[i]
             else:
                 l4l_net.append(0)
                 l4l_rec.append(0)
                 curr_poh = prev_inv + s_receipts[i] - demands[i]
-                
             l4l_poh.append(curr_poh)
             prev_inv = curr_poh
             
-        # Logika Akumulasi Kumulatif PORel L4L di Periode 1
         for i in range(n):
             if l4l_rec[i] > 0:
                 target = i - lt
@@ -176,16 +156,14 @@ if df_kerja is not None and not df_kerja.empty:
         c_l4l_setup = sum(1 for x in l4l_rec if x > 0) * setup
         c_l4l_hold = sum(l4l_poh) * hold
         
-        # ----------------------------------------
-        # PERHITUNGAN METODE 2: Least Unit Cost (LUC)
-        # ----------------------------------------
+        # 2. Least Unit Cost (LUC)
         luc_net = []
         prev_inv = init_inv
         for i in range(n):
             net_val = demands[i] + ss - prev_inv - s_receipts[i]
             if net_val > 0:
                 luc_net.append(net_val)
-                prev_inv = ss # Menyisakan safety stock untuk periode selanjutnya
+                prev_inv = ss
             else:
                 luc_net.append(0)
                 prev_inv = prev_inv + s_receipts[i] - demands[i]
@@ -216,17 +194,16 @@ if df_kerja is not None and not df_kerja.empty:
                     min_uc = uc
                     best_k = k
                     status = "Terpilih (Min)"
-                    t_log.append({'Iterasi Dari': f"P{idx+1}", 'Hingga': f"P{k+1}", 'Total Unit': acc_d, 'Biaya Pesan': setup, 'Biaya Simpan': acc_h, 'Total Biaya': t_cost, 'LUC (Cost/Unit)': round(uc, 2), 'Status': status})
+                    t_log.append({'Iterasi Dari': f"P{idx+1}", 'Hingga': f"P{k+1}", 'Total Unit': acc_d, 'Biaya Pesan': setup, 'Biaya Simpan': acc_h, 'Total Biaya': t_cost, 'LUC (Cost/Unit)': uc, 'Status': status})
                 else:
                     status = "Stop! Biaya Naik"
-                    t_log.append({'Iterasi Dari': f"P{idx+1}", 'Hingga': f"P{k+1}", 'Total Unit': acc_d, 'Biaya Pesan': setup, 'Biaya Simpan': acc_h, 'Total Biaya': t_cost, 'LUC (Cost/Unit)': round(uc, 2), 'Status': status})
+                    t_log.append({'Iterasi Dari': f"P{idx+1}", 'Hingga': f"P{k+1}", 'Total Unit': acc_d, 'Biaya Pesan': setup, 'Biaya Simpan': acc_h, 'Total Biaya': t_cost, 'LUC (Cost/Unit)': uc, 'Status': status})
                     break
             luc_iters.append(pd.DataFrame(t_log))
             lot_size = sum(luc_net[idx:best_k+1])
             luc_rec[idx] = lot_size
             idx = best_k + 1
             
-        # Logika Akumulasi Kumulatif PORel LUC di Periode 1
         for i in range(n):
             if luc_rec[i] > 0:
                 target = i - lt
@@ -235,7 +212,6 @@ if df_kerja is not None and not df_kerja.empty:
                 else:
                     luc_rel[0] += luc_rec[i]
             
-        # Kalkulasi ulang POH riil untuk hasil lotting LUC
         luc_poh = []
         r_inv_luc = init_inv
         for i in range(n):
@@ -257,7 +233,7 @@ if df_kerja is not None and not df_kerja.empty:
     num_periods = len(gross_req)
 
     # ==========================================
-    # 5. DISPLAY DASHBOARD OUTPUT (FIX WARNA PANAH KUSTOM)
+    # 5. DISPLAY DASHBOARD OUTPUT (FIX LOGIKA PANAH & WARNA)
     # ==========================================
     st.markdown("---")
     st.header("🏁 Hasil Komparasi Performa")
@@ -265,37 +241,62 @@ if df_kerja is not None and not df_kerja.empty:
     cost_diff = res['l4l']['total'] - res['luc']['total']
     abs_diff = abs(cost_diff)
     
+    # Rekayasa nilai delta agar arah panah st.metric sinkron dengan logika industri
+    # Menghemat = Biaya turun (minus), Memboros = Biaya naik (positif)
     if cost_diff > 0:
-        l4l_sub = f"<span style='color: #d9534f; font-weight: bold;'>↓ Rp {abs_diff:,.0f} Lebih Boros</span>"
-        luc_sub = f"<span style='color: #5cb85c; font-weight: bold;'>↑ Rp {abs_diff:,.0f} Lebih Hemat</span>"
+        # Kasus: LUC Lebih Hemat (L4L Lebih Boros)
+        l4l_delta_val = abs_diff     # Positif -> Panah ke atas (Merah karena inverse)
+        l4l_delta_txt = f"Rp {abs_diff:,.0f} Lebih Boros"
+        l4l_color_mode = "inverse"   
+        
+        luc_delta_val = -abs_diff    # Negatif -> Panah ke bawah (Hijau karena inverse)
+        luc_delta_txt = f"Rp {abs_diff:,.0f} Lebih Hemat"
+        luc_color_mode = "inverse"   
         pemenang = "LUC"
     elif cost_diff < 0:
-        l4l_sub = f"<span style='color: #5cb85c; font-weight: bold;'>↑ Rp {abs_diff:,.0f} Lebih Hemat</span>"
-        luc_sub = f"<span style='color: #d9534f; font-weight: bold;'>↓ Rp {abs_diff:,.0f} Lebih Boros</span>"
+        # Kasus: L4L Lebih Hemat (LUC Lebih Boros)
+        l4l_delta_val = -abs_diff    # Negatif -> Panah ke bawah (Hijau karena inverse)
+        l4l_delta_txt = f"Rp {abs_diff:,.0f} Lebih Hemat"
+        l4l_color_mode = "inverse"
+        
+        luc_delta_val = abs_diff     # Positif -> Panah ke atas (Merah karena inverse)
+        luc_delta_txt = f"Rp {abs_diff:,.0f} Lebih Boros"
+        luc_color_mode = "inverse"
         pemenang = "L4L"
     else:
-        l4l_sub = "<span style='color: #777; font-weight: bold;'>• Biaya Setara</span>"
-        luc_sub = "<span style='color: #777; font-weight: bold;'>• Biaya Setara</span>"
+        l4l_delta_val = 0
+        l4l_delta_txt = "Biaya Setara"
+        l4l_color_mode = "off"
+        
+        luc_delta_val = 0
+        luc_delta_txt = "Biaya Setara"
+        luc_color_mode = "off"
         pemenang = "Seimbang"
 
     efficiency = (abs_diff / max(res['l4l']['total'], 1)) * 100
 
     c1, c2, c3 = st.columns(3)
     with c1:
-        st.markdown("##### Total Biaya Lot-for-Lot (L4L)")
-        st.markdown(f"## Rp {res['l4l']['total']:,.0f}")
-        st.markdown(l4l_sub, unsafe_allow_html=True)
+        st.metric(
+            label="Total Biaya Lot-for-Lot (L4L)",
+            value=f"Rp {res['l4l']['total']:,.0f}",
+            delta=l4l_delta_txt,
+            delta_color=l4l_color_mode
+        )
     with c2:
-        st.markdown("##### Total Biaya Least Unit Cost (LUC)")
-        st.markdown(f"## Rp {res['luc']['total']:,.0f}")
-        st.markdown(luc_sub, unsafe_allow_html=True)
+        st.metric(
+            label="Total Biaya Least Unit Cost (LUC)",
+            value=f"Rp {res['luc']['total']:,.0f}",
+            delta=luc_delta_txt,
+            delta_color=luc_color_mode
+        )
     with c3:
-        st.markdown(f"##### Efisiensi Anggaran ({pemenang})")
-        st.markdown(f"## {efficiency:.2f} %")
-        if cost_diff != 0:
-            st.markdown(f"<span style='color: #0275d8; font-weight: bold;'>⚡ Optimalisasi Biaya</span>", unsafe_allow_html=True)
-        else:
-            st.markdown(f"<span style='color: #777; font-weight: bold;'>• Seimbang</span>", unsafe_allow_html=True)
+        st.metric(
+            label=f"Efisiensi Anggaran ({pemenang})",
+            value=f"{efficiency:.2f} %",
+            delta="Optimalisasi Biaya" if cost_diff != 0 else "Seimbang",
+            delta_color="off"
+        )
 
     st.markdown(" ")
     if cost_diff > 0:
@@ -382,9 +383,18 @@ if df_kerja is not None and not df_kerja.empty:
             def highlight_stop(row):
                 return ['background-color: #ffcccc; color: black' if row['Status'] == 'Stop! Biaya Naik' else '' for _ in row]
 
+            # Mengatur formatter presisi desimal: 4 angka di belakang koma untuk kolom biaya
+            format_dict = {
+                'Biaya Pesan': '{:.4f}',
+                'Biaya Simpan': '{:.4f}',
+                'Total Biaya': '{:.4f}',
+                'LUC (Cost/Unit)': '{:.4f}'
+            }
+
             for idx, df_iter in enumerate(res['luc']['iters']):
                 st.markdown(f"**Langkah Pembentukan Lot Ke-{idx+1}:**")
-                styled_df = df_iter.style.apply(highlight_stop, axis=1)
+                # Gabungkan highlight baris merah dengan formatting presisi 4 desimal
+                styled_df = df_iter.style.apply(highlight_stop, axis=1).format(format_dict)
                 st.dataframe(styled_df, hide_index=True, use_container_width=True)
                 st.markdown("---")
 
