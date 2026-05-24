@@ -387,32 +387,34 @@ if df_kerja is not None and not df_kerja.empty:
             avg_demand_calc = total_net_req / n_periode
             
             st.markdown("#### 📝 Langkah-Langkah Perhitungan Ukuran Lot EOQ:")
+            
+            st.markdown("**1. Mengidentifikasi Data Kebutuhan Bersih (Net Requirements):**")
             st.markdown(f"""
-            **1. Mengidentifikasi Data Kebutuhan Bersih (Net Requirements):**
             * Data per Periode: `{net_req_display}`
             * Total Kebutuhan Bersih ($\sum$ Net Req) = `{total_net_req}` unit
             * Jumlah Periode Planning ($n$) = `{n_periode}` periode
             """)
             
-            st.markdown(f"""
-            **2. Menghitung Rata-rata Kebutuhan per Periode ($D$):**
-            $$D = \\frac{{\\sum \\text{{Net Requirements}}}}{{n}} = \\frac{{{total_net_req}}}{{{n_periode}}} = {avg_demand_calc:.4f} \\text{{ unit/periode}}$$
-            """)
+            st.markdown("**2. Menghitung Rata-rata Kebutuhan per Periode ($D$):**")
+            st.markdown(f"$$\sum \\text{{Net Requirements}} = {total_net_req}$$")
+            st.markdown(f"$$n = {n_periode}$$")
+            st.markdown(f"$$D = \\frac{{{total_net_req}}}{{{n_periode}}}$$")
+            st.markdown(f"$$D = {avg_demand_calc:.4f} \\text{{ unit/periode}}$$")
             
             nilai_atas = 2 * avg_demand_calc * setup_cost
             nilai_bagi = nilai_atas / holding_cost
             eoq_final_raw = math.sqrt(nilai_bagi)
             
-            st.markdown(f"""
-            **3. Substitusi Parameter ke Rumus Standar EOQ:**
-            $$EOQ = \\sqrt{{\\frac{{2 \\times D \\times \\text{{Setup Cost}}}}{{\\text{{Holding Cost}}}}}}$$
-            $$EOQ = \\sqrt{{\\frac{{2 \\times {avg_demand_calc:.4f} \\times {setup_cost:,.2f}}}{{{holding_cost:,.2f}}}}}$$
-            $$EOQ = \\sqrt{{\\frac{{{nilai_atas:,.4f}}}{{{holding_cost:,.2f}}}}}$$
-            $$EOQ = \\sqrt{{{nilai_bagi:,.4f}}} = {eoq_final_raw:.4f} \\text{{ unit}}$$
+            st.markdown("**3. Substitusi Parameter ke Rumus Standar EOQ (Berurutan ke Bawah):**")
+            st.markdown(f"$$EOQ = \\sqrt{{\\frac{{2 \\times D \\times \\text{{Setup Cost}}}}{{\\text{{Holding Cost}}}}}}$$")
+            st.markdown(f"$$EOQ = \\sqrt{{\\frac{{2 \\times {avg_demand_calc:.4f} \\times {setup_cost:,.2f}}}{{{holding_cost:,.2f}}}}}$$")
+            st.markdown(f"$$EOQ = \\sqrt{{\\frac{{{nilai_atas:,.4f}}}{{{holding_cost:,.2f}}}}}$$")
+            st.markdown(f"$$EOQ = \\sqrt{{{nilai_bagi:,.4f}}}$$")
+            st.markdown(f"$$EOQ = {eoq_final_raw:.4f} \\text{{ unit}}$$")
             
-            **4. Pembulatan Ke Atas (Ceil):**
-            * Karena unit produksi barang bersifat diskret (bulat), maka hasil dibulatkan ke atas menjadi: **`{res['eoq']['size']}` unit**.
-            """)
+            st.markdown("**4. Pembulatan Ke Atas (Ceil):**")
+            st.markdown(f"* Hasil eksak desimal = `{eoq_final_raw:.4f}`")
+            st.markdown(f"* Dibulatkan ke atas menjadi bilangan bulat diskret: **`{res['eoq']['size']}` unit**.")
             
         st.info(f"💡 **Informasi Ukuran Lot:** Berdasarkan rincian rumus di atas, ukuran lot tetap (Fixed Order Quantity) untuk metode EOQ dikunci bernilai **{res['eoq']['size']} unit** per pesanan.")
         tampilkan_tabel_mrp("EOQ", res['eoq'], max_capacity)
