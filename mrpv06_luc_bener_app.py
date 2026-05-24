@@ -46,7 +46,7 @@ def get_styled_mrp_table(df_mrp_transposed, max_cap):
     return df_mrp_transposed.style.apply(highlight_row_capacity, axis=1)
 
 def highlight_stop(row):
-    return ['background-color: #ffcccc; color: #black; font-weight: bold;' if row['Status'] == 'Stop! Biaya Naik' or row['Status'] == 'Stop! Melebihi Batas' else '' for _ in row]
+    return ['background-color: #ffcccc; color: black; font-weight: bold;' if row['Status'] == 'Stop! Biaya Naik' or row['Status'] == 'Stop! Melebihi Batas' else '' for _ in row]
 
 # ==========================================
 # 3. AREA DATA INPUT
@@ -165,7 +165,7 @@ if df_kerja is not None and not df_kerja.empty:
         c_l4l_setup = sum(1 for x in l4l_rec if x > 0) * setup
         c_l4l_hold = sum(l4l_poh) * hold
 
-# 2. METODE LEAST UNIT COST (LUC)
+        # 2. METODE LEAST UNIT COST (LUC)
         luc_rec = [0] * n
         luc_iters = []
         idx = 0
@@ -194,6 +194,9 @@ if df_kerja is not None and not df_kerja.empty:
             luc_iters.append(pd.DataFrame(t_log))
             luc_rec[idx] = sum(net_req[idx:best_k+1])
             idx = best_k + 1
+        luc_poh, luc_rel = generate_poh_and_release(luc_rec)
+        c_luc_setup = sum(1 for x in luc_rec if x > 0) * setup
+        c_luc_hold = sum(luc_poh) * hold
 
         # 3. METODE ECONOMIC ORDER QUANTITY (EOQ)
         avg_demand = np.mean(net_req)
@@ -213,7 +216,7 @@ if df_kerja is not None and not df_kerja.empty:
         c_eoq_setup = sum(1 for x in eoq_rec if x > 0) * setup
         c_eoq_hold = sum(eoq_poh) * hold
 
-# 4. METODE PART PERIOD BALANCING (PPB)
+        # 4. METODE PART PERIOD BALANCING (PPB)
         ppb_rec = [0] * n
         ppb_iters = []
         idx = 0
@@ -230,7 +233,6 @@ if df_kerja is not None and not df_kerja.empty:
                 acc_h += net_req[k] * hold * (k - idx)
                 diff = abs(setup - acc_h)
                 
-                # PPB berhenti jika akumulasi biaya simpan melampaui biaya pesan
                 if acc_h <= setup:
                     best_k = k
                     status = "Mendekati Imbang"
@@ -242,7 +244,10 @@ if df_kerja is not None and not df_kerja.empty:
             ppb_iters.append(pd.DataFrame(t_log))
             ppb_rec[idx] = sum(net_req[idx:best_k+1])
             idx = best_k + 1
-            
+        ppb_poh, ppb_rel = generate_poh_and_release(ppb_rec)
+        c_ppb_setup = sum(1 for x in ppb_rec if x > 0) * setup
+        c_ppb_hold = sum(ppb_poh) * hold
+
         return {
             'net_req': net_req,
             'l4l': {'poh': l4l_poh, 'rec': l4l_rec, 'rel': l4l_rel, 'setup': c_l4l_setup, 'hold': c_l4l_hold, 'total': c_l4l_setup + c_l4l_hold},
@@ -362,7 +367,6 @@ if df_kerja is not None and not df_kerja.empty:
     with t_luc:
         st.subheader("Proses & Tabel Analisis MRP - Least Unit Cost")
         with st.expander("🔬 KLIK DI SINI UNTUK MELIHAT LOG ITERASI PERHITUNGAN DETAIL (LUC)"):
-            # Mengunci presisi .4f untuk log iterasi LUC
             format_luc = {
                 'Biaya Pesan': '{:.4f}', 'Biaya Simpan': '{:.4f}', 'Total Biaya': '{:.4f}', 'LUC (Cost/Unit)': '{:.4f}'
             }
@@ -381,7 +385,6 @@ if df_kerja is not None and not df_kerja.empty:
     with t_ppb:
         st.subheader("Proses & Tabel Analisis MRP - Part Period Balancing")
         with st.expander("🔬 KLIK DI SINI UNTUK MELIHAT LOG ITERASI KESEIMBANGAN PART PERIOD (PPB)"):
-            # Mengunci presisi .4f untuk keselarasan finansial PPB
             format_ppb = {
                 'Biaya Pesan': '{:.4f}', 'Biaya Simpan': '{:.4f}', 'Selisih |S-H|': '{:.4f}'
             }
