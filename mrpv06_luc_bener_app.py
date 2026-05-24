@@ -93,7 +93,7 @@ elif input_method == "Input Manual Langsung di Aplikasi":
     num_periods_input = st.number_input("Tentukan Jumlah Periode Perencanaan:", min_value=1, max_value=52, value=8, step=1)
     
     init_data = {
-        'Periode': [f"P{i+1}" for i in range(num_periods_input)],
+        'Periode': [f"P{i}" for i in range(num_periods_input)],
         'Gross Requirements': [0] * num_periods_input,
         'Scheduled Receipts': [0] * num_periods_input
     }
