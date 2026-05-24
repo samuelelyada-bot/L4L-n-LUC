@@ -28,7 +28,7 @@ st.sidebar.header("🏬 Batasan Operasional")
 max_capacity = st.sidebar.number_input("Kapasitas Maksimum Gudang (Unit)", min_value=1, value=100, step=10)
 
 # ==========================================
-# HELPER: FUNGSI DETEKSI PINTAR NAMA KOLOM
+# HELPER FUNCTIONS (DITARUH DI ATAS AGAR BEBAS EROR SPASI)
 # ==========================================
 def dapatkan_kolom_cocok(columns, targets):
     for col in columns:
@@ -36,6 +36,13 @@ def dapatkan_kolom_cocok(columns, targets):
         if col_clean in targets:
             return col
     return None
+
+def get_styled_mrp_table(df_mrp_transposed, max_cap):
+    def highlight_row_capacity(row):
+        if row.name == 'Projected On Hand':
+            return ['background-color: #ffe6cc; color: #cc6600; font-weight: bold;' if val > max_cap else '' for val in row]
+        return [''] * len(row)
+    return df_mrp_transposed.style.apply(highlight_row_capacity, axis=1)
 
 # ==========================================
 # 3. AREA DATA INPUT (UPLOAD / MANUAL / TEMPLATE)
@@ -232,8 +239,8 @@ if df_kerja is not None and not df_kerja.empty:
     res = calculate_mrp(gross_req, sched_rec, setup_cost, holding_cost, initial_inv, safety_stock, lead_time)
     num_periods = len(gross_req)
 
-# ==========================================
-    # 5. DISPLAY DASHBOARD OUTPUT (FIX PANAH & WARNA TOTAL)
+    # ==========================================
+    # 5. DISPLAY DASHBOARD OUTPUT (KUSTOM HTML CARD)
     # ==========================================
     st.markdown("---")
     st.header("🏁 Hasil Komparasi Performa")
@@ -241,26 +248,21 @@ if df_kerja is not None and not df_kerja.empty:
     cost_diff = res['l4l']['total'] - res['luc']['total']
     abs_diff = abs(cost_diff)
     
-    # Kustomisasi Box menggunakan HTML & CSS agar warna dan panah 100% Akurat
     if cost_diff > 0:
-        # Kasus: LUC Lebih Hemat (L4L Lebih Boros)
         l4l_sub = f"<div style='color: #d9534f; font-size: 16px; font-weight: bold; margin-top: 4px;'>↓ Rp {abs_diff:,.0f} Lebih Boros</div>"
         luc_sub = f"<div style='color: #5cb85c; font-size: 16px; font-weight: bold; margin-top: 4px;'>↑ Rp {abs_diff:,.0f} Lebih Hemat</div>"
         pemenang = "LUC"
     elif cost_diff < 0:
-        # Kasus: L4L Lebih Hemat (LUC Lebih Boros)
         l4l_sub = f"<div style='color: #5cb85c; font-size: 16px; font-weight: bold; margin-top: 4px;'>↑ Rp {abs_diff:,.0f} Lebih Hemat</div>"
         luc_sub = f"<div style='color: #d9534f; font-size: 16px; font-weight: bold; margin-top: 4px;'>↓ Rp {abs_diff:,.0f} Lebih Boros</div>"
         pemenang = "L4L"
     else:
-        # Kasus: Seimbang
         l4l_sub = "<div style='color: #777777; font-size: 16px; font-weight: bold; margin-top: 4px;'>• Biaya Setara</div>"
         luc_sub = "<div style='color: #777777; font-size: 16px; font-weight: bold; margin-top: 4px;'>• Biaya Setara</div>"
         pemenang = "Seimbang"
 
     efficiency = (abs_diff / max(res['l4l']['total'], 1)) * 100
 
-    # Render tampilan visual box metrik kustom
     c1, c2, c3 = st.columns(3)
     with c1:
         st.markdown(
@@ -327,10 +329,8 @@ if df_kerja is not None and not df_kerja.empty:
             ax.grid(axis='y', linestyle='--', alpha=0.5)
             st.pyplot(fig)
             
-with col_g2:
+        with col_g2:
             st.markdown("### Grafik Analisis Sensitivitas (Perubahan Demand)")
-            
-            # Mengubah interval skala menjadi per 5% (-30% sampai +30%)
             scale_factors = np.arange(0.70, 1.35, 0.05)
             l4l_sens = []
             luc_sens = []
@@ -342,7 +342,6 @@ with col_g2:
                 l4l_sens.append(sim_res['l4l']['total'])
                 luc_sens.append(sim_res['luc']['total'])
                 
-                # Format penamaan label agar rapi: -30%, -25%, dst.
                 pct_val = int(round((f - 1) * 100))
                 if pct_val > 0:
                     percentages.append(f"+{pct_val}%")
@@ -356,17 +355,8 @@ with col_g2:
             ax2.set_xlabel('Fluktuasi Kebutuhan Kotor (Gross Demand)')
             ax2.grid(True, linestyle=':', alpha=0.6)
             ax2.legend()
-            
-            # Rotasi label sumbu X agar terbaca dengan jelas
             plt.xticks(rotation=45)
             st.pyplot(fig2)
-    # --- FUNGSI STYLING TABEL ---
-    def get_styled_mrp_table(df_mrp_transposed):
-        def highlight_row_capacity(row):
-            if row.name == 'Projected On Hand':
-                return ['background-color: #ffe6cc; color: #cc6600; font-weight: bold;' if val > max_capacity else '' for val in row]
-            return [''] * len(row)
-        return df_mrp_transposed.style.apply(highlight_row_capacity, axis=1)
 
     with tab2:
         st.subheader("Tabel Hasil Analisis MRP - Lot-for-Lot")
@@ -379,7 +369,7 @@ with col_g2:
             'Planned Order Releases': res['l4l']['rel']
         }, index=[f"P{i+1}" for i in range(num_periods)]).T
         
-        st.dataframe(get_styled_mrp_table(df_l4l_mrp), use_container_width=True)
+        st.dataframe(get_styled_mrp_table(df_l4l_mrp, max_capacity), use_container_width=True)
         
         if max(res['l4l']['poh']) > max_capacity:
             st.warning(f"⚠️ **Peringatan Kapasitas:** Persediaan pada metode L4L melebihi kapasitas maksimum gudang ({max_capacity} Unit).")
@@ -391,7 +381,6 @@ with col_g2:
             def highlight_stop(row):
                 return ['background-color: #ffcccc; color: black' if row['Status'] == 'Stop! Biaya Naik' else '' for _ in row]
 
-            # Mengatur formatter presisi desimal: 4 angka di belakang koma untuk kolom biaya
             format_dict = {
                 'Biaya Pesan': '{:.4f}',
                 'Biaya Simpan': '{:.4f}',
@@ -401,7 +390,6 @@ with col_g2:
 
             for idx, df_iter in enumerate(res['luc']['iters']):
                 st.markdown(f"**Langkah Pembentukan Lot Ke-{idx+1}:**")
-                # Gabungkan highlight baris merah dengan formatting presisi 4 desimal
                 styled_df = df_iter.style.apply(highlight_stop, axis=1).format(format_dict)
                 st.dataframe(styled_df, hide_index=True, use_container_width=True)
                 st.markdown("---")
@@ -416,7 +404,7 @@ with col_g2:
             'Planned Order Releases': res['luc']['rel']
         }, index=[f"P{i+1}" for i in range(num_periods)]).T
         
-        st.dataframe(get_styled_mrp_table(df_luc_mrp), use_container_width=True)
+        st.dataframe(get_styled_mrp_table(df_luc_mrp, max_capacity), use_container_width=True)
         
         if max(res['luc']['poh']) > max_capacity:
             st.error(f"⚠️ **Peringatan Kapasitas Kritis:** Metode LUC mengakumulasikan lot pesanan hingga melampaui daya tampung gudang ({max_capacity} Unit).")
