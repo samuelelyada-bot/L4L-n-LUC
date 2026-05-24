@@ -199,22 +199,54 @@ if df_kerja is not None and not df_kerja.empty:
         c_luc_hold = sum(luc_poh) * hold
 
         # 3. METODE ECONOMIC ORDER QUANTITY (EOQ)
-        avg_demand = np.mean(net_req)
-        eoq_size = math.ceil(math.sqrt((2 * avg_demand * setup) / hold)) if hold > 0 else 0
-        eoq_rec = [0] * n
-        rem_stok = 0
-        for i in range(n):
-            if net_req[i] > 0:
-                if rem_stok < net_req[i]:
-                    needed = net_req[i] - rem_stok
-                    lots_to_order = math.ceil(needed / eoq_size) if eoq_size > 0 else 1
-                    eoq_rec[i] = lots_to_order * eoq_size
-                    rem_stok = (eoq_rec[i] + rem_stok) - net_req[i]
-                else:
-                    rem_stok -= net_req[i]
-        eoq_poh, eoq_rel = generate_poh_and_release(eoq_rec)
-        c_eoq_setup = sum(1 for x in eoq_rec if x > 0) * setup
-        c_eoq_hold = sum(eoq_poh) * hold
+with t_eoq:
+        st.subheader("Tabel Hasil Analisis MRP - Economic Order Quantity")
+        
+        # --- BLOK TRANSPARANSI KALKULASI EOQ (BIAR GA BINGUNG) ---
+        with st.expander("🔬 KLIK DI SINI UNTUK MELIHAT LOG PERHITUNGAN RUMUS DETAIL (EOQ)"):
+            # 1. Ambil list net requirements non-zero untuk dokumentasi visual
+            net_req_display = res['net_req']
+            total_net_req = sum(net_req_display)
+            n_periode = len(net_req_display)
+            avg_demand_calc = total_net_req / n_periode
+            
+            st.markdown("#### 📝 Langkah-Langkah Perhitungan Ukuran Lot EOQ:")
+            
+            # Langkah A: Menampilkan Data Dasar
+            st.markdown(f"""
+            **1. Mengidentifikasi Data Kebutuhan Bersih (Net Requirements):**
+            * Data per Periode: `{net_req_display}`
+            * Total Kebutuhan Bersih ($\sum$ Net Req) = `{total_net_req}` unit
+            * Jumlah Periode Planning ($n$) = `{n_periode}` periode
+            """)
+            
+            # Langkah B: Menghitung Rata-rata Demand
+            st.markdown(f"""
+            **2. Menghitung Rata-rata Kebutuhan per Periode ($D$):**
+            $$D = \\frac{{\\sum \\text{{Net Requirements}}}}{{n}} = \\frac{{{total_net_req}}}{{{n_periode}}} = {avg_demand_calc:.4f} \\text{{ unit/periode}}$$
+            """)
+            
+            # Langkah C: Substitusi ke Rumus EOQ
+            nilai_atas = 2 * avg_demand_calc * setup_cost
+            nilai_bagi = nilai_atas / holding_cost
+            eoq_final_raw = math.sqrt(nilai_bagi)
+            
+            st.markdown(f"""
+            **3. Substitusi Parameter ke Rumus Standar EOQ:**
+            $$EOQ = \\sqrt{{\\frac{{2 \\times D \\times \\text{{Setup Cost}}}}{{\\text{{Holding Cost}}}}}}$$
+            
+            $$EOQ = \\sqrt{{\\frac{{2 \\times {avg_demand_calc:.4f} \\times {setup_cost:,.2f}}}{{{holding_cost:,.2f}}}}}$$
+            
+            $$EOQ = \\sqrt{{\\frac{{{nilai_atas:,.4f}}}{{{holding_cost:,.2f}}}}}$$
+            
+            $$EOQ = \\sqrt{{{nilai_bagi:,.4f}}} = {eoq_final_raw:.4f} \\text{{ unit}}$$
+            
+            **4. Pembulatan Ke Atas (Ceil):**
+            * Karena unit produksi barang bersifat diskret (bulat), maka hasil dibulatkan ke atas menjadi: **`{res['eoq']['size']}` unit**.
+            """)
+            
+        st.info(f"💡 **Informasi Ukuran Lot:** Berdasarkan rincian rumus di atas, ukuran lot tetap (Fixed Order Quantity) untuk metode EOQ dikunci bernilai **{res['eoq']['size']} unit** per pesanan.")
+        tampilkan_tabel_mrp("EOQ", res['eoq'], max_capacity)
 
         # 4. METODE PART PERIOD BALANCING (PPB)
         ppb_rec = [0] * n
