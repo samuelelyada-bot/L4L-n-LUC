@@ -93,7 +93,7 @@ elif input_method == "Input Manual Langsung di Aplikasi":
     num_periods_input = st.number_input("Tentukan Jumlah Periode Perencanaan:", min_value=1, max_value=52, value=8, step=1)
     
     init_data = {
-        'Periode': [f"P{i}" for i in range(num_periods_input)],
+        'Periode': [f"P{i+1}" for i in range(num_periods_input)],
         'Gross Requirements': [0] * num_periods_input,
         'Scheduled Receipts': [0] * num_periods_input
     }
@@ -103,8 +103,9 @@ elif input_method == "Input Manual Langsung di Aplikasi":
     df_kerja = st.data_editor(df_empty, use_container_width=True, hide_index=True)
 
 else:
+    # PERBAIKAN: Mengunci inisialisasi awal list dari range 1 sampai 8 (P1-P8)
     default_data = {
-        'Periode': [f"P{i+1}" for i in range(1, 9)],
+        'Periode': [f"P{i}" for i in range(1, 9)],
         'Gross Requirements': [30, 40, 20, 70, 40, 10, 30, 60],
         'Scheduled Receipts': [0, 10, 0, 0, 20, 0, 0, 0]
     }
@@ -116,6 +117,8 @@ if df_kerja is not None and not df_kerja.empty:
     period_labels = df_kerja['Periode'].astype(str).tolist()
     
     st.markdown("##### 🔍 Preview Ringkasan Data Input Aktif")
+    
+    # PERBAIKAN: Set index secara eksplisit menggunakan period_labels agar tidak bergeser saat di-transpose
     df_preview_transposed = pd.DataFrame({
         'Gross Requirements': gross_req,
         'Scheduled Receipts': sched_rec
@@ -248,15 +251,19 @@ if df_kerja is not None and not df_kerja.empty:
     cost_diff = res['l4l']['total'] - res['luc']['total']
     abs_diff = abs(cost_diff)
     
+    # PERBAIKAN LOGIKA PANAH: Lebih Boros = Merah Ke Bawah (↓), Lebih Hemat = Hijau Ke Atas (↑)
     if cost_diff > 0:
+        # Kasus: LUC Lebih Hemat (L4L Lebih Boros)
         l4l_sub = f"<div style='color: #d9534f; font-size: 16px; font-weight: bold; margin-top: 4px;'>↓ Rp {abs_diff:,.0f} Lebih Boros</div>"
         luc_sub = f"<div style='color: #5cb85c; font-size: 16px; font-weight: bold; margin-top: 4px;'>↑ Rp {abs_diff:,.0f} Lebih Hemat</div>"
         pemenang = "LUC"
     elif cost_diff < 0:
+        # Kasus: L4L Lebih Hemat (LUC Lebih Boros)
         l4l_sub = f"<div style='color: #5cb85c; font-size: 16px; font-weight: bold; margin-top: 4px;'>↑ Rp {abs_diff:,.0f} Lebih Hemat</div>"
         luc_sub = f"<div style='color: #d9534f; font-size: 16px; font-weight: bold; margin-top: 4px;'>↓ Rp {abs_diff:,.0f} Lebih Boros</div>"
         pemenang = "L4L"
     else:
+        # Kasus: Seimbang
         l4l_sub = "<div style='color: #777777; font-size: 16px; font-weight: bold; margin-top: 4px;'>• Biaya Setara</div>"
         luc_sub = "<div style='color: #777777; font-size: 16px; font-weight: bold; margin-top: 4px;'>• Biaya Setara</div>"
         pemenang = "Seimbang"
@@ -331,6 +338,7 @@ if df_kerja is not None and not df_kerja.empty:
             
         with col_g2:
             st.markdown("### Grafik Analisis Sensitivitas (Perubahan Demand)")
+            # PERBAIKAN GRAPH: Ticks per 5% dari -30% ke +30% secara simetris
             scale_factors = np.arange(0.70, 1.35, 0.05)
             l4l_sens = []
             luc_sens = []
@@ -381,6 +389,7 @@ if df_kerja is not None and not df_kerja.empty:
             def highlight_stop(row):
                 return ['background-color: #ffcccc; color: black' if row['Status'] == 'Stop! Biaya Naik' else '' for _ in row]
 
+            # PERBAIKAN DESIMAL ITERASI: Mengunci presisi tepat 4 angka belakang koma (.4f)
             format_dict = {
                 'Biaya Pesan': '{:.4f}',
                 'Biaya Simpan': '{:.4f}',
