@@ -105,17 +105,28 @@ def get_styled_mrp_table(df_mrp_transposed, max_cap):
         return [''] * len(row)
     return df_mrp_transposed.style.apply(highlight_row_capacity, axis=1)
 
-def highlight_status_iterasi(row):
-    styles = []
-    for val in row:
-        val_str = str(val)
-        if 'Stop' in val_str:
-            styles.append('background-color: #fee2e2; color: #991b1b; font-weight: bold;')
-        elif 'Feasible' in val_str:
-            styles.append('background-color: #e8f5e9; color: #1b5e20; font-weight: bold;')
-        else:
-            styles.append('')
-    return styles
+def highlight_status_iterasi(df):
+    """
+    Fungsi cerdas untuk mewarnai log iterasi (LUC & PPB) sebaris penuh.
+    - Baris berstatus 'Stop' diberi warna MERAH MUDA.
+    - HANYA SATU BARIS tepat sebelum 'Stop' yang diberi warna HIJAU MUDA.
+    - Baris feasible di awal tetap polos tanpa warna agar tidak membingungkan.
+    """
+    # Inisialisasi DataFrame style dengan string kosong
+    style_df = pd.DataFrame('', index=df.index, columns=df.columns)
+    
+    for i in range(len(df)):
+        status_val = str(df.iloc[i]['Status'])
+        
+        # Jika baris ini berstatus Stop
+        if 'Stop' in status_val:
+            style_df.iloc[i] = 'background-color: #fee2e2; color: #991b1b; font-weight: bold;'
+            
+            # Warnai baris TEPAT DI ATASNYA (Baris terakhir sebelum di-stop) menjadi Hijau
+            if i > 0:
+                style_df.iloc[i-1] = 'background-color: #e8f5e9; color: #1b5e20; font-weight: bold;'
+                
+    return style_df
 
 # ==========================================
 # 3. DATA INPUT SECTION
@@ -145,9 +156,10 @@ if input_method == "Upload File (Excel / CSV)":
             df_kerja = pd.DataFrame()
             
             if col_periode and col_periode in df_raw.columns:
-                df_kerja['Period'] = df_raw[col_periode].astype(str)
+                # Memastikan nama periode dari file yang di-upload otomatis menjadi KAPITAL
+                df_kerja['Period'] = df_raw[col_periode].astype(str).str.upper()
             else:
-                df_kerja['Period'] = [f"p{i+1}" for i in range(len(df_raw))]
+                df_kerja['Period'] = [f"P{i+1}" for i in range(len(df_raw))]
                 
             if col_gr and col_gr in df_raw.columns:
                 df_kerja['Gross Requirements'] = df_raw[col_gr].fillna(0).astype(int)
@@ -165,7 +177,7 @@ if input_method == "Upload File (Excel / CSV)":
 elif input_method == "Manual Interface Input":
     num_periods_input = st.number_input("Planning Horizon (Periods):", min_value=1, max_value=52, value=10, step=1)
     init_data = {
-        'Period': [f"p{i+1}" for i in range(num_periods_input)],
+        'Period': [f"P{i+1}" for i in range(num_periods_input)], # Diubah jadi Kapital P
         'Gross Requirements': [35, 30, 40, 0, 10, 40, 30, 0, 30, 55] if num_periods_input == 10 else [0] * num_periods_input,
         'Scheduled Receipts': [0] * num_periods_input
     }
@@ -174,7 +186,7 @@ elif input_method == "Manual Interface Input":
 
 else:
     default_data = {
-        'Period': [f"p{i}" for i in range(1, 11)],
+        'Period': [f"P{i}" for i in range(1, 11)], # Diubah jadi Kapital P
         'Gross Requirements': [35, 30, 40, 0, 10, 40, 30, 0, 30, 55],
         'Scheduled Receipts': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     }
@@ -183,7 +195,7 @@ else:
 if df_kerja is not None and not df_kerja.empty:
     gross_req = df_kerja['Gross Requirements'].fillna(0).astype(int).tolist()
     sched_rec = df_kerja['Scheduled Receipts'].fillna(0).astype(int).tolist()
-    period_labels = df_kerja['Period'].astype(str).tolist()
+    period_labels = df_kerja['Period'].astype(str).str.upper().tolist() # Proteksi kapital
     
     st.markdown("##### Matrix Input Preview")
     df_preview_transposed = pd.DataFrame({
@@ -251,8 +263,7 @@ if df_kerja is not None and not df_kerja.empty:
                 t_cost = setup + acc_h
                 uc = t_cost / acc_d if acc_d > 0 else float('inf')
                 
-                # Single column label maker (e.g. p1, p2)
-                p_label = ", ".join([f"p{m+1}" for m in range(idx, k+1)])
+                p_label = ", ".join([f"P{m+1}" for m in range(idx, k+1)]) # Kapital P
                 
                 if uc <= min_uc:
                     min_uc, best_k = uc, k
@@ -290,7 +301,7 @@ if df_kerja is not None and not df_kerja.empty:
         c_eoq_setup = sum(1 for x in eoq_rec if x > 0) * setup
         c_eoq_hold = sum(max(0, x) for x in eoq_poh) * hold
 
-        # 4. PART PERIOD BALANCING (PPB)
+        # 4. PART PERIOD BALANCING (PPB) - FIX LOGIC
         ppb_rec = [0] * n
         ppb_iters = []
         epp_limit = setup / hold if hold > 0 else float('inf')
@@ -308,8 +319,9 @@ if df_kerja is not None and not df_kerja.empty:
             for k in range(idx, n):
                 part_period_k = net_req[k] * (k - idx)
                 new_cum_part_period = cum_part_period + part_period_k
-                p_label = ", ".join([f"p{m+1}" for m in range(idx, k+1)])
+                p_label = ", ".join([f"P{m+1}" for m in range(idx, k+1)]) # Kapital P
                 
+                # JIKA masih di bawah atau pas dengan batas EPP -> Aman & Feasible
                 if new_cum_part_period <= epp_limit:
                     acc_d += net_req[k]
                     cum_part_period = new_cum_part_period
@@ -319,10 +331,12 @@ if df_kerja is not None and not df_kerja.empty:
                         'EPP Limit': epp_limit, 'Cumulative Part-Period': cum_part_period, 'Status': "Feasible"
                     })
                 else:
+                    # JIKA sudah menembus batas EPP, uji kedekatan penyeimbang (Closer Distance)
                     dist_sebelum = abs(cum_part_period - epp_limit)
                     dist_sesudah = abs(new_cum_part_period - epp_limit)
                     
                     if dist_sesudah < dist_sebelum:
+                        # Jika kumulatif baru ternyata lebih mendekati nilai EPP, lot digabungkan
                         acc_d += net_req[k]
                         cum_part_period = new_cum_part_period
                         best_k = k
@@ -330,10 +344,19 @@ if df_kerja is not None and not df_kerja.empty:
                             'Period': p_label, 'Total Units': acc_d, 
                             'EPP Limit': epp_limit, 'Cumulative Part-Period': cum_part_period, 'Status': "Feasible"
                         })
+                        # Setelah pemaksaan lot terdekat ini selesai, iterasi periode selanjutnya wajib stop
+                        if k + 1 < n:
+                            p_label_next = ", ".join([f"P{m+1}" for m in range(idx, k+2)])
+                            next_part = net_req[k+1] * ((k+1) - idx)
+                            t_log.append({
+                                'Period': p_label_next, 'Total Units': acc_d + net_req[k+1], 
+                                'EPP Limit': epp_limit, 'Cumulative Part-Period': cum_part_period + next_part, 'Status': "Stop! Melebihi Batas"
+                            })
                     else:
+                        # Jika kumulatif baru makin menjauh dari batas EPP, baris ini RESMI STOP!
                         t_log.append({
                             'Period': p_label, 'Total Units': acc_d + net_req[k], 
-                            'EPP Limit': epp_limit, 'Cumulative Part-Period': new_cum_part_period, 'Status': "Stop (Prev Closer)"
+                            'EPP Limit': epp_limit, 'Cumulative Part-Period': new_cum_part_period, 'Status': "Stop! Melebihi Batas"
                         })
                     break
                     
@@ -374,7 +397,7 @@ if df_kerja is not None and not df_kerja.empty:
     t_l4l, t_luc, t_eoq, t_ppb = st.tabs(["📋 Lot-for-Lot (L4L)", "🔍 Least Unit Cost (LUC)", "🎯 Economic Order Quantity (EOQ)", "⚖️ Part Period Balancing (PPB)"])
 
     # REUSABLE MRP RENDERER
-    def tampilkan_tabel_mrp(nama_metode, data_dict, max_cap):
+    def tampilkan_tabel_mrp("L4L", data_dict, max_cap):
         df = pd.DataFrame({
             'Gross Requirements': gross_req,
             'Scheduled Receipts': sched_rec,
@@ -382,7 +405,7 @@ if df_kerja is not None and not df_kerja.empty:
             'Net Requirements': res['net_req'],
             'Planned Order Receipts': data_dict['rec'],
             'Planned Order Releases': data_dict['rel']
-        }, index=[f"p{i+1}" for i in range(num_periods)]).T
+        }, index=[f"P{i+1}" for i in range(num_periods)]).T # Index Kapital P
         st.dataframe(get_styled_mrp_table(df, max_cap), use_container_width=True)
         if max(data_dict['poh']) > max_cap:
             st.error(f"⚠️ **Capacity Violation Threshold Raised:** Inventory accumulation via {nama_metode} breaches physical facility space constraints ({max_cap} units).")
@@ -396,7 +419,7 @@ if df_kerja is not None and not df_kerja.empty:
         format_luc = {'Setup Cost': '{:.2f}', 'Holding Cost': '{:.2f}', 'Total Cost': '{:.2f}', 'LUC (Cost/Unit)': '{:.4f}'}
         for idx, df_iter in enumerate(res['luc']['iters']):
             with st.expander(f"Order Cycle Discovery Step {idx+1}"):
-                styled_df = df_iter.style.apply(highlight_status_iterasi, axis=1).format(format_luc)
+                styled_df = df_iter.style.apply(highlight_status_iterasi, axis=None).format(format_luc)
                 st.dataframe(styled_df, hide_index=True, use_container_width=True)
         tampilkan_tabel_mrp("LUC", res['luc'], max_capacity)
 
@@ -434,7 +457,7 @@ if df_kerja is not None and not df_kerja.empty:
         format_ppb = {'EPP Limit': '{:.2f}', 'Cumulative Part-Period': '{:.2f}'}
         for idx, df_iter in enumerate(res['ppb']['iters']):
             with st.expander(f"Order Window Evaluation Strategy {idx+1}"):
-                styled_df = df_iter.style.apply(highlight_status_iterasi, axis=1).format(format_ppb)
+                styled_df = df_iter.style.apply(highlight_status_iterasi, axis=None).format(format_ppb)
                 st.dataframe(styled_df, hide_index=True, use_container_width=True)
         tampilkan_tabel_mrp("PPB", res['ppb'], max_capacity)
 
@@ -535,11 +558,11 @@ if df_kerja is not None and not df_kerja.empty:
     
     buffer = io.BytesIO()
     with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-        pd.DataFrame({'Gross Requirements': gross_req, 'Scheduled Receipts': sched_rec, 'Net Requirements': res['net_req']}, index=[f"p{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="Baseline Requirements")
-        pd.DataFrame({'Projected On Hand': res['l4l']['poh'], 'Planned Order Receipts': res['l4l']['rec'], 'Planned Order Releases': res['l4l']['rel']}, index=[f"p{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="L4L Model")
-        pd.DataFrame({'Projected On Hand': res['luc']['poh'], 'Planned Order Receipts': res['luc']['rec'], 'Planned Order Releases': res['luc']['rel']}, index=[f"p{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="LUC Model")
-        pd.DataFrame({'Projected On Hand': res['eoq']['poh'], 'Planned Order Receipts': res['eoq']['rec'], 'Planned Order Releases': res['eoq']['rel']}, index=[f"p{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="EOQ Model")
-        pd.DataFrame({'Projected On Hand': res['ppb']['poh'], 'Planned Order Receipts': res['ppb']['rec'], 'Planned Order Releases': res['ppb']['rel']}, index=[f"p{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="PPB Model")
+        pd.DataFrame({'Gross Requirements': gross_req, 'Scheduled Receipts': sched_rec, 'Net Requirements': res['net_req']}, index=[f"P{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="Baseline Requirements")
+        pd.DataFrame({'Projected On Hand': res['l4l']['poh'], 'Planned Order Receipts': res['l4l']['rec'], 'Planned Order Releases': res['l4l']['rel']}, index=[f"P{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="L4L Model")
+        pd.DataFrame({'Projected On Hand': res['luc']['poh'], 'Planned Order Receipts': res['luc']['rec'], 'Planned Order Releases': res['luc']['rel']}, index=[f"P{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="LUC Model")
+        pd.DataFrame({'Projected On Hand': res['eoq']['poh'], 'Planned Order Receipts': res['eoq']['rec'], 'Planned Order Releases': res['eoq']['rel']}, index=[f"P{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="EOQ Model")
+        pd.DataFrame({'Projected On Hand': res['ppb']['poh'], 'Planned Order Receipts': res['ppb']['rec'], 'Planned Order Releases': res['ppb']['rel']}, index=[f"P{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="PPB Model")
     
     buffer.seek(0)
         
