@@ -110,19 +110,14 @@ def highlight_status_iterasi(df):
     Fungsi cerdas untuk mewarnai log iterasi (LUC & PPB) sebaris penuh.
     - Baris berstatus 'Stop' diberi warna MERAH MUDA.
     - HANYA SATU BARIS tepat sebelum 'Stop' yang diberi warna HIJAU MUDA.
-    - Baris feasible di awal tetap polos tanpa warna agar tidak membingungkan.
     """
-    # Inisialisasi DataFrame style dengan string kosong
     style_df = pd.DataFrame('', index=df.index, columns=df.columns)
     
     for i in range(len(df)):
         status_val = str(df.iloc[i]['Status'])
         
-        # Jika baris ini berstatus Stop
         if 'Stop' in status_val:
             style_df.iloc[i] = 'background-color: #fee2e2; color: #991b1b; font-weight: bold;'
-            
-            # Warnai baris TEPAT DI ATASNYA (Baris terakhir sebelum di-stop) menjadi Hijau
             if i > 0:
                 style_df.iloc[i-1] = 'background-color: #e8f5e9; color: #1b5e20; font-weight: bold;'
                 
@@ -156,7 +151,6 @@ if input_method == "Upload File (Excel / CSV)":
             df_kerja = pd.DataFrame()
             
             if col_periode and col_periode in df_raw.columns:
-                # Memastikan nama periode dari file yang di-upload otomatis menjadi KAPITAL
                 df_kerja['Period'] = df_raw[col_periode].astype(str).str.upper()
             else:
                 df_kerja['Period'] = [f"P{i+1}" for i in range(len(df_raw))]
@@ -177,7 +171,7 @@ if input_method == "Upload File (Excel / CSV)":
 elif input_method == "Manual Interface Input":
     num_periods_input = st.number_input("Planning Horizon (Periods):", min_value=1, max_value=52, value=10, step=1)
     init_data = {
-        'Period': [f"P{i+1}" for i in range(num_periods_input)], # Diubah jadi Kapital P
+        'Period': [f"P{i+1}" for i in range(num_periods_input)],
         'Gross Requirements': [35, 30, 40, 0, 10, 40, 30, 0, 30, 55] if num_periods_input == 10 else [0] * num_periods_input,
         'Scheduled Receipts': [0] * num_periods_input
     }
@@ -186,7 +180,7 @@ elif input_method == "Manual Interface Input":
 
 else:
     default_data = {
-        'Period': [f"P{i}" for i in range(1, 11)], # Diubah jadi Kapital P
+        'Period': [f"P{i}" for i in range(1, 11)],
         'Gross Requirements': [35, 30, 40, 0, 10, 40, 30, 0, 30, 55],
         'Scheduled Receipts': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     }
@@ -195,7 +189,7 @@ else:
 if df_kerja is not None and not df_kerja.empty:
     gross_req = df_kerja['Gross Requirements'].fillna(0).astype(int).tolist()
     sched_rec = df_kerja['Scheduled Receipts'].fillna(0).astype(int).tolist()
-    period_labels = df_kerja['Period'].astype(str).str.upper().tolist() # Proteksi kapital
+    period_labels = df_kerja['Period'].astype(str).str.upper().tolist()
     
     st.markdown("##### Matrix Input Preview")
     df_preview_transposed = pd.DataFrame({
@@ -263,14 +257,14 @@ if df_kerja is not None and not df_kerja.empty:
                 t_cost = setup + acc_h
                 uc = t_cost / acc_d if acc_d > 0 else float('inf')
                 
-                p_label = ", ".join([f"P{m+1}" for m in range(idx, k+1)]) # Kapital P
+                p_label = ", ".join([f"P{m+1}" for m in range(idx, k+1)])
                 
                 if uc <= min_uc:
                     min_uc, best_k = uc, k
                     status = "Feasible"
                     t_log.append({'Period': p_label, 'Total Units': acc_d, 'Setup Cost': setup, 'Holding Cost': acc_h, 'Total Cost': t_cost, 'LUC (Cost/Unit)': uc, 'Status': status})
                 else:
-                    status = "Stop (Prev Closer)"
+                    status = "Stop ⚠️ (Prev Closer)"
                     t_log.append({'Period': p_label, 'Total Units': acc_d, 'Setup Cost': setup, 'Holding Cost': acc_h, 'Total Cost': t_cost, 'LUC (Cost/Unit)': uc, 'Status': status})
                     break
             luc_iters.append(pd.DataFrame(t_log))
@@ -301,7 +295,7 @@ if df_kerja is not None and not df_kerja.empty:
         c_eoq_setup = sum(1 for x in eoq_rec if x > 0) * setup
         c_eoq_hold = sum(max(0, x) for x in eoq_poh) * hold
 
-        # 4. PART PERIOD BALANCING (PPB) - FIX LOGIC
+        # 4. PART PERIOD BALANCING (PPB)
         ppb_rec = [0] * n
         ppb_iters = []
         epp_limit = setup / hold if hold > 0 else float('inf')
@@ -319,9 +313,8 @@ if df_kerja is not None and not df_kerja.empty:
             for k in range(idx, n):
                 part_period_k = net_req[k] * (k - idx)
                 new_cum_part_period = cum_part_period + part_period_k
-                p_label = ", ".join([f"P{m+1}" for m in range(idx, k+1)]) # Kapital P
+                p_label = ", ".join([f"P{m+1}" for m in range(idx, k+1)])
                 
-                # JIKA masih di bawah atau pas dengan batas EPP -> Aman & Feasible
                 if new_cum_part_period <= epp_limit:
                     acc_d += net_req[k]
                     cum_part_period = new_cum_part_period
@@ -331,12 +324,10 @@ if df_kerja is not None and not df_kerja.empty:
                         'EPP Limit': epp_limit, 'Cumulative Part-Period': cum_part_period, 'Status': "Feasible"
                     })
                 else:
-                    # JIKA sudah menembus batas EPP, uji kedekatan penyeimbang (Closer Distance)
                     dist_sebelum = abs(cum_part_period - epp_limit)
                     dist_sesudah = abs(new_cum_part_period - epp_limit)
                     
                     if dist_sesudah < dist_sebelum:
-                        # Jika kumulatif baru ternyata lebih mendekati nilai EPP, lot digabungkan
                         acc_d += net_req[k]
                         cum_part_period = new_cum_part_period
                         best_k = k
@@ -344,19 +335,17 @@ if df_kerja is not None and not df_kerja.empty:
                             'Period': p_label, 'Total Units': acc_d, 
                             'EPP Limit': epp_limit, 'Cumulative Part-Period': cum_part_period, 'Status': "Feasible"
                         })
-                        # Setelah pemaksaan lot terdekat ini selesai, iterasi periode selanjutnya wajib stop
                         if k + 1 < n:
                             p_label_next = ", ".join([f"P{m+1}" for m in range(idx, k+2)])
                             next_part = net_req[k+1] * ((k+1) - idx)
                             t_log.append({
                                 'Period': p_label_next, 'Total Units': acc_d + net_req[k+1], 
-                                'EPP Limit': epp_limit, 'Cumulative Part-Period': cum_part_period + next_part, 'Status': "Stop! Melebihi Batas"
+                                'EPP Limit': epp_limit, 'Cumulative Part-Period': cum_part_period + next_part, 'Status': "Stop! Melebihi Batas ⚠️"
                             })
                     else:
-                        # Jika kumulatif baru makin menjauh dari batas EPP, baris ini RESMI STOP!
                         t_log.append({
                             'Period': p_label, 'Total Units': acc_d + net_req[k], 
-                            'EPP Limit': epp_limit, 'Cumulative Part-Period': new_cum_part_period, 'Status': "Stop! Melebihi Batas"
+                            'EPP Limit': epp_limit, 'Cumulative Part-Period': new_cum_part_period, 'Status': "Stop! Melebihi Batas ⚠️"
                         })
                     break
                     
@@ -396,8 +385,8 @@ if df_kerja is not None and not df_kerja.empty:
     
     t_l4l, t_luc, t_eoq, t_ppb = st.tabs(["📋 Lot-for-Lot (L4L)", "🔍 Least Unit Cost (LUC)", "🎯 Economic Order Quantity (EOQ)", "⚖️ Part Period Balancing (PPB)"])
 
-    # REUSABLE MRP RENDERER
-    def tampilkan_tabel_mrp("L4L", data_dict, max_cap):
+    # REUSABLE MRP RENDERER (SUDAH DIPERBAIKI)
+    def tampilkan_tabel_mrp(nama_metode, data_dict, max_cap):
         df = pd.DataFrame({
             'Gross Requirements': gross_req,
             'Scheduled Receipts': sched_rec,
@@ -405,7 +394,7 @@ if df_kerja is not None and not df_kerja.empty:
             'Net Requirements': res['net_req'],
             'Planned Order Receipts': data_dict['rec'],
             'Planned Order Releases': data_dict['rel']
-        }, index=[f"P{i+1}" for i in range(num_periods)]).T # Index Kapital P
+        }, index=[f"P{i+1}" for i in range(num_periods)]).T
         st.dataframe(get_styled_mrp_table(df, max_cap), use_container_width=True)
         if max(data_dict['poh']) > max_cap:
             st.error(f"⚠️ **Capacity Violation Threshold Raised:** Inventory accumulation via {nama_metode} breaches physical facility space constraints ({max_cap} units).")
@@ -467,7 +456,6 @@ if df_kerja is not None and not df_kerja.empty:
     st.markdown("---")
     st.header("Multi-Method Performance Analysis")
     
-    # HTML Cards Component Rendering (No currency symbols)
     m1, m2, m3, m4 = st.columns(4)
     with m1:
         diff_l4l = res['l4l']['total'] - biaya_dict[best_method]
@@ -509,7 +497,6 @@ if df_kerja is not None and not df_kerja.empty:
         ax.set_facecolor('#faf8f2')
         ax.bar(biaya_dict.keys(), biaya_dict.values(), color=['#a01a1e', '#415a77', '#2a9d8f', '#e9c46a'])
         
-        # Clean horizontal labels (no rotation)
         plt.xticks(rotation=0, fontsize=8)
         ax.set_ylabel('Total Cost', fontsize=9, fontweight='bold')
         ax.grid(axis='y', linestyle='--', alpha=0.3)
@@ -518,13 +505,12 @@ if df_kerja is not None and not df_kerja.empty:
     with cg2:
         st.markdown("### Demand Sensitivity Simulation (-30% to +30%)")
         
-        # Fixed Scale Factors: -30% to +30% with exactly 5% steps (removes 35%)
         scale_factors = np.arange(0.70, 1.35, 0.05)
         s_l4l, s_luc, s_eoq, s_ppb, labels_pct = [], [], [], [], []
         
         for f in scale_factors:
             pct_val = int(round((f - 1) * 100))
-            if pct_val > 30: # Hard ceiling override to prevent precision floats going over 30
+            if pct_val > 30:
                 continue
             sim_demand = [max(1, int(d * f)) for d in gross_req]
             s_res = calculate_multi_mrp(sim_demand, sched_rec, setup_cost, holding_cost, initial_inv, safety_stock, lead_time)
@@ -546,7 +532,6 @@ if df_kerja is not None and not df_kerja.empty:
         ax2.grid(True, linestyle=':', alpha=0.4)
         ax2.legend(fontsize=8)
         
-        # Clean horizontal alignment for line chart percentages
         plt.xticks(rotation=0, fontsize=8)
         st.pyplot(fig2)
 
