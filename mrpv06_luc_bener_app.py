@@ -301,19 +301,20 @@ if df_kerja is not None and not df_kerja.empty:
         eoq_rec = [0] * n
         rem_stok = 0
         
-        # Penampung log iterasi simulasi pemenuhan net req dengan ukuran lot EOQ tetap
         eoq_sim_logs = []
         
         for i in range(n):
             net_needed = net_req[i]
             init_rem = rem_stok
             ordered = 0
+            multiples = 0
             
             if net_needed > 0:
                 if rem_stok < net_needed:
                     needed = net_needed - rem_stok
                     lots_to_order = math.ceil(needed / eoq_size) if eoq_size > 0 else 1
                     ordered = lots_to_order * eoq_size
+                    multiples = lots_to_order
                     eoq_rec[i] = ordered
                     rem_stok = (ordered + rem_stok) - net_needed
                 else:
@@ -324,6 +325,7 @@ if df_kerja is not None and not df_kerja.empty:
                 "Net Requirement": net_needed,
                 "Available from Prev Lot": init_rem,
                 "Planned Order Qty": ordered,
+                "Multiples": multiples,
                 "Remaining Stock Carried": rem_stok
             })
                 
@@ -474,13 +476,35 @@ if df_kerja is not None and not df_kerja.empty:
             
             st.markdown("**3. Constant Value Synthesis:**")
             st.markdown(f"$$EOQ = \\sqrt{{\\frac{{2 \\times D \\times \\text{{Setup Cost}}}}{{\\text{{Holding Cost}}}}}} = {eoq_final_raw:.4f}$$")
-            st.markdown(f"* Rounded up to practical unit lot size: **`{res['eoq']['size']}` units**.")
+            st.markdown(f"* Rounded up to practical unit lot size: **$Q^* = {res['eoq']['size']}$ units**.")
         
-        # PERMINTAAN 1: Menampilkan semua baris langkah log pemenuhan lot EOQ per periode
-        with st.expander("EOQ Order Execution & Lot Balancing Logs", expanded=True):
-            st.markdown("Berikut jejak distribusi dan kalkulasi pemenuhan *Net Requirement* menggunakan ukuran tetap kuantitas pesanan EOQ:")
-            df_sim_eoq = pd.DataFrame(res['eoq']['sim_logs'])
-            st.dataframe(df_sim_eoq, hide_index=True, use_container_width=True)
+        # PERBAIKAN: Menjabarkan hitungan pemenuhan Net Requirements menggunakan Q fix EOQ
+        with st.expander("Dynamic Lot Sizing Breakdown (Fixed Q Execution)", expanded=True):
+            st.markdown("#### Step-by-Step Lot Sizing Calculus")
+            st.markdown(f"Fixed Lot Size Rule: **$Q^* = {res['eoq']['size']}$ units**. Setiap kali pesanan dipicu, kuantitas harus berupa kelipatan dari $Q^*$.")
+            
+            for log in res['eoq']['sim_logs']:
+                p = log["Period"]
+                nr = log["Net Requirement"]
+                prev_rem = log["Available from Prev Lot"]
+                ordered = log["Planned Order Qty"]
+                mult = log["Multiples"]
+                rem = log["Remaining Stock Carried"]
+                
+                st.markdown(f"**Periode {p}:**")
+                if nr == 0:
+                    st.markdown(f"* Tidak ada Net Requirement pada periode ini. Sisa stok dari periode sebelumnya yang dibawa: `{prev_rem}` unit.")
+                else:
+                    st.markdown(f"* Net Requirement = `{nr}` unit. Stok tersedia dari sisa pesanan sebelumnya = `{prev_rem}` unit.")
+                    if prev_rem >= nr:
+                        st.markdown(f"  * *Evaluasi:* Stok tersedia (`{prev_rem}`) mencukupi untuk menutup Net Requirement (`{nr}`). Tidak ada pesanan baru.")
+                        st.markdown(f"  * *Sisa Stok Baru:* `{prev_rem} - {nr} = {rem}` unit.")
+                    else:
+                        needed = nr - prev_rem
+                        st.markdown(f"  * *Evaluasi:* Stok tersedia tidak mencukupi. Kekurangan bersih = `{nr} - {prev_rem} = {needed}` unit.")
+                        st.markdown(f"  * *Kalkulasi Lot:* $\\lceil \\frac{{{needed}}}{{{res['eoq']['size']}}} \\rceil = {mult}$ Lot $\\rightarrow$ Dipicu pesanan sebesar: ${mult} \\times {res['eoq']['size']} = {ordered}$ unit.")
+                        st.markdown(f"  * *Sisa Stok Baru:* `({prev_rem} + {ordered}) - {nr} = {rem}` unit dibawa ke periode berikutnya.")
+                st.markdown("---")
             
         st.info(f"💡 **Fixed Lot Control Rule:** Baseline order scale for the EOQ profile is locked at **{res['eoq']['size']} units** per cycle.")
         tampilkan_tabel_mrp("EOQ", res['eoq'], max_capacity)
