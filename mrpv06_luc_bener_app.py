@@ -17,10 +17,10 @@ st.markdown("---")
 # ==========================================
 st.sidebar.header("🛠️ Parameter Input")
 
-setup_cost = st.sidebar.number_input("Ordering / Setup Cost (Rp)", min_value=0.0, value=100000.0, step=5000.0)
+setup_cost = st.sidebar.number_input("Ordering / Setup Cost (Rp)", min_value=0.0, value=100000.0, step=500.0)
 holding_cost = st.sidebar.number_input("Holding Cost (Rp / unit / periode)", min_value=0.0, value=2000.0, step=500.0)
-initial_inv = st.sidebar.number_input("Persediaan Awal (Initial Inventory)", min_value=0, value=0, step=5)
-safety_stock = st.sidebar.number_input("Safety Stock", min_value=0, value=1, step=1)
+initial_inv = st.sidebar.number_input("Persediaan Awal (Initial Inventory)", min_value=0, value=35, step=5)
+safety_stock = st.sidebar.number_input("Safety Stock", min_value=0, value=0, step=1)
 lead_time = st.sidebar.number_input("Lead Time (Periode)", min_value=0, value=1, step=1)
 
 # Constraint Kapasitas Gudang
@@ -46,7 +46,7 @@ def get_styled_mrp_table(df_mrp_transposed, max_cap):
     return df_mrp_transposed.style.apply(highlight_row_capacity, axis=1)
 
 def highlight_stop(row):
-    return ['background-color: #ffcccc; color: black; font-weight: bold;' if row['Status'] == 'Stop! Biaya Naik' or row['Status'] == 'Stop! Melebihi Batas' else '' for _ in row]
+    return ['background-color: #ffcccc; color: black; font-weight: bold;' if row['Status'] == 'Stop! Biaya Naik' or row['Status'] == 'Stop! Melebihi Batas EPP' else '' for _ in row]
 
 # ==========================================
 # 3. AREA DATA INPUT
@@ -94,10 +94,10 @@ if input_method == "Upload File (Excel / CSV)":
             st.error(f"Gagal membaca file. Error: {e}")
             
 elif input_method == "Input Manual Langsung di Aplikasi":
-    num_periods_input = st.number_input("Tentukan Jumlah Periode Perencanaan:", min_value=1, max_value=52, value=8, step=1)
+    num_periods_input = st.number_input("Tentukan Jumlah Periode Perencanaan:", min_value=1, max_value=52, value=10, step=1)
     init_data = {
         'Periode': [f"P{i+1}" for i in range(num_periods_input)],
-        'Gross Requirements': [0] * num_periods_input,
+        'Gross Requirements': [35, 30, 40, 0, 10, 40, 30, 0, 30, 55] if num_periods_input == 10 else [0] * num_periods_input,
         'Scheduled Receipts': [0] * num_periods_input
     }
     df_empty = pd.DataFrame(init_data)
@@ -105,9 +105,9 @@ elif input_method == "Input Manual Langsung di Aplikasi":
 
 else:
     default_data = {
-        'Periode': [f"P{i}" for i in range(1, 9)],
-        'Gross Requirements': [30, 40, 20, 70, 40, 10, 30, 60],
-        'Scheduled Receipts': [0, 10, 0, 0, 20, 0, 0, 0]
+        'Periode': [f"P{i}" for i in range(1, 11)],
+        'Gross Requirements': [35, 30, 40, 0, 10, 40, 30, 0, 30, 55],
+        'Scheduled Receipts': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     }
     df_kerja = pd.DataFrame(default_data)
 
@@ -198,9 +198,9 @@ if df_kerja is not None and not df_kerja.empty:
         c_luc_setup = sum(1 for x in luc_rec if x > 0) * setup
         c_luc_hold = sum(luc_poh) * hold
 
-        # 3. METODE ECONOMIC ORDER QUANTITY (EOQ)
-        avg_demand = np.mean(net_req)
-        eoq_size = math.ceil(math.sqrt((2 * avg_demand * setup) / hold)) if hold > 0 else 0
+        # 3. PERBAIKAN METODE ECONOMIC ORDER QUANTITY (EOQ) -> DEMAND BERBASIS GROSS REQUIREMENTS
+        avg_demand_gross = np.mean(demands) 
+        eoq_size = math.ceil(math.sqrt((2 * avg_demand_gross * setup) / hold)) if hold > 0 else 0
         eoq_rec = [0] * n
         rem_stok = 0
         for i in range(n):
@@ -216,34 +216,46 @@ if df_kerja is not None and not df_kerja.empty:
         c_eoq_setup = sum(1 for x in eoq_rec if x > 0) * setup
         c_eoq_hold = sum(eoq_poh) * hold
 
-        # 4. METODE PART PERIOD BALANCING (PPB)
+        # 4. PERBAIKAN METODE PART PERIOD BALANCING (PPB) -> BERBASIS ECONOMIC PART PERIOD (EPP)
         ppb_rec = [0] * n
         ppb_iters = []
+        epp_limit = setup / hold if hold > 0 else float('inf') # Batas EPP (Unit-Periode)
+        
         idx = 0
         while idx < n:
             if net_req[idx] == 0:
                 idx += 1
                 continue
             best_k = idx
-            min_diff = float('inf')
-            acc_d, acc_h = 0, 0
+            cum_part_period = 0
+            acc_d = 0
             t_log = []
+            
             for k in range(idx, n):
                 acc_d += net_req[k]
-                acc_h += net_req[k] * hold * (k - idx)
-                diff = abs(setup - acc_h)
+                part_period_k = net_req[k] * (k - idx)
+                temp_cum_part_period = cum_part_period + part_period_k
                 
-                if acc_h <= setup:
+                if temp_cum_part_period <= epp_limit:
                     best_k = k
+                    cum_part_period = temp_cum_part_period
                     status = "Mendekati Imbang"
-                    t_log.append({'Iterasi Dari': f"P{idx+1}", 'Hingga': f"P{k+1}", 'Total Unit': acc_d, 'Biaya Pesan': setup, 'Biaya Simpan': acc_h, 'Selisih |S-H|': diff, 'Status': status})
+                    t_log.append({
+                        'Iterasi Dari': f"P{idx+1}", 'Hingga': f"P{k+1}", 'Total Unit': acc_d, 
+                        'Batas EPP': epp_limit, 'Part-Period Kumulatif': cum_part_period, 'Status': status
+                    })
                 else:
-                    status = "Stop! Melebihi Batas"
-                    t_log.append({'Iterasi Dari': f"P{idx+1}", 'Hingga': f"P{k+1}", 'Total Unit': acc_d, 'Biaya Pesan': setup, 'Biaya Simpan': acc_h, 'Selisih |S-H|': diff, 'Status': status})
+                    status = "Stop! Melebihi Batas EPP"
+                    t_log.append({
+                        'Iterasi Dari': f"P{idx+1}", 'Hingga': f"P{k+1}", 'Total Unit': acc_d, 
+                        'Batas EPP': epp_limit, 'Part-Period Kumulatif': temp_cum_part_period, 'Status': status
+                    })
                     break
+                    
             ppb_iters.append(pd.DataFrame(t_log))
             ppb_rec[idx] = sum(net_req[idx:best_k+1])
             idx = best_k + 1
+            
         ppb_poh, ppb_rel = generate_poh_and_release(ppb_rec)
         c_ppb_setup = sum(1 for x in ppb_rec if x > 0) * setup
         c_ppb_hold = sum(ppb_poh) * hold
@@ -252,7 +264,7 @@ if df_kerja is not None and not df_kerja.empty:
             'net_req': net_req,
             'l4l': {'poh': l4l_poh, 'rec': l4l_rec, 'rel': l4l_rel, 'setup': c_l4l_setup, 'hold': c_l4l_hold, 'total': c_l4l_setup + c_l4l_hold},
             'luc': {'poh': luc_poh, 'rec': luc_rec, 'rel': luc_rel, 'setup': c_luc_setup, 'hold': c_luc_hold, 'total': c_luc_setup + c_luc_hold, 'iters': luc_iters},
-            'eoq': {'poh': eoq_poh, 'rec': eoq_rec, 'rel': eoq_rel, 'setup': c_eoq_setup, 'hold': c_eoq_hold, 'total': c_eoq_setup + c_eoq_hold, 'size': eoq_size},
+            'eoq': {'poh': eoq_poh, 'rec': eoq_rec, 'rel': eoq_rel, 'setup': c_eoq_setup, 'hold': c_eoq_hold, 'total': c_eoq_setup + c_eoq_hold, 'size': eoq_size, 'avg_demand_gross': avg_demand_gross},
             'ppb': {'poh': ppb_poh, 'rec': ppb_rec, 'rel': ppb_rel, 'setup': c_ppb_setup, 'hold': c_ppb_hold, 'total': c_ppb_setup + c_ppb_hold, 'iters': ppb_iters}
         }
 
@@ -273,7 +285,6 @@ if df_kerja is not None and not df_kerja.empty:
         'Part Period Balancing (PPB)': res['ppb']['total']
     }
     best_method = min(biaya_dict, key=biaya_dict.get)
-    max_cost = max(biaya_dict.values())
     
     # Render HTML Premium Metrics Card
     m1, m2, m3, m4 = st.columns(4)
@@ -318,7 +329,7 @@ if df_kerja is not None and not df_kerja.empty:
         with cg1:
             st.markdown("### Komparasi Total Biaya (Rp)")
             fig, ax = plt.subplots(figsize=(6, 4))
-            bars = ax.bar(biaya_dict.keys(), biaya_dict.values(), color=['#FF6B6B', '#4D96FF', '#6BCB77', '#f9d949'])
+            ax.bar(biaya_dict.keys(), biaya_dict.values(), color=['#FF6B6B', '#4D96FF', '#6BCB77', '#f9d949'])
             plt.xticks(rotation=20, ha='right')
             ax.grid(axis='y', linestyle='--', alpha=0.5)
             st.pyplot(fig)
@@ -381,31 +392,30 @@ if df_kerja is not None and not df_kerja.empty:
         st.subheader("Tabel Hasil Analisis MRP - Economic Order Quantity")
         
         with st.expander("🔬 KLIK DI SINI UNTUK MELIHAT LOG PERHITUNGAN RUMUS DETAIL (EOQ)"):
-            net_req_display = res['net_req']
-            total_net_req = sum(net_req_display)
-            n_periode = len(net_req_display)
-            avg_demand_calc = total_net_req / n_periode
+            # Perbaikan Teks Visualisasi: Demand D dihitung dari Gross Requirement
+            total_gross_req = sum(gross_req)
+            n_periode = len(gross_req)
+            avg_demand_calc = res['eoq']['avg_demand_gross']
             
             st.markdown("#### 📝 Langkah-Langkah Perhitungan Ukuran Lot EOQ:")
-            
-            st.markdown("**1. Mengidentifikasi Data Kebutuhan Bersih (Net Requirements):**")
+            st.markdown("**1. Mengidentifikasi Data Kebutuhan Kotor (Gross Requirements):**")
             st.markdown(f"""
-            * Data per Periode: `{net_req_display}`
-            * Total Kebutuhan Bersih ($\sum$ Net Req) = `{total_net_req}` unit
+            * Data per Periode: `{gross_req}`
+            * Total Kebutuhan Kotor ($\sum$ Gross Req) = `{total_gross_req}` unit
             * Jumlah Periode Planning ($n$) = `{n_periode}` periode
             """)
             
             st.markdown("**2. Menghitung Rata-rata Kebutuhan per Periode ($D$):**")
-            st.markdown(f"$$\sum \\text{{Net Requirements}} = {total_net_req}$$")
+            st.markdown(f"$$\sum \\text{{Gross Requirements}} = {total_gross_req}$$")
             st.markdown(f"$$n = {n_periode}$$")
-            st.markdown(f"$$D = \\frac{{{total_net_req}}}{{{n_periode}}}$$")
+            st.markdown(f"$$D = \\frac{{{total_gross_req}}}{{{n_periode}}}$$")
             st.markdown(f"$$D = {avg_demand_calc:.4f} \\text{{ unit/periode}}$$")
             
             nilai_atas = 2 * avg_demand_calc * setup_cost
             nilai_bagi = nilai_atas / holding_cost
             eoq_final_raw = math.sqrt(nilai_bagi)
             
-            st.markdown("**3. Substitusi Parameter ke Rumus Standar EOQ (Berurutan ke Bawah):**")
+            st.markdown("**3. Substitusi Parameter ke Rumus Standar EOQ:**")
             st.markdown(f"$$EOQ = \\sqrt{{\\frac{{2 \\times D \\times \\text{{Setup Cost}}}}{{\\text{{Holding Cost}}}}}}$$")
             st.markdown(f"$$EOQ = \\sqrt{{\\frac{{2 \\times {avg_demand_calc:.4f} \\times {setup_cost:,.2f}}}{{{holding_cost:,.2f}}}}}$$")
             st.markdown(f"$$EOQ = \\sqrt{{\\frac{{{nilai_atas:,.4f}}}{{{holding_cost:,.2f}}}}}$$")
@@ -422,8 +432,9 @@ if df_kerja is not None and not df_kerja.empty:
     with t_ppb:
         st.subheader("Proses & Tabel Analisis MRP - Part Period Balancing")
         with st.expander("🔬 KLIK DI SINI UNTUK MELIHAT LOG ITERASI KESEIMBANGAN PART PERIOD (PPB)"):
+            # Format tampilan tabel log PPB
             format_ppb = {
-                'Biaya Pesan': '{:.4f}', 'Biaya Simpan': '{:.4f}', 'Selisih |S-H|': '{:.4f}'
+                'Batas EPP': '{:.2f}', 'Part-Period Kumulatif': '{:.2f}'
             }
             for idx, df_iter in enumerate(res['ppb']['iters']):
                 st.markdown(f"**Langkah Pembentukan Lot Ke-{idx+1}:**")
