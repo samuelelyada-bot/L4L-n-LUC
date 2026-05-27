@@ -123,10 +123,6 @@ def get_styled_mrp_table(df_mrp_transposed, max_cap):
     return df_mrp_transposed.style.apply(highlight_row_capacity, axis=1)
 
 def highlight_status_iterasi(df):
-    """
-    FIXED BUG 3: Ditambahkan 'if i > 0' guard untuk mencegah indeks -1 (baris terakhir) 
-    ter-override menjadi warna hijau jika iterasi hanya berjalan 1 baris lalu 'Stop'.
-    """
     style_df = pd.DataFrame('', index=df.index, columns=df.columns)
     n_rows = len(df)
     
@@ -140,10 +136,10 @@ def highlight_status_iterasi(df):
         if 'Stop' in status_val:
             style_df.iloc[i] = 'background-color: #fee2e2; color: #991b1b; font-weight: bold;'
             stop_found = True
-            if i > 0: # BUG 3 FIX TRAPPED HERE
+            if i > 0: 
                 style_df.iloc[i-1] = 'background-color: #e8f5e9; color: #1b5e20; font-weight: bold;'
                 
-    if not stop_found:
+    if not stop_found and n_rows > 0:
         style_df.iloc[n_rows - 1] = 'background-color: #e8f5e9; color: #1b5e20; font-weight: bold;'
                 
     return style_df
@@ -289,7 +285,7 @@ if df_kerja is not None and not df_kerja.empty:
                     status = "Feasible"
                     t_log.append({'Period': p_label, 'Total Units': acc_d, 'Setup Cost': setup, 'Holding Cost': acc_h, 'Total Cost': t_cost, 'LUC (Cost/Unit)': uc, 'Status': status})
                 else:
-                    status = "Stop (Prev Closer)"
+                    status = "Stop ⚠️ (Prev Closer)"
                     t_log.append({'Period': p_label, 'Total Units': acc_d, 'Setup Cost': setup, 'Holding Cost': acc_h, 'Total Cost': t_cost, 'LUC (Cost/Unit)': uc, 'Status': status})
                     break
             luc_iters.append(pd.DataFrame(t_log))
@@ -304,17 +300,32 @@ if df_kerja is not None and not df_kerja.empty:
         eoq_size = math.ceil(math.sqrt((2 * avg_demand_gross * setup) / hold)) if hold > 0 else 0
         eoq_rec = [0] * n
         rem_stok = 0
+        
+        # Penampung log iterasi simulasi pemenuhan net req dengan ukuran lot EOQ tetap
+        eoq_sim_logs = []
+        
         for i in range(n):
-            if net_req[i] > 0:
-                if rem_stok < net_req[i]:
-                    needed = net_req[i] - rem_stok
+            net_needed = net_req[i]
+            init_rem = rem_stok
+            ordered = 0
+            
+            if net_needed > 0:
+                if rem_stok < net_needed:
+                    needed = net_needed - rem_stok
                     lots_to_order = math.ceil(needed / eoq_size) if eoq_size > 0 else 1
-                    eoq_rec[i] = lots_to_order * eoq_size
-                    rem_stok = (eoq_rec[i] + rem_stok) - net_req[i]
+                    ordered = lots_to_order * eoq_size
+                    eoq_rec[i] = ordered
+                    rem_stok = (ordered + rem_stok) - net_needed
                 else:
-                    rem_stok -= net_req[i]
-            else:
-                pass
+                    rem_stok -= net_needed
+            
+            eoq_sim_logs.append({
+                "Period": f"P{i+1}",
+                "Net Requirement": net_needed,
+                "Available from Prev Lot": init_rem,
+                "Planned Order Qty": ordered,
+                "Remaining Stock Carried": rem_stok
+            })
                 
         eoq_poh, eoq_rel = generate_poh_and_release(eoq_rec)
         c_eoq_setup = sum(1 for x in eoq_rec if x > 0) * setup
@@ -348,14 +359,11 @@ if df_kerja is not None and not df_kerja.empty:
                         'Period': p_label, 'Total Units': acc_d, 
                         'EPP Limit': epp_limit, 'Cumulative Part-Period': cum_part_period, 'Status': "Feasible"
                     })
-                    # FIXED BUG 2: Jika sudah di penghujung periode terakhir dan masih 'Feasible', loop luar akan aman mengeksekusi data tanpa gantung.
                 else:
                     dist_sebelum = abs(cum_part_period - epp_limit)
                     dist_sesudah = abs(new_cum_part_period - epp_limit)
                     
                     if dist_sesudah < dist_sebelum and cum_part_period > 0:
-                        # Kasus di mana overshoot lebih mendekati target EPP limit
-                        # FIXED BUG 1: Simpan nilai snapshot penambahan acc_d lama ke variabel terpisah agar baris stop k+1 tidak double counting
                         prev_acc_d = acc_d
                         acc_d += net_req[k]
                         cum_part_period = new_cum_part_period
@@ -369,13 +377,12 @@ if df_kerja is not None and not df_kerja.empty:
                             next_part = net_req[k+1] * ((k+1) - idx)
                             t_log.append({
                                 'Period': p_label_next, 'Total Units': acc_d + net_req[k+1], 
-                                'EPP Limit': epp_limit, 'Cumulative Part-Period': cum_part_period + next_part, 'Status': "Stop! Exceeds EPP Limit ⚠️"
+                                'EPP Limit': epp_limit, 'Cumulative Part-Period': cum_part_period + next_part, 'Status': "Stop ⚠️ (Prev Closer)"
                             })
                     else:
-                        # Kasus di mana akumulasi sebelum overshoot yang lebih mendekati target
                         t_log.append({
                             'Period': p_label, 'Total Units': acc_d + net_req[k], 
-                            'EPP Limit': epp_limit, 'Cumulative Part-Period': new_cum_part_period, 'Status': "Stop! Exceeds EPP Limit ⚠️"
+                            'EPP Limit': epp_limit, 'Cumulative Part-Period': new_cum_part_period, 'Status': "Stop ⚠️ (Prev Closer)"
                         })
                     break
                     
@@ -391,7 +398,7 @@ if df_kerja is not None and not df_kerja.empty:
             'net_req': net_req,
             'l4l': {'poh': l4l_poh, 'rec': l4l_rec, 'rel': l4l_rel, 'setup': c_l4l_setup, 'hold': c_l4l_hold, 'total': c_l4l_setup + c_l4l_hold},
             'luc': {'poh': luc_poh, 'rec': luc_rec, 'rel': luc_rel, 'setup': c_luc_setup, 'hold': c_luc_hold, 'total': c_luc_setup + c_luc_hold, 'iters': luc_iters},
-            'eoq': {'poh': eoq_poh, 'rec': eoq_rec, 'rel': eoq_rel, 'setup': c_eoq_setup, 'hold': c_eoq_hold, 'total': c_eoq_setup + c_eoq_hold, 'size': eoq_size, 'avg_demand_gross': avg_demand_gross},
+            'eoq': {'poh': eoq_poh, 'rec': eoq_rec, 'rel': eoq_rel, 'setup': c_eoq_setup, 'hold': c_eoq_hold, 'total': c_eoq_setup + c_eoq_hold, 'size': eoq_size, 'avg_demand_gross': avg_demand_gross, 'sim_logs': eoq_sim_logs},
             'ppb': {'poh': ppb_poh, 'rec': ppb_rec, 'rel': ppb_rel, 'setup': c_ppb_setup, 'hold': c_ppb_hold, 'total': c_ppb_setup + c_ppb_hold, 'iters': ppb_iters}
         }
 
@@ -443,7 +450,9 @@ if df_kerja is not None and not df_kerja.empty:
 
     with t_eoq:
         st.subheader("Economic Order Quantity Model Assessment")
-        with st.expander("Formula Calculation & Parameter Trace"):
+        
+        # Bagian Perhitungan Formula Sesuai Struktur Awal
+        with st.expander("Formula Calculation & Parameter Trace", expanded=True):
             total_gross_req = sum(gross_req)
             n_periode = len(gross_req)
             avg_demand_calc = res['eoq']['avg_demand_gross']
@@ -466,6 +475,12 @@ if df_kerja is not None and not df_kerja.empty:
             st.markdown("**3. Constant Value Synthesis:**")
             st.markdown(f"$$EOQ = \\sqrt{{\\frac{{2 \\times D \\times \\text{{Setup Cost}}}}{{\\text{{Holding Cost}}}}}} = {eoq_final_raw:.4f}$$")
             st.markdown(f"* Rounded up to practical unit lot size: **`{res['eoq']['size']}` units**.")
+        
+        # PERMINTAAN 1: Menampilkan semua baris langkah log pemenuhan lot EOQ per periode
+        with st.expander("EOQ Order Execution & Lot Balancing Logs", expanded=True):
+            st.markdown("Berikut jejak distribusi dan kalkulasi pemenuhan *Net Requirement* menggunakan ukuran tetap kuantitas pesanan EOQ:")
+            df_sim_eoq = pd.DataFrame(res['eoq']['sim_logs'])
+            st.dataframe(df_sim_eoq, hide_index=True, use_container_width=True)
             
         st.info(f"💡 **Fixed Lot Control Rule:** Baseline order scale for the EOQ profile is locked at **{res['eoq']['size']} units** per cycle.")
         tampilkan_tabel_mrp("EOQ", res['eoq'], max_capacity)
@@ -542,7 +557,7 @@ if df_kerja is not None and not df_kerja.empty:
         
         for f in scale_factors:
             pct_val = int(round((f - 1) * 100))
-            if pct_val > 30:  # Hard limit di 30%
+            if pct_val > 30:  
                 continue
             sim_demand = [max(1, int(d * f)) for d in gross_req]
             s_res = calculate_multi_mrp(sim_demand, sched_rec, setup_cost, holding_cost, initial_inv, safety_stock, lead_time)
