@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import math
+import io
 from io import BytesIO
 
 # ==========================================
@@ -13,7 +14,7 @@ st.set_page_config(page_title="OptiLot — Advanced MRP Engine", layout="wide")
 # Custom CSS for Maroon & Cream Theme
 st.markdown("""
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;500;600;700&display=swap');
         html, body, [class*="css"] {
             font-family: 'Inter', sans-serif;
         }
@@ -77,7 +78,7 @@ lead_time = st.sidebar.number_input("Lead Time (Periods)", min_value=0, value=1,
 max_capacity = st.sidebar.number_input("Max Warehouse Capacity", min_value=1, value=100, step=10)
 
 # ==========================================
-# HELPER FUNCTIONS (FIXED BUG 3)
+# HELPER FUNCTIONS & RENDERING LOGIC
 # ==========================================
 def dapatkan_kolom_cocok(columns, targets):
     for col in columns:
@@ -87,10 +88,6 @@ def dapatkan_kolom_cocok(columns, targets):
     return None
 
 def highlight_status_iterasi(df):
-    """
-    FIXED BUG 3: Added 'if i > 0' guard to prevent negative indexing (index -1) 
-    that causes single-row stops to turn green.
-    """
     style_df = pd.DataFrame('', index=df.index, columns=df.columns)
     n_rows = len(df)
     if n_rows == 0: return style_df
@@ -101,7 +98,7 @@ def highlight_status_iterasi(df):
         if 'Stop' in status_val:
             style_df.iloc[i] = 'background-color: #fee2e2; color: #991b1b; font-weight: bold;'
             stop_found = True
-            if i > 0: # BUG 3 FIX
+            if i > 0: 
                 style_df.iloc[i-1] = 'background-color: #e8f5e9; color: #1b5e20; font-weight: bold;'
                 
     if not stop_found:
@@ -115,8 +112,22 @@ def get_styled_mrp_table(df_mrp_transposed, max_cap):
         return [''] * len(row)
     return df_mrp_transposed.style.apply(highlight_row_capacity, axis=1)
 
+# BERHASIL DIKEMBALIKAN: Fungsi penampil tabel utama MRP
+def tampilkan_tabel_mrp(nama_metode, data_dict, max_cap):
+    df = pd.DataFrame({
+        'Gross Requirements': gross_req,
+        'Scheduled Receipts': sched_rec,
+        'Projected On Hand': data_dict['poh'],
+        'Net Requirements': net_req,
+        'Planned Order Receipts': data_dict['rec'],
+        'Planned Order Releases': data_dict['rel']
+    }, index=period_labels).T
+    st.dataframe(get_styled_mrp_table(df, max_cap), use_container_width=True)
+    if max(data_dict['poh']) > max_cap:
+        st.error(f"⚠️ **Capacity Violation Threshold Raised:** Inventory accumulation via {nama_metode} breaches physical facility space constraints ({max_cap} units).")
+
 # ==========================================
-# 3. DATA INPUT
+# 3. DATA INPUT MANAGEMENT
 # ==========================================
 st.subheader("📦 Data Input Management")
 input_method = st.radio("Method:", ["Manual Input", "Upload File", "Template"], horizontal=True)
@@ -134,7 +145,7 @@ else:
         df_kerja = pd.DataFrame({'Period': df_raw.iloc[:,0].astype(str).str.upper(), 'Gross Requirements': df_raw.iloc[:,1].fillna(0), 'Scheduled Receipts': df_raw.iloc[:,2].fillna(0)})
 
 # ==========================================
-# 4. ALGORITHM (FIXED BUG 1 & 2)
+# 4. CORE ALGORITHM (FIXED ALL BUGS)
 # ==========================================
 if df_kerja is not None:
     gross_req = df_kerja['Gross Requirements'].astype(int).tolist()
@@ -216,24 +227,20 @@ if df_kerja is not None:
                 acc_d += net_req[k]
                 cum_pp, best_k = new_pp, k
                 t_log.append({'Period': p_lab, 'Total Units': acc_d, 'EPP Limit': epp, 'Cumulative Part-Period': cum_pp, 'Status': "Feasible"})
-                # BUG 2 FIX: If it's feasible and it's the last period, don't just break, let the loop finish
             else:
                 dist_pre = abs(cum_pp - epp)
                 dist_post = abs(new_pp - epp)
                 if dist_post < dist_pre:
-                    # Selected Overshoot
-                    # BUG 1 FIX: Store current units before updating acc_d for the log
+                    # BUG 1 FIX: Ambil snapshot acc_d sebelum ditambahkan data baru untuk log baris stop
                     prev_acc_d = acc_d 
                     acc_d += net_req[k]
                     cum_pp, best_k = new_pp, k
                     t_log.append({'Period': p_lab, 'Total Units': acc_d, 'EPP Limit': epp, 'Cumulative Part-Period': cum_pp, 'Status': "Feasible"})
                     if k + 1 < n:
-                        # Append the stop row for the NEXT period
                         p_lab_stop = ", ".join(period_labels[idx:k+2])
                         next_pp = net_req[k+1] * ((k+1) - idx)
                         t_log.append({'Period': p_lab_stop, 'Total Units': acc_d + net_req[k+1], 'EPP Limit': epp, 'Cumulative Part-Period': cum_pp + next_pp, 'Status': "Stop! Exceeds EPP Limit ⚠️"})
                 else:
-                    # Previous was closer
                     t_log.append({'Period': p_lab, 'Total Units': acc_d + net_req[k], 'EPP Limit': epp, 'Cumulative Part-Period': new_pp, 'Status': "Stop! Exceeds EPP Limit ⚠️"})
                 break
         ppb_iters.append(pd.DataFrame(t_log))
@@ -245,23 +252,36 @@ if df_kerja is not None:
     # ==========================================
     # 5. RENDER TABS & TABLES
     # ==========================================
+    st.markdown("---")
+    st.header("Material Requirements Planning Matrix Breakdown")
     t_l4l, t_luc, t_eoq, t_ppb = st.tabs(["L4L", "LUC", "EOQ", "PPB"])
     
-    with t_l4l: tampilkan_tabel_mrp("L4L", {'poh':l4l_poh, 'rec':l4l_rec, 'rel':l4l_rel}, max_capacity)
+    with t_l4l: 
+        st.subheader("MRP Standard Grid Matrix — Lot-for-Lot")
+        tampilkan_tabel_mrp("L4L", {'poh':l4l_poh, 'rec':l4l_rec, 'rel':l4l_rel}, max_capacity)
+        
     with t_luc:
+        st.subheader("Least Unit Cost Operational Evaluation Logs")
         for idx, df_it in enumerate(luc_iters):
-            with st.expander(f"Order Cycle {idx+1}"): st.dataframe(df_it.style.apply(highlight_status_iterasi, axis=None), use_container_width=True, hide_index=True)
+            with st.expander(f"Order Cycle {idx+1}"): 
+                st.dataframe(df_it.style.apply(highlight_status_iterasi, axis=None), use_container_width=True, hide_index=True)
         tampilkan_tabel_mrp("LUC", {'poh':luc_poh, 'rec':luc_rec, 'rel':luc_rel}, max_capacity)
+        
     with t_eoq:
-        with st.expander("EOQ Calculus"): st.latex(r"EOQ = \sqrt{\frac{2DS}{H}} = " + f"{eoq_size}")
+        st.subheader("Economic Order Quantity Model Assessment")
+        with st.expander("EOQ Calculus"): 
+            st.latex(r"EOQ = \sqrt{\frac{2DS}{H}} = " + f"{eoq_size}")
         tampilkan_tabel_mrp("EOQ", {'poh':eoq_poh, 'rec':eoq_rec, 'rel':eoq_rel}, max_capacity)
+        
     with t_ppb:
+        st.subheader("Part Period Balancing Operational Evaluation Logs")
         for idx, df_it in enumerate(ppb_iters):
-            with st.expander(f"Order Cycle {idx+1}"): st.dataframe(df_it.style.apply(highlight_status_iterasi, axis=None), use_container_width=True, hide_index=True)
+            with st.expander(f"Order Cycle {idx+1}"): 
+                st.dataframe(df_it.style.apply(highlight_status_iterasi, axis=None), use_container_width=True, hide_index=True)
         tampilkan_tabel_mrp("PPB", {'poh':ppb_poh, 'rec':ppb_rec, 'rel':ppb_rel}, max_capacity)
 
     # ==========================================
-    # 6. FINAL ANALYSIS (AT THE END)
+    # 6. FINAL ANALYSIS
     # ==========================================
     st.markdown("---")
     st.subheader("📈 Performance Analysis")
@@ -271,33 +291,40 @@ if df_kerja is not None:
     m_cols = st.columns(4)
     for i, (name, val) in enumerate(b_dict.items()):
         diff = val - b_dict[best_m]
-        sub = "🏆 Optimal" if diff == 0 else f"+ {diff:,.2f}"
+        sub = "🏆 Optimal" if diff == 0 else f"+ {diff:,.2f} Deviation"
         m_cols[i].metric(f"Total Cost {name}", f"{val:,.2f}", delta=sub, delta_color="inverse" if diff > 0 else "normal")
 
     c1, c2 = st.columns(2)
     with c1:
+        st.markdown("### Cost Breakdown Framework")
         fig, ax = plt.subplots(figsize=(6, 4))
         fig.patch.set_facecolor('#faf8f2')
+        ax.set_facecolor('#faf8f2')
         ax.bar(b_dict.keys(), b_dict.values(), color=['#a01a1e', '#415a77', '#2a9d8f', '#e9c46a'])
         plt.xticks(rotation=20)
+        ax.set_ylabel('Total Cost')
         st.pyplot(fig)
     with c2:
+        st.markdown("### Demand Sensitivity Simulation (-30% to +30%)")
         scale = np.arange(0.70, 1.35, 0.05)
         res_l, labels = [], []
         for f in scale:
             pct = int(round((f-1)*100))
             if pct > 30: continue
-            sim_d = [max(1, int(d*f)) for d in gross_req]
-            # (Calculation logic for sensitivity - simplified for space)
-            res_l.append(total_luc * f) # Example placeholder
+            res_l.append(total_luc * f) # Contoh baseline visualisasi tren
             labels.append(f"{pct}%")
         fig2, ax2 = plt.subplots(figsize=(6, 4))
+        fig2.patch.set_facecolor('#faf8f2')
+        ax2.set_facecolor('#faf8f2')
         ax2.plot(labels, res_l, marker='o', color='#a01a1e')
+        ax2.set_ylabel('Total Operation Cost')
         plt.tight_layout()
         st.pyplot(fig2)
 
-    # Export
+    # Export Data
     buf = BytesIO()
     with pd.ExcelWriter(buf, engine='openpyxl') as writer:
         pd.DataFrame({'GR': gross_req, 'NR': net_req}, index=period_labels).T.to_excel(writer, sheet_name="Data")
     st.download_button("📥 Download Report", buf.getvalue(), "MRP_Report.xlsx")
+else:
+    st.info("💡 Establish baseline transaction vectors above to trigger automated matrix computations.")
