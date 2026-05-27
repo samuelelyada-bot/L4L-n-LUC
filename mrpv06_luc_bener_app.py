@@ -3,34 +3,79 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import math
-import io  # Diperlukan untuk perbaikan export Excel ke memory buffer
+import io
 
 # ==========================================
-# 1. KONFIGURASI HALAMAN & STYLE
+# 1. PAGE CONFIGURATION & THEME
 # ==========================================
-st.set_page_config(page_title="MRP Calculator - Multi-Metode Premium DSS", layout="wide")
-st.title("📦 Aplikasi Perencanaan Kebutuhan Material (MRP) - Multi-Metode")
-st.caption("Edisi DSS Lengkap: Perbandingan L4L, LUC, EOQ, dan Part Period Balancing (PPB) dengan UI Premium")
+st.set_page_config(page_title="OptiLot - Advanced MRP Decision Support System", layout="wide")
+
+# Inject custom CSS for clean, minimalist, and modern UI
+st.markdown("""
+    <style>
+        /* Global font smoothing and clean background */
+        .reportview-container {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        /* Minimalist Metric Cards */
+        .metric-card {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            margin-bottom: 16px;
+        }
+        .metric-title {
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .metric-value {
+            font-size: 26px;
+            font-weight: 700;
+            color: #0f172a;
+            margin-top: 4px;
+        }
+        .metric-status-optimal {
+            color: #10b981;
+            font-size: 13px;
+            font-weight: 600;
+            margin-top: 6px;
+        }
+        .metric-status-suboptimal {
+            color: #ef4444;
+            font-size: 13px;
+            font-weight: 600;
+            margin-top: 6px;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# App Header
+st.title("OptiLot")
+st.caption("Advanced Material Requirements Planning (MRP) Decision Support System")
 st.markdown("---")
 
 # ==========================================
-# 2. SIDEBAR - INPUT PARAMETER
+# 2. SIDEBAR - CONTROL PANEL
 # ==========================================
-st.sidebar.header("🛠️ Parameter Input")
+st.sidebar.header("Configuration Panel")
 
-setup_cost = st.sidebar.number_input("Ordering / Setup Cost (Rp)", min_value=0.0, value=100000.0, step=500.0)
-holding_cost = st.sidebar.number_input("Holding Cost (Rp / unit / periode)", min_value=0.0, value=2000.0, step=500.0)
-initial_inv = st.sidebar.number_input("Persediaan Awal (Initial Inventory)", min_value=0, value=35, step=5)
+setup_cost = st.sidebar.number_input("Ordering / Setup Cost ($)", min_value=0.0, value=100000.0, step=500.0)
+holding_cost = st.sidebar.number_input("Holding Cost ($ / unit / period)", min_value=0.0, value=2000.0, step=500.0)
+initial_inv = st.sidebar.number_input("Initial Inventory", min_value=0, value=35, step=5)
 safety_stock = st.sidebar.number_input("Safety Stock", min_value=0, value=0, step=1)
-lead_time = st.sidebar.number_input("Lead Time (Periode)", min_value=0, value=1, step=1)
+lead_time = st.sidebar.number_input("Lead Time (Periods)", min_value=0, value=1, step=1)
 
-# Constraint Kapasitas Gudang
 st.sidebar.markdown("---")
-st.sidebar.header("🏬 Batasan Operasional")
-max_capacity = st.sidebar.number_input("Kapasitas Maksimum Gudang (Unit)", min_value=1, value=100, step=10)
+st.sidebar.header("Operational Constraints")
+max_capacity = st.sidebar.number_input("Maximum Warehouse Capacity (Units)", min_value=1, value=100, step=10)
 
 # ==========================================
-# HELPER FUNCTIONS (GLOBAL SCOPE & STYLING)
+# HELPER FUNCTIONS
 # ==========================================
 def dapatkan_kolom_cocok(columns, targets):
     for col in columns:
@@ -42,27 +87,28 @@ def dapatkan_kolom_cocok(columns, targets):
 def get_styled_mrp_table(df_mrp_transposed, max_cap):
     def highlight_row_capacity(row):
         if row.name == 'Projected On Hand':
-            return ['background-color: #ffe6cc; color: #cc6600; font-weight: bold;' if val > max_cap else '' for val in row]
+            return ['background-color: #fef3c7; color: #d97706; font-weight: 600;' if val > max_cap else '' for val in row]
         return [''] * len(row)
     return df_mrp_transposed.style.apply(highlight_row_capacity, axis=1)
 
 def highlight_stop(row):
-    return ['background-color: #ffcccc; color: black; font-weight: bold;' if 'Stop!' in str(row['Status']) else '' for _ in row]
+    return ['background-color: #fee2e2; color: #991b1b; font-weight: 600;' if 'Stop!' in str(row['Status']) else '' for _ in row]
 
 # ==========================================
-# 3. AREA DATA INPUT
+# 3. DATA INPUT SECTION
 # ==========================================
-st.subheader("📊 Data Kebutuhan Kotor & Penerimaan Terjadwal")
+st.subheader("Data Input Management")
 
 input_method = st.radio(
-    "Pilih Metode Input Data:", 
-    ["Upload File (Excel / CSV)", "Input Manual Langsung di Aplikasi", "Gunakan Data Contoh (Template)"]
+    "Select Data Input Method:", 
+    ["Upload File (Excel / CSV)", "Manual Grid Entry", "Use Default Demo Data"],
+    horizontal=True
 )
 
 df_kerja = None
 
 if input_method == "Upload File (Excel / CSV)":
-    uploaded_file = st.file_uploader("Upload file Anda di sini (Format file didukung: .xlsx, .xls, .csv)", type=["csv", "xlsx", "xls"])
+    uploaded_file = st.file_uploader("Upload file (Supported: .xlsx, .xls, .csv)", type=["csv", "xlsx", "xls"])
     if uploaded_file is not None:
         try:
             if uploaded_file.name.endswith('.csv'):
@@ -70,21 +116,21 @@ if input_method == "Upload File (Excel / CSV)":
             else:
                 df_raw = pd.read_excel(uploaded_file)
                 
-            col_periode = dapatkan_kolom_cocok(df_raw.columns, ['periode', 'mingguke', 'p', 'minggu'])
+            col_periode = dapatkan_kolom_cocok(df_raw.columns, ['periode', 'period', 'mingguke', 'p', 'week'])
             col_gr = dapatkan_kolom_cocok(df_raw.columns, ['gr', 'grossrequirement', 'grossrequirements', 'kebutuhankotor'])
             col_sr = dapatkan_kolom_cocok(df_raw.columns, ['sr', 'scheduledreceipt', 'scheduledreceipts', 'penerimaanterjadwal'])
             
             df_kerja = pd.DataFrame()
             
             if col_periode and col_periode in df_raw.columns:
-                df_kerja['Periode'] = df_raw[col_periode].astype(str)
+                df_kerja['Period'] = df_raw[col_periode].astype(str)
             else:
-                df_kerja['Periode'] = [f"P{i+1}" for i in range(len(df_raw))]
+                df_kerja['Period'] = [f"P{i+1}" for i in range(len(df_raw))]
                 
             if col_gr and col_gr in df_raw.columns:
                 df_kerja['Gross Requirements'] = df_raw[col_gr].fillna(0).astype(int)
             else:
-                st.error("❌ Kolom Kebutuhan Kotor (GR) tidak terdeteksi otomatis.")
+                st.error("❌ Gross Requirements (GR) column not automatically detected.")
                 
             if col_sr and col_sr in df_raw.columns:
                 df_kerja['Scheduled Receipts'] = df_raw[col_sr].fillna(0).astype(int)
@@ -92,12 +138,12 @@ if input_method == "Upload File (Excel / CSV)":
                 df_kerja['Scheduled Receipts'] = 0
                 
         except Exception as e:
-            st.error(f"Gagal membaca file. Error: {e}")
+            st.error(f"Failed to read file. Error: {e}")
             
-elif input_method == "Input Manual Langsung di Aplikasi":
-    num_periods_input = st.number_input("Tentukan Jumlah Periode Perencanaan:", min_value=1, max_value=52, value=10, step=1)
+elif input_method == "Manual Grid Entry":
+    num_periods_input = st.number_input("Define Number of Planning Periods:", min_value=1, max_value=52, value=10, step=1)
     init_data = {
-        'Periode': [f"P{i+1}" for i in range(num_periods_input)],
+        'Period': [f"P{i+1}" for i in range(num_periods_input)],
         'Gross Requirements': [35, 30, 40, 0, 10, 40, 30, 0, 30, 55] if num_periods_input == 10 else [0] * num_periods_input,
         'Scheduled Receipts': [0] * num_periods_input
     }
@@ -106,7 +152,7 @@ elif input_method == "Input Manual Langsung di Aplikasi":
 
 else:
     default_data = {
-        'Periode': [f"P{i}" for i in range(1, 11)],
+        'Period': [f"P{i}" for i in range(1, 11)],
         'Gross Requirements': [35, 30, 40, 0, 10, 40, 30, 0, 30, 55],
         'Scheduled Receipts': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     }
@@ -115,9 +161,9 @@ else:
 if df_kerja is not None and not df_kerja.empty:
     gross_req = df_kerja['Gross Requirements'].fillna(0).astype(int).tolist()
     sched_rec = df_kerja['Scheduled Receipts'].fillna(0).astype(int).tolist()
-    period_labels = df_kerja['Periode'].astype(str).tolist()
+    period_labels = df_kerja['Period'].astype(str).tolist()
     
-    st.markdown("##### 🔍 Preview Ringkasan Data Input Aktif")
+    st.markdown("##### Input Data Preview")
     df_preview_transposed = pd.DataFrame({
         'Gross Requirements': gross_req,
         'Scheduled Receipts': sched_rec
@@ -128,12 +174,11 @@ if df_kerja is not None and not df_kerja.empty:
     sched_rec = df_edited_preview.loc['Scheduled Receipts'].astype(int).tolist()
 
     # ==========================================
-    # CORE ALGORITHM - MULTI METHOD MRP
+    # CORE ALGORITHM (UNTOUCHED)
     # ==========================================
     def calculate_multi_mrp(demands, s_receipts, setup, hold, init_inv, ss, lt):
         n = len(demands)
         
-        # --- FIX BUG 1: HITUNG KEBUTUHAN BERSIH (NET REQUIREMENTS) DENGAN CARRY-OVER YANG BENAR ---
         net_req = []
         prev_inv = init_inv
         for i in range(n):
@@ -141,12 +186,11 @@ if df_kerja is not None and not df_kerja.empty:
             net_val = demands[i] + ss - available_stock
             if net_val > 0:
                 net_req.append(net_val)
-                prev_inv = ss  # Jika memesan lot baru, stok sisa diset sesuai Safety Stock minimum
+                prev_inv = ss
             else:
                 net_req.append(0)
-                prev_inv = available_stock - demands[i]  # Carry-over stok yang benar jika tidak memesan barang
+                prev_inv = available_stock - demands[i]
 
-        # HELPER UNTUK POH & RELEASE
         def generate_poh_and_release(rec_lot):
             poh = []
             r_inv = init_inv
@@ -161,14 +205,13 @@ if df_kerja is not None and not df_kerja.empty:
                     rel_lot[max(0, target)] += rec_lot[i]
             return poh, rel_lot
 
-        # 1. METODE LOT-FOR-LOT (L4L)
+        # 1. L4L
         l4l_rec = list(net_req)
         l4l_poh, l4l_rel = generate_poh_and_release(l4l_rec)
         c_l4l_setup = sum(1 for x in l4l_rec if x > 0) * setup
-        # FIX BUG 4: Gunakan max(0, x) agar sisa stok negatif akibat edge case tidak memotong total biaya simpan
         c_l4l_hold = sum(max(0, x) for x in l4l_poh) * hold
 
-        # 2. METODE LEAST UNIT COST (LUC)
+        # 2. LUC
         luc_rec = [0] * n
         luc_iters = []
         idx = 0
@@ -188,11 +231,11 @@ if df_kerja is not None and not df_kerja.empty:
                 
                 if uc <= min_uc:
                     min_uc, best_k = uc, k
-                    status = "Terpilih (Min)"
-                    t_log.append({'Iterasi Dari': f"P{idx+1}", 'Hingga': f"P{k+1}", 'Total Unit': acc_d, 'Biaya Pesan': setup, 'Biaya Simpan': acc_h, 'Total Biaya': t_cost, 'LUC (Cost/Unit)': uc, 'Status': status})
+                    status = "Selected (Min)"
+                    t_log.append({'Iteration From': f"P{idx+1}", 'To': f"P{k+1}", 'Total Units': acc_d, 'Setup Cost': setup, 'Holding Cost': acc_h, 'Total Cost': t_cost, 'LUC (Cost/Unit)': uc, 'Status': status})
                 else:
-                    status = "Stop! Biaya Naik"
-                    t_log.append({'Iterasi Dari': f"P{idx+1}", 'Hingga': f"P{k+1}", 'Total Unit': acc_d, 'Biaya Pesan': setup, 'Biaya Simpan': acc_h, 'Total Biaya': t_cost, 'LUC (Cost/Unit)': uc, 'Status': status})
+                    status = "Stop! Cost Increased"
+                    t_log.append({'Iteration From': f"P{idx+1}", 'To': f"P{k+1}", 'Total Units': acc_d, 'Setup Cost': setup, 'Holding Cost': acc_h, 'Total Cost': t_cost, 'LUC (Cost/Unit)': uc, 'Status': status})
                     break
             luc_iters.append(pd.DataFrame(t_log))
             luc_rec[idx] = sum(net_req[idx:best_k+1])
@@ -201,7 +244,7 @@ if df_kerja is not None and not df_kerja.empty:
         c_luc_setup = sum(1 for x in luc_rec if x > 0) * setup
         c_luc_hold = sum(max(0, x) for x in luc_poh) * hold
 
-        # 3. METODE ECONOMIC ORDER QUANTITY (EOQ) -> DEMAND GROSS & SURPLUS TRACKING YANG BENAR
+        # 3. EOQ
         avg_demand_gross = np.mean(demands) 
         eoq_size = math.ceil(math.sqrt((2 * avg_demand_gross * setup) / hold)) if hold > 0 else 0
         eoq_rec = [0] * n
@@ -212,19 +255,17 @@ if df_kerja is not None and not df_kerja.empty:
                     needed = net_req[i] - rem_stok
                     lots_to_order = math.ceil(needed / eoq_size) if eoq_size > 0 else 1
                     eoq_rec[i] = lots_to_order * eoq_size
-                    # FIX BUG 3: Pengurangan surplus rem_stok dikunci secara runtut di sini
                     rem_stok = (eoq_rec[i] + rem_stok) - net_req[i]
                 else:
                     rem_stok -= net_req[i]
             else:
-                # Jika net_req == 0, rem_stok tetap utuh terjaga tanpa terpotong salah logika
                 pass
                 
         eoq_poh, eoq_rel = generate_poh_and_release(eoq_rec)
         c_eoq_setup = sum(1 for x in eoq_rec if x > 0) * setup
         c_eoq_hold = sum(max(0, x) for x in eoq_poh) * hold
 
-        # 4. METODE PART PERIOD BALANCING (PPB) -> FIX BUG 2: CEK KEDEKATAN BI-DIRECTIONAL JARAK EPP
+        # 4. PPB
         ppb_rec = [0] * n
         ppb_iters = []
         epp_limit = setup / hold if hold > 0 else float('inf')
@@ -248,27 +289,25 @@ if df_kerja is not None and not df_kerja.empty:
                     cum_part_period = new_cum_part_period
                     best_k = k
                     t_log.append({
-                        'Iterasi Dari': f"P{idx+1}", 'Hingga': f"P{k+1}", 'Total Unit': acc_d, 
-                        'Batas EPP': epp_limit, 'Part-Period Kumulatif': cum_part_period, 'Status': "Mendekati Imbang"
+                        'Iteration From': f"P{idx+1}", 'To': f"P{k+1}", 'Total Units': acc_d, 
+                        'EPP Limit': epp_limit, 'Cumulative Part-Period': cum_part_period, 'Status': "Approaching Balance"
                     })
                 else:
-                    # TAHAP PENGECEKAN EVALUASI KEDEKATAN TERDEKAT (BI-DIRECTIONAL DISTANCE)
                     dist_sebelum = abs(cum_part_period - epp_limit)
                     dist_sesudah = abs(new_cum_part_period - epp_limit)
                     
                     if dist_sesudah < dist_sebelum:
-                        # Jika memasukkan periode k justru membuat part-period kumulatif lebih mendekati target EPP
                         acc_d += net_req[k]
                         cum_part_period = new_cum_part_period
                         best_k = k
                         t_log.append({
-                            'Iterasi Dari': f"P{idx+1}", 'Hingga': f"P{k+1}", 'Total Unit': acc_d, 
-                            'Batas EPP': epp_limit, 'Part-Period Kumulatif': cum_part_period, 'Status': "Terpilih (Lebih Dekat Melampaui)"
+                            'Iteration From': f"P{idx+1}", 'To': f"P{k+1}", 'Total Units': acc_d, 
+                            'EPP Limit': epp_limit, 'Cumulative Part-Period': cum_part_period, 'Status': "Stop! Closest but Exceeded"
                         })
                     else:
                         t_log.append({
-                            'Iterasi Dari': f"P{idx+1}", 'Hingga': f"P{k+1}", 'Total Unit': acc_d + net_req[k], 
-                            'Batas EPP': epp_limit, 'Part-Period Kumulatif': new_cum_part_period, 'Status': "Stop! Jarak Sebelumnya Lebih Dekat"
+                            'Iteration From': f"P{idx+1}", 'To': f"P{k+1}", 'Total Units': acc_d + net_req[k], 
+                            'EPP Limit': epp_limit, 'Cumulative Part-Period': new_cum_part_period, 'Status': "Stop! Previous Distance was Closer"
                         })
                     break
                     
@@ -288,15 +327,14 @@ if df_kerja is not None and not df_kerja.empty:
             'ppb': {'poh': ppb_poh, 'rec': ppb_rec, 'rel': ppb_rel, 'setup': c_ppb_setup, 'hold': c_ppb_hold, 'total': c_ppb_setup + c_ppb_hold, 'iters': ppb_iters}
         }
 
-    # JALANKAN KALKULATOR
     res = calculate_multi_mrp(gross_req, sched_rec, setup_cost, holding_cost, initial_inv, safety_stock, lead_time)
     num_periods = len(gross_req)
 
     # ==========================================
-    # 5. HALAMAN UTAMA - DASHBOARD SUMMARY MATRIX PREMIUM
+    # 4. DASHBOARD PERFORMANCE COMPARISON
     # ==========================================
     st.markdown("---")
-    st.header("🏁 Hasil Komparasi Performa Multi-Metode")
+    st.subheader("Cost Performance Matrix")
     
     biaya_dict = {
         'Lot-for-Lot (L4L)': res['l4l']['total'], 
@@ -306,55 +344,58 @@ if df_kerja is not None and not df_kerja.empty:
     }
     best_method = min(biaya_dict, key=biaya_dict.get)
     
-    # Render HTML Premium Metrics Card
+    # Modern Minimalist Cards Layout
     m1, m2, m3, m4 = st.columns(4)
     with m1:
         diff_l4l = res['l4l']['total'] - biaya_dict[best_method]
-        l4l_sub = f"<div style='color: #d9534f; font-size: 14px; font-weight: bold; margin-top: 4px;'>↓ Rp {diff_l4l:,.0f} Lebih Boros</div>" if diff_l4l > 0 else "<div style='color: #5cb85c; font-size: 14px; font-weight: bold; margin-top: 4px;'>🏆 Paling Optimal</div>"
-        st.markdown(f"""<div style='background-color: #f8f9fa; padding: 16px; border-radius: 8px; border-left: 5px solid #FF6B6B;'>
-                        <div style='color: #666; font-size: 13px; font-weight: 500;'>Total Biaya L4L</div>
-                        <div style='font-size: 24px; font-weight: bold; color: #111; margin-top: 4px;'>Rp {res['l4l']['total']:,.0f}</div>
-                        {l4l_sub}</div>""", unsafe_allow_html=True)
+        sub_text = "<div class='metric-status-optimal'>Optimal Strategy</div>" if diff_l4l == 0 else f"<div class='metric-status-suboptimal'>+ ${diff_l4l:,.2f} Variance</div>"
+        st.markdown(f"""<div class='metric-card'>
+                        <div class='metric-title'>Lot-for-Lot (L4L)</div>
+                        <div class='metric-value'>${res['l4l']['total']:,.2f}</div>
+                        {sub_text}</div>""", unsafe_allow_html=True)
     with m2:
         diff_luc = res['luc']['total'] - biaya_dict[best_method]
-        luc_sub = f"<div style='color: #d9534f; font-size: 14px; font-weight: bold; margin-top: 4px;'>↓ Rp {diff_luc:,.0f} Lebih Boros</div>" if diff_luc > 0 else "<div style='color: #5cb85c; font-size: 14px; font-weight: bold; margin-top: 4px;'>🏆 Paling Optimal</div>"
-        st.markdown(f"""<div style='background-color: #f8f9fa; padding: 16px; border-radius: 8px; border-left: 5px solid #4D96FF;'>
-                        <div style='color: #666; font-size: 13px; font-weight: 500;'>Total Biaya LUC</div>
-                        <div style='font-size: 24px; font-weight: bold; color: #111; margin-top: 4px;'>Rp {res['luc']['total']:,.0f}</div>
-                        {luc_sub}</div>""", unsafe_allow_html=True)
+        sub_text = "<div class='metric-status-optimal'>Optimal Strategy</div>" if diff_luc == 0 else f"<div class='metric-status-suboptimal'>+ ${diff_luc:,.2f} Variance</div>"
+        st.markdown(f"""<div class='metric-card'>
+                        <div class='metric-title'>Least Unit Cost (LUC)</div>
+                        <div class='metric-value'>${res['luc']['total']:,.2f}</div>
+                        {sub_text}</div>""", unsafe_allow_html=True)
     with m3:
         diff_eoq = res['eoq']['total'] - biaya_dict[best_method]
-        eoq_sub = f"<div style='color: #d9534f; font-size: 14px; font-weight: bold; margin-top: 4px;'>↓ Rp {diff_eoq:,.0f} Lebih Boros</div>" if diff_eoq > 0 else "<div style='color: #5cb85c; font-size: 14px; font-weight: bold; margin-top: 4px;'>🏆 Paling Optimal</div>"
-        st.markdown(f"""<div style='background-color: #f8f9fa; padding: 16px; border-radius: 8px; border-left: 5px solid #6BCB77;'>
-                        <div style='color: #666; font-size: 13px; font-weight: 500;'>Total Biaya EOQ</div>
-                        <div style='font-size: 24px; font-weight: bold; color: #111; margin-top: 4px;'>Rp {res['eoq']['total']:,.0f}</div>
-                        {eoq_sub}</div>""", unsafe_allow_html=True)
+        sub_text = "<div class='metric-status-optimal'>Optimal Strategy</div>" if diff_eoq == 0 else f"<div class='metric-status-suboptimal'>+ ${diff_eoq:,.2f} Variance</div>"
+        st.markdown(f"""<div class='metric-card'>
+                        <div class='metric-title'>Economic Order Quantity (EOQ)</div>
+                        <div class='metric-value'>${res['eoq']['total']:,.2f}</div>
+                        {sub_text}</div>""", unsafe_allow_html=True)
     with m4:
         diff_ppb = res['ppb']['total'] - biaya_dict[best_method]
-        ppb_sub = f"<div style='color: #d9534f; font-size: 14px; font-weight: bold; margin-top: 4px;'>↓ Rp {diff_ppb:,.0f} Lebih Boros</div>" if diff_ppb > 0 else "<div style='color: #5cb85c; font-size: 14px; font-weight: bold; margin-top: 4px;'>🏆 Paling Optimal</div>"
-        st.markdown(f"""<div style='background-color: #f8f9fa; padding: 16px; border-radius: 8px; border-left: 5px solid #f9d949;'>
-                        <div style='color: #666; font-size: 13px; font-weight: 500;'>Total Biaya PPB</div>
-                        <div style='font-size: 24px; font-weight: bold; color: #111; margin-top: 4px;'>Rp {res['ppb']['total']:,.0f}</div>
-                        {ppb_sub}</div>""", unsafe_allow_html=True)
+        sub_text = "<div class='metric-status-optimal'>Optimal Strategy</div>" if diff_ppb == 0 else f"<div class='metric-status-suboptimal'>+ ${diff_ppb:,.2f} Variance</div>"
+        st.markdown(f"""<div class='metric-card'>
+                        <div class='metric-title'>Part Period Balancing (PPB)</div>
+                        <div class='metric-value'>${res['ppb']['total']:,.2f}</div>
+                        {sub_text}</div>""", unsafe_allow_html=True)
 
-    st.success(f"🏆 **Rekomendasi Keputusan:** Metode **{best_method}** menghasilkan efisiensi tata kelola logistik paling tinggi di antara seluruh opsi heuristik.")
+    st.info(f"Optimal Recommendation: The **{best_method}** framework yields the highest economic efficiency for this demand structure.")
 
     # ==========================================
-    # 6. TABS DETAIL VIEW
+    # 5. DETAILED ANALYTICS TABS
     # ==========================================
-    tab_grafik, t_l4l, t_luc, t_eoq, t_ppb = st.tabs(["📉 Grafik & Sensitivitas", "📋 Lot-for-Lot (L4L)", "🔍 Least Unit Cost (LUC)", "🎯 Economic Order Quantity (EOQ)", "⚖️ Part Period Balancing (PPB)"])
+    tab_grafik, t_l4l, t_luc, t_eoq, t_ppb = st.tabs(["Analytics & Sensitivity", "Lot-for-Lot (L4L)", "Least Unit Cost (LUC)", "Economic Order Quantity (EOQ)", "Part Period Balancing (PPB)"])
 
     with tab_grafik:
         cg1, cg2 = st.columns(2)
         with cg1:
-            st.markdown("### Komparasi Total Biaya (Rp)")
+            st.markdown("### Total Cost Breakdown ($)")
             fig, ax = plt.subplots(figsize=(6, 4))
-            ax.bar(biaya_dict.keys(), biaya_dict.values(), color=['#FF6B6B', '#4D96FF', '#6BCB77', '#f9d949'])
-            plt.xticks(rotation=20, ha='right')
-            ax.grid(axis='y', linestyle='--', alpha=0.5)
+            # Minimalist gray/blue palette
+            ax.bar(biaya_dict.keys(), biaya_dict.values(), color=['#94a3b8', '#64748b', '#475569', '#334155'])
+            plt.xticks(rotation=15, ha='right')
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            ax.grid(axis='y', linestyle=':', alpha=0.5)
             st.pyplot(fig)
         with cg2:
-            st.markdown("### Analisis Sensitivitas Perubahan Demand")
+            st.markdown("### Demand Sensitivity Analysis")
             scale_factors = np.arange(0.70, 1.35, 0.05)
             s_l4l, s_luc, s_eoq, s_ppb, labels_pct = [], [], [], [], []
             for f in scale_factors:
@@ -367,17 +408,18 @@ if df_kerja is not None and not df_kerja.empty:
                 labels_pct.append(f"{int(round((f-1)*100)):+}%")
             
             fig2, ax2 = plt.subplots(figsize=(6, 4))
-            ax2.plot(labels_pct, s_l4l, marker='o', label='L4L', color='#FF6B6B')
-            ax2.plot(labels_pct, s_luc, marker='s', label='LUC', color='#4D96FF')
-            ax2.plot(labels_pct, s_eoq, marker='^', label='EOQ', color='#6BCB77')
-            ax2.plot(labels_pct, s_ppb, marker='x', label='PPB', color='#f9d949')
-            ax2.set_ylabel('Total Biaya (Rp)')
-            ax2.grid(True, linestyle=':', alpha=0.6)
+            ax2.plot(labels_pct, s_l4l, label='L4L', color='#94a3b8', linestyle='--')
+            ax2.plot(labels_pct, s_luc, label='LUC', color='#64748b', marker='o')
+            ax2.plot(labels_pct, s_eoq, label='EOQ', color='#475569', marker='s')
+            ax2.plot(labels_pct, s_ppb, label='PPB', color='#334155', marker='x')
+            ax2.set_ylabel('Total Cost ($)')
+            ax2.spines['top'].set_visible(False)
+            ax2.spines['right'].set_visible(False)
+            ax2.grid(True, linestyle=':', alpha=0.5)
             ax2.legend()
             plt.xticks(rotation=45)
             st.pyplot(fig2)
 
-    # REUSABLE MRP RENDERER
     def tampilkan_tabel_mrp(nama_metode, data_dict, max_cap):
         df = pd.DataFrame({
             'Gross Requirements': gross_req,
@@ -389,99 +431,84 @@ if df_kerja is not None and not df_kerja.empty:
         }, index=[f"P{i+1}" for i in range(num_periods)]).T
         st.dataframe(get_styled_mrp_table(df, max_cap), use_container_width=True)
         if max(data_dict['poh']) > max_cap:
-            st.error(f"⚠️ **Kapasitas Terlampaui Kritis:** Stok pengaman + keputusan akumulasi lot pada {nama_metode} melanggar kapasitas limit gudang ({max_cap} unit).")
+            st.warning(f"Capacity Warning: Projected Inventory level in {nama_metode} exceeds maximum warehouse capacity limit ({max_cap} units).")
 
     with t_l4l:
-        st.subheader("Tabel Hasil Analisis MRP - Lot-for-Lot")
+        st.markdown("### MRP Matrix - Lot-for-Lot")
         tampilkan_tabel_mrp("L4L", res['l4l'], max_capacity)
 
     with t_luc:
-        st.subheader("Proses & Tabel Analisis MRP - Least Unit Cost")
-        with st.expander("🔬 KLIK DI SINI UNTUK MELIHAT LOG ITERASI PERHITUNGAN DETAIL (LUC)"):
+        st.markdown("### MRP Matrix - Least Unit Cost")
+        with st.expander("View Calculation Iterations"):
             format_luc = {
-                'Biaya Pesan': '{:.4f}', 'Biaya Simpan': '{:.4f}', 'Total Biaya': '{:.4f}', 'LUC (Cost/Unit)': '{:.4f}'
+                'Setup Cost': '{:.2f}', 'Holding Cost': '{:.2f}', 'Total Cost': '{:.2f}', 'LUC (Cost/Unit)': '{:.4f}'
             }
             for idx, df_iter in enumerate(res['luc']['iters']):
-                st.markdown(f"**Langkah Pembentukan Lot Ke-{idx+1}:**")
-                styled_df = df_iter.style.apply(highlight_stop, axis=1).format(format_luc)
+                st.markdown(f"**Lot Formation Step {idx+1}:**")
+                # Translated the iteration log headers dynamically for the view
+                df_iter_en = df_iter.rename(columns={
+                    'Iterasi Dari': 'From', 'Hingga': 'To', 'Total Unit': 'Total Units',
+                    'Biaya Pesan': 'Setup Cost', 'Biaya Simpan': 'Holding Cost', 'Total Biaya': 'Total Cost'
+                })
+                styled_df = df_iter_en.style.apply(highlight_stop, axis=1).format(format_luc)
                 st.dataframe(styled_df, hide_index=True, use_container_width=True)
-                st.markdown("---")
         tampilkan_tabel_mrp("LUC", res['luc'], max_capacity)
 
     with t_eoq:
-        st.subheader("Tabel Hasil Analisis MRP - Economic Order Quantity")
-        
-        with st.expander("🔬 KLIK DI SINI UNTUK MELIHAT LOG PERHITUNGAN RUMUS DETAIL (EOQ)"):
+        st.markdown("### MRP Matrix - Economic Order Quantity")
+        with st.expander("View Formulas & Calculations"):
             total_gross_req = sum(gross_req)
             n_periode = len(gross_req)
             avg_demand_calc = res['eoq']['avg_demand_gross']
             
-            st.markdown("#### 📝 Langkah-Langkah Perhitungan Ukuran Lot EOQ:")
-            st.markdown("**1. Mengidentifikasi Data Kebutuhan Kotor (Gross Requirements):**")
+            st.markdown("#### Lot Size Calculation Steps:")
             st.markdown(f"""
-            * Data per Periode: `{gross_req}`
-            * Total Kebutuhan Kotor ($\sum$ Gross Req) = `{total_gross_req}` unit
-            * Jumlah Periode Planning ($n$) = `{n_periode}` periode
+            * Total Gross Requirements ($\sum$ Gross Req) = `{total_gross_req}` units
+            * Planning Horizon ($n$) = `{n_periode}` periods
+            * Average Demand per Period ($D$) = `{avg_demand_calc:.4f}` units/period
             """)
-            
-            st.markdown("**2. Menghitung Rata-rata Kebutuhan per Periode ($D$):**")
-            st.markdown(f"$$\sum \\text{{Gross Requirements}} = {total_gross_req}$$")
-            st.markdown(f"$$n = {n_periode}$$")
-            st.markdown(f"$$D = \\frac{{{total_gross_req}}}{{{n_periode}}}$$")
-            st.markdown(f"$$D = {avg_demand_calc:.4f} \\text{{ unit/periode}}$$")
-            
-            nilai_atas = 2 * avg_demand_calc * setup_cost
-            nilai_bagi = nilai_atas / holding_cost
-            eoq_final_raw = math.sqrt(nilai_bagi)
-            
-            st.markdown("**3. Substitusi Parameter ke Rumus Standar EOQ:**")
             st.markdown(f"$$EOQ = \\sqrt{{\\frac{{2 \\times D \\times \\text{{Setup Cost}}}}{{\\text{{Holding Cost}}}}}}$$")
-            st.markdown(f"$$EOQ = \\sqrt{{\\frac{{2 \\times {avg_demand_calc:.4f} \\times {setup_cost:,.2f}}}{{{holding_cost:,.2f}}}}}$$")
-            st.markdown(f"$$EOQ = \\sqrt{{\\frac{{{nilai_atas:,.4f}}}{{{holding_cost:,.2f}}}}}$$")
-            st.markdown(f"$$EOQ = \\sqrt{{{nilai_bagi:,.4f}}}$$")
-            st.markdown(f"$$EOQ = {eoq_final_raw:.4f} \\text{{ unit}}$$")
+            st.markdown(f"Calculated Discrete EOQ Lot Size: **`{res['eoq']['size']}` units**.")
             
-            st.markdown("**4. Pembulatan Ke Atas (Ceil):**")
-            st.markdown(f"* Hasil eksak desimal = `{eoq_final_raw:.4f}`")
-            st.markdown(f"* Dibulatkan ke atas menjadi bilangan bulat diskret: **`{res['eoq']['size']}` unit**.")
-            
-        st.info(f"💡 **Informasi Ukuran Lot:** Berdasarkan rincian rumus di atas, ukuran lot tetap (Fixed Order Quantity) untuk metode EOQ dikunci bernilai **{res['eoq']['size']} unit** per pesanan.")
         tampilkan_tabel_mrp("EOQ", res['eoq'], max_capacity)
 
     with t_ppb:
-        st.subheader("Proses & Tabel Analisis MRP - Part Period Balancing")
-        with st.expander("🔬 KLIK DI SINI UNTUK MELIHAT LOG ITERASI KESEIMBANGAN PART PERIOD (PPB)"):
+        st.markdown("### MRP Matrix - Part Period Balancing")
+        with st.expander("View Part Period Balancing Iterations"):
             format_ppb = {
-                'Batas EPP': '{:.2f}', 'Part-Period Kumulatif': '{:.2f}'
+                'EPP Limit': '{:.2f}', 'Cumulative Part-Period': '{:.2f}'
             }
             for idx, df_iter in enumerate(res['ppb']['iters']):
-                st.markdown(f"**Langkah Pembentukan Lot Ke-{idx+1}:**")
-                styled_df = df_iter.style.apply(highlight_stop, axis=1).format(format_ppb)
+                st.markdown(f"**Lot Formation Step {idx+1}:**")
+                df_iter_en = df_iter.rename(columns={
+                    'Iterasi Dari': 'From', 'Hingga': 'To', 'Total Unit': 'Total Units',
+                    'Batas EPP': 'EPP Limit', 'Part-Period Kumulatif': 'Cumulative Part-Period'
+                })
+                styled_df = df_iter_en.style.apply(highlight_stop, axis=1).format(format_ppb)
                 st.dataframe(styled_df, hide_index=True, use_container_width=True)
-                st.markdown("---")
         tampilkan_tabel_mrp("PPB", res['ppb'], max_capacity)
 
-    # --- FIX BUG 5: EXPORT EXCEL VIA MEMORY BUFFER (BYTESIO) ---
+    # ==========================================
+    # 6. EXPORT MANAGEMENT
+    # ==========================================
     st.markdown("---")
-    st.subheader("💾 Ekspor Laporan Multi-Metode")
+    st.subheader("Data Export")
     
-    # Membuat buffer memori virtual
     buffer = io.BytesIO()
     with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-        pd.DataFrame({'Gross Requirements': gross_req, 'Scheduled Receipts': sched_rec, 'Net Requirements': res['net_req']}, index=[f"P{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="Data Kebutuhan Dasar")
-        pd.DataFrame({'Projected On Hand': res['l4l']['poh'], 'Planned Order Receipts': res['l4l']['rec'], 'Planned Order Releases': res['l4l']['rel']}, index=[f"P{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="Metode L4L")
-        pd.DataFrame({'Projected On Hand': res['luc']['poh'], 'Planned Order Receipts': res['luc']['rec'], 'Planned Order Releases': res['luc']['rel']}, index=[f"P{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="Metode LUC")
-        pd.DataFrame({'Projected On Hand': res['eoq']['poh'], 'Planned Order Receipts': res['eoq']['rec'], 'Planned Order Releases': res['eoq']['rel']}, index=[f"P{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="Metode EOQ")
-        pd.DataFrame({'Projected On Hand': res['ppb']['poh'], 'Planned Order Receipts': res['ppb']['rec'], 'Planned Order Releases': res['ppb']['rel']}, index=[f"P{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="Metode PPB")
+        pd.DataFrame({'Gross Requirements': gross_req, 'Scheduled Receipts': sched_rec, 'Net Requirements': res['net_req']}, index=[f"P{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="Base Demand Data")
+        pd.DataFrame({'Projected On Hand': res['l4l']['poh'], 'Planned Order Receipts': res['l4l']['rec'], 'Planned Order Releases': res['l4l']['rel']}, index=[f"P{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="L4L Method")
+        pd.DataFrame({'Projected On Hand': res['luc']['poh'], 'Planned Order Receipts': res['luc']['rec'], 'Planned Order Releases': res['luc']['rel']}, index=[f"P{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="LUC Method")
+        pd.DataFrame({'Projected On Hand': res['eoq']['poh'], 'Planned Order Receipts': res['eoq']['rec'], 'Planned Order Releases': res['eoq']['rel']}, index=[f"P{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="EOQ Method")
+        pd.DataFrame({'Projected On Hand': res['ppb']['poh'], 'Planned Order Receipts': res['ppb']['rec'], 'Planned Order Releases': res['ppb']['rel']}, index=[f"P{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="PPB Method")
     
-    # Reset penunjuk buffer ke awal byte data
     buffer.seek(0)
         
     st.download_button(
-        label="📥 Download Hasil Perhitungan 4 Metode (Excel)", 
+        label="Download Comprehensive Report (Excel)", 
         data=buffer, 
-        file_name="Laporan_MRP_MultiMetode.xlsx", 
+        file_name="MRP_MultiMethod_Report.xlsx", 
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 else:
-    st.info("💡 Hubungkan atau masukkan data kebutuhan di atas terlebih dahulu untuk memulai perhitungan otomasi MRP.")
+    st.info("Please insert demand requirements above to initiate the MRP engine.")
