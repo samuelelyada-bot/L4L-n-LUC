@@ -106,12 +106,6 @@ def get_styled_mrp_table(df_mrp_transposed, max_cap):
     return df_mrp_transposed.style.apply(highlight_row_capacity, axis=1)
 
 def highlight_status_iterasi(df):
-    """
-    Fungsi cerdas untuk mewarnai log iterasi (LUC & PPB) sebaris penuh.
-    - Baris berstatus 'Stop' diberi warna MERAH MUDA.
-    - HANYA SATU BARIS tepat sebelum 'Stop' yang diberi warna HIJAU MUDA.
-    - Jika sampai akhir tidak ada 'Stop', baris paling bawah otomatis HIJAU MUDA (Periode Akhir).
-    """
     style_df = pd.DataFrame('', index=df.index, columns=df.columns)
     n_rows = len(df)
     
@@ -274,7 +268,7 @@ if df_kerja is not None and not df_kerja.empty:
                     status = "Feasible"
                     t_log.append({'Period': p_label, 'Total Units': acc_d, 'Setup Cost': setup, 'Holding Cost': acc_h, 'Total Cost': t_cost, 'LUC (Cost/Unit)': uc, 'Status': status})
                 else:
-                    status = "Stop ⚠️ (Prev Closer)"
+                    status = "Stop (Prev Closer)"
                     t_log.append({'Period': p_label, 'Total Units': acc_d, 'Setup Cost': setup, 'Holding Cost': acc_h, 'Total Cost': t_cost, 'LUC (Cost/Unit)': uc, 'Status': status})
                     break
             luc_iters.append(pd.DataFrame(t_log))
@@ -325,7 +319,6 @@ if df_kerja is not None and not df_kerja.empty:
                 new_cum_part_period = cum_part_period + part_period_k
                 p_label = ", ".join([f"P{m+1}" for m in range(idx, k+1)])
                 
-                # JIKA masih di bawah EPP Limit, pasti otomatis Feasible
                 if new_cum_part_period <= epp_limit:
                     acc_d += net_req[k]
                     cum_part_period = new_cum_part_period
@@ -335,12 +328,9 @@ if df_kerja is not None and not df_kerja.empty:
                         'EPP Limit': epp_limit, 'Cumulative Part-Period': cum_part_period, 'Status': "Feasible"
                     })
                 else:
-                    # JIKA melampaui EPP Limit, jalankan kriteria kedekatan absolut (Closer Distance)
                     dist_sebelum = abs(cum_part_period - epp_limit)
                     dist_sesudah = abs(new_cum_part_period - epp_limit)
                     
-                    # Hanya boleh lolos jikalau jarak kumulatif baru JAUH LEBIH DEKAT ke EPP daripada sebelumnya
-                    # Dan akumulasi part_period sebelum tidak boleh bernilai 0 (agar tidak loss-logic pada siklus pertama)
                     if dist_sesudah < dist_sebelum and cum_part_period > 0:
                         acc_d += net_req[k]
                         cum_part_period = new_cum_part_period
@@ -354,13 +344,12 @@ if df_kerja is not None and not df_kerja.empty:
                             next_part = net_req[k+1] * ((k+1) - idx)
                             t_log.append({
                                 'Period': p_label_next, 'Total Units': acc_d + net_req[k+1], 
-                                'EPP Limit': epp_limit, 'Cumulative Part-Period': cum_part_period + next_part, 'Status': "Stop! Melebihi Batas ⚠️"
+                                'EPP Limit': epp_limit, 'Cumulative Part-Period': cum_part_period + next_part, 'Status': "Stop! Exceeds EPP Limit ⚠️"
                             })
                     else:
-                        # Jika tidak lebih dekat, langsung di-Cut dan beri status Stop
                         t_log.append({
                             'Period': p_label, 'Total Units': acc_d + net_req[k], 
-                            'EPP Limit': epp_limit, 'Cumulative Part-Period': new_cum_part_period, 'Status': "Stop! Melebihi Batas ⚠️"
+                            'EPP Limit': epp_limit, 'Cumulative Part-Period': new_cum_part_period, 'Status': "Stop! Exceeds EPP Limit ⚠️"
                         })
                     break
                     
@@ -473,64 +462,62 @@ if df_kerja is not None and not df_kerja.empty:
     m1, m2, m3, m4 = st.columns(4)
     with m1:
         diff_l4l = res['l4l']['total'] - biaya_dict[best_method]
-        l4l_sub = f"<div style='color: #b91c1c; font-size: 13px; font-weight: 600; margin-top: 4px;'>+ ${diff_l4l:,.2f} Deviation</div>" if diff_l4l > 0 else "<div style='color: #15803d; font-size: 13px; font-weight: 600; margin-top: 4px;'>🏆 Optimal Strategy</div>"
+        l4l_sub = f"<div style='color: #b91c1c; font-size: 13px; font-weight: 600; margin-top: 4px;'>+ {diff_l4l:,.2f} Deviation</div>" if diff_l4l > 0 else "<div style='color: #15803d; font-size: 13px; font-weight: 600; margin-top: 4px;'>🏆 Optimal Strategy</div>"
         st.markdown(f"""<div style='background-color: #f4efdc; padding: 16px; border-radius: 6px; border-top: 4px solid #6a0708;'>
                         <div style='color: #4a4a4a; font-size: 12px; font-weight: 600; text-transform: uppercase;'>Total Cost L4L</div>
-                        <div style='font-size: 22px; font-weight: 700; color: #6a0708; margin-top: 4px;'>${res['l4l']['total']:,.2f}</div>
+                        <div style='font-size: 22px; font-weight: 700; color: #6a0708; margin-top: 4px;'>{res['l4l']['total']:,.2f}</div>
                         {l4l_sub}</div>""", unsafe_allow_html=True)
     with m2:
         diff_luc = res['luc']['total'] - biaya_dict[best_method]
-        luc_sub = f"<div style='color: #b91c1c; font-size: 13px; font-weight: 600; margin-top: 4px;'>+ ${diff_luc:,.2f} Deviation</div>" if diff_luc > 0 else "<div style='color: #15803d; font-size: 13px; font-weight: 600; margin-top: 4px;'>🏆 Optimal Strategy</div>"
+        luc_sub = f"<div style='color: #b91c1c; font-size: 13px; font-weight: 600; margin-top: 4px;'>+ {diff_luc:,.2f} Deviation</div>" if diff_luc > 0 else "<div style='color: #15803d; font-size: 13px; font-weight: 600; margin-top: 4px;'>🏆 Optimal Strategy</div>"
         st.markdown(f"""<div style='background-color: #f4efdc; padding: 16px; border-radius: 6px; border-top: 4px solid #6a0708;'>
                         <div style='color: #4a4a4a; font-size: 12px; font-weight: 600; text-transform: uppercase;'>Total Cost LUC</div>
-                        <div style='font-size: 22px; font-weight: 700; color: #6a0708; margin-top: 4px;'>${res['luc']['total']:,.2f}</div>
+                        <div style='font-size: 22px; font-weight: 700; color: #6a0708; margin-top: 4px;'>{res['luc']['total']:,.2f}</div>
                         {luc_sub}</div>""", unsafe_allow_html=True)
     with m3:
         diff_eoq = res['eoq']['total'] - biaya_dict[best_method]
-        eoq_sub = f"<div style='color: #b91c1c; font-size: 13px; font-weight: 600; margin-top: 4px;'>+ ${diff_eoq:,.2f} Deviation</div>" if diff_eoq > 0 else "<div style='color: #15803d; font-size: 13px; font-weight: 600; margin-top: 4px;'>🏆 Optimal Strategy</div>"
+        eoq_sub = f"<div style='color: #b91c1c; font-size: 13px; font-weight: 600; margin-top: 4px;'>+ {diff_eoq:,.2f} Deviation</div>" if diff_eoq > 0 else "<div style='color: #15803d; font-size: 13px; font-weight: 600; margin-top: 4px;'>🏆 Optimal Strategy</div>"
         st.markdown(f"""<div style='background-color: #f4efdc; padding: 16px; border-radius: 6px; border-top: 4px solid #6a0708;'>
                         <div style='color: #4a4a4a; font-size: 12px; font-weight: 600; text-transform: uppercase;'>Total Cost EOQ</div>
-                        <div style='font-size: 22px; font-weight: 700; color: #6a0708; margin-top: 4px;'>${res['eoq']['total']:,.2f}</div>
+                        <div style='font-size: 22px; font-weight: 700; color: #6a0708; margin-top: 4px;'>{res['eoq']['total']:,.2f}</div>
                         {eoq_sub}</div>""", unsafe_allow_html=True)
     with m4:
         diff_ppb = res['ppb']['total'] - biaya_dict[best_method]
-        ppb_sub = f"<div style='color: #b91c1c; font-size: 13px; font-weight: 600; margin-top: 4px;'>+ ${diff_ppb:,.2f} Deviation</div>" if diff_ppb > 0 else "<div style='color: #15803d; font-size: 13px; font-weight: 600; margin-top: 4px;'>🏆 Optimal Strategy</div>"
+        ppb_sub = f"<div style='color: #b91c1c; font-size: 13px; font-weight: 600; margin-top: 4px;'>+ {diff_ppb:,.2f} Deviation</div>" if diff_ppb > 0 else "<div style='color: #15803d; font-size: 13px; font-weight: 600; margin-top: 4px;'>🏆 Optimal Strategy</div>"
         st.markdown(f"""<div style='background-color: #f4efdc; padding: 16px; border-radius: 6px; border-top: 4px solid #6a0708;'>
                         <div style='color: #4a4a4a; font-size: 12px; font-weight: 600; text-transform: uppercase;'>Total Cost PPB</div>
-                        <div style='font-size: 22px; font-weight: 700; color: #6a0708; margin-top: 4px;'>${res['ppb']['total']:,.2f}</div>
+                        <div style='font-size: 22px; font-weight: 700; color: #6a0708; margin-top: 4px;'>{res['ppb']['total']:,.2f}</div>
                         {ppb_sub}</div>""", unsafe_allow_html=True)
 
     st.info(f"💡 **Operational Recommendation:** **{best_method}** presents the most cost-efficient tactical approach for this demand pattern.")
 
-    # Charts Area (FIXED LABELS AND LAYOUT)
+    # Charts Area
     cg1, cg2 = st.columns(2)
     with cg1:
-        st.markdown("### Cost Breakdown Framework ($)")
+        st.markdown("### Cost Breakdown Framework")
         fig, ax = plt.subplots(figsize=(6, 4.5))
         fig.patch.set_facecolor('#faf8f2')
         ax.set_facecolor('#faf8f2')
         
-        # Simpan bar ke variabel untuk kustomisasi lebih lanjut jika diperlukan
         bars = ax.bar(biaya_dict.keys(), biaya_dict.values(), color=['#a01a1e', '#415a77', '#2a9d8f', '#e9c46a'])
         
-        # Kembalikan rotasi miring agar teks metode yang panjang tidak mencong/bertabrakan
         plt.xticks(rotation=20, fontsize=8, ha='right')
-        ax.set_ylabel('Total Cost ($)', fontsize=9, fontweight='bold')
+        ax.set_ylabel('Total Cost', fontsize=9, fontweight='bold')
         ax.grid(axis='y', linestyle='--', alpha=0.3)
         
-        # Memastikan tidak ada teks komponen grafik yang terpotong di canvas luar
         plt.tight_layout()
         st.pyplot(fig)
         
     with cg2:
-        st.markdown("### Demand Sensitivity Simulation (-30% to +35%)")
+        st.markdown("### Demand Sensitivity Simulation (-30% to +30%)")
         
-        scale_factors = np.arange(0.70, 1.40, 0.05)
+        # Diubah menjadi batas atas maks +30% saja sesuai request
+        scale_factors = np.arange(0.70, 1.35, 0.05)
         s_l4l, s_luc, s_eoq, s_ppb, labels_pct = [], [], [], [], []
         
         for f in scale_factors:
             pct_val = int(round((f - 1) * 100))
-            if pct_val > 35:
+            if pct_val > 30:  # Hard limit di 30%
                 continue
             sim_demand = [max(1, int(d * f)) for d in gross_req]
             s_res = calculate_multi_mrp(sim_demand, sched_rec, setup_cost, holding_cost, initial_inv, safety_stock, lead_time)
@@ -548,7 +535,7 @@ if df_kerja is not None and not df_kerja.empty:
         ax2.plot(labels_pct, s_eoq, marker='^', label='EOQ', color='#2a9d8f')
         ax2.plot(labels_pct, s_ppb, marker='x', label='PPB', color='#e9c46a')
         
-        ax2.set_ylabel('Total Operation Cost ($)', fontsize=9, fontweight='bold')
+        ax2.set_ylabel('Total Operation Cost', fontsize=9, fontweight='bold')
         ax2.grid(True, linestyle=':', alpha=0.4)
         ax2.legend(fontsize=8)
         
