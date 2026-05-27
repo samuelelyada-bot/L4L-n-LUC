@@ -428,4 +428,130 @@ if df_kerja is not None and not df_kerja.empty:
             ax2.plot(labels_pct, s_eoq, marker='^', label='EOQ', color='#2a9d8f')
             ax2.plot(labels_pct, s_ppb, marker='x', label='PPB', color='#e9c46a')
             ax2.set_ylabel('Total Operation Cost ($)')
-            ax2.grid(True,
+            ax2.grid(True, linestyle=':', alpha=0.4)
+            ax2.legend()
+            plt.xticks(rotation=45)
+            st.pyplot(fig2)
+
+    # REUSABLE MRP RENDERER
+    def tampilkan_tabel_mrp(nama_metode, data_dict, max_cap):
+        df = pd.DataFrame({
+            'Gross Requirements': gross_req,
+            'Scheduled Receipts': sched_rec,
+            'Projected On Hand': data_dict['poh'],
+            'Net Requirements': res['net_req'],
+            'Planned Order Receipts': data_dict['rec'],
+            'Planned Order Releases': data_dict['rel']
+        }, index=[f"P{i+1}" for i in range(num_periods)]).T
+        st.dataframe(get_styled_mrp_table(df, max_cap), use_container_width=True)
+        if max(data_dict['poh']) > max_cap:
+            st.error(f"⚠️ **Capacity Violation Threshold Raised:** Inventory accumulation via {nama_metode} breaches physical facility space constraints ({max_cap} units).")
+
+    with t_l4l:
+        st.subheader("MRP Standard Grid Matrix — Lot-for-Lot")
+        tampilkan_tabel_mrp("L4L", res['l4l'], max_capacity)
+
+    with t_luc:
+        st.subheader("Least Unit Cost Operational Evaluation Logs")
+        
+        # CHANGED: Render LUC calculations step by step inside separate expanders like PPB
+        format_luc = {'Setup Cost': '{:.2f}', 'Holding Cost': '{:.2f}', 'Total Cost': '{:.2f}', 'LUC (Cost/Unit)': '{:.4f}'}
+        for idx, df_iter in enumerate(res['luc']['iters']):
+            # Relabeling column context for translation consistency
+            df_iter_en = df_iter.rename(columns={
+                'Iterasi Dari': 'Iteration From', 'Hingga': 'To', 'Total Unit': 'Total Units',
+                'Biaya Pesan': 'Setup Cost', 'Biaya Simpan': 'Holding Cost'
+            })
+            # Handle condition conversion for highlight function matching
+            df_iter_en['Status'] = df_iter_en['Status'].replace({"Stop! Biaya Naik": "Stop! Cost Rises", "Terpilih (Min)": "Selected (Min)"})
+            
+            with st.expander(f"Order Cycle Discovery Step {idx+1}"):
+                styled_df = df_iter_en.style.apply(highlight_stop, axis=1).format(format_luc)
+                st.dataframe(styled_df, hide_index=True, use_container_width=True)
+
+        tampilkan_tabel_mrp("LUC", res['luc'], max_capacity)
+
+    with t_eoq:
+        st.subheader("Economic Order Quantity Model Assessment")
+        
+        # CHANGED: Fixed Order Math breakouts cleanly formatted into system constants expander
+        with st.expander("Formula Calculation & Parameter Trace"):
+            total_gross_req = sum(gross_req)
+            n_periode = len(gross_req)
+            avg_demand_calc = res['eoq']['avg_demand_gross']
+            
+            st.markdown("#### Operational Sizing Calculus Steps")
+            st.markdown("**1. Data Discovery Parameters:**")
+            st.markdown(f"""
+            * Discrete Timeline Profile: `{gross_req}`
+            * Total Gross Requirements ($\sum$ Gross Req) = `{total_gross_req}` units
+            * Planning Horizon Length ($n$) = `{n_periode}` periods
+            """)
+            
+            st.markdown("**2. Periodic Average Target Rate ($D$):**")
+            st.markdown(f"$$\sum \\text{{Gross Requirements}} = {total_gross_req}$$")
+            st.markdown(f"$$n = {n_periode}$$")
+            st.markdown(f"$$D = \\frac{{{total_gross_req}}}{{{n_periode}}} = {avg_demand_calc:.4f} \\text{{ units/period}}$$")
+            
+            nilai_atas = 2 * avg_demand_calc * setup_cost
+            nilai_bagi = nilai_atas / holding_cost
+            eoq_final_raw = math.sqrt(nilai_bagi)
+            
+            st.markdown("**3. Constant Value Synthesis:**")
+            st.markdown(f"$$EOQ = \\sqrt{{\\frac{{2 \\times D \\times \\text{{Setup Cost}}}}{{\\text{{Holding Cost}}}}}}$$")
+            st.markdown(f"$$EOQ = \\sqrt{{\\frac{{2 \\times {avg_demand_calc:.4f} \\times {setup_cost:,.2f}}}{{{holding_cost:,.2f}}}}}$$")
+            st.markdown(f"$$EOQ = \\sqrt{{\\frac{{{nilai_atas:,.4f}}}{{{holding_cost:,.2f}}}}} = \\sqrt{{{nilai_bagi:,.4f}}}$$")
+            st.markdown(f"$$EOQ = {eoq_final_raw:.4f} \\text{{ units}}$$")
+            
+            st.markdown("**4. Integral Discretization (Ceiling Rounding):**")
+            st.markdown(f"* Continuous Scale Solution = `{eoq_final_raw:.4f}`")
+            st.markdown(f"* Rounded up to practical unit lot size: **`{res['eoq']['size']}` units**.")
+            
+        st.info(f"💡 **Fixed Lot Control Rule:** Based on the structural deduction above, the baseline order scale for the EOQ profile is locked at **{res['eoq']['size']} units** per cycle.")
+        tampilkan_tabel_mrp("EOQ", res['eoq'], max_capacity)
+
+    with t_ppb:
+        st.subheader("Part Period Balancing Operational Evaluation Logs")
+        
+        format_ppb = {'EPP Limit': '{:.2f}', 'Cumulative Part-Period': '{:.2f}'}
+        for idx, df_iter in enumerate(res['ppb']['iters']):
+            df_iter_en = df_iter.rename(columns={
+                'Iterasi Dari': 'Iteration From', 'Hingga': 'To', 'Total Unit': 'Total Units',
+                'Batas EPP': 'EPP Limit', 'Part-Period Kumulatif': 'Cumulative Part-Period'
+            })
+            df_iter_en['Status'] = df_iter_en['Status'].replace({
+                "Mendekati Imbang": "Balancing",
+                "Terpilih (Lebih Dekat Melampaui)": "Selected (Overshoot Closer)",
+                "Stop! Jarak Sebelumnya Lebih Dekat": "Stop! Prior Step Closer"
+            })
+            
+            with st.expander(f"Order Window Evaluation Strategy {idx+1}"):
+                styled_df = df_iter_en.style.apply(highlight_stop, axis=1).format(format_ppb)
+                st.dataframe(styled_df, hide_index=True, use_container_width=True)
+                
+        tampilkan_tabel_mrp("PPB", res['ppb'], max_capacity)
+
+    # ==========================================
+    # 7. EXPORT DATA LAYER
+    # ==========================================
+    st.markdown("---")
+    st.subheader("Management Reporting Layer")
+    
+    buffer = io.BytesIO()
+    with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+        pd.DataFrame({'Gross Requirements': gross_req, 'Scheduled Receipts': sched_rec, 'Net Requirements': res['net_req']}, index=[f"P{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="Baseline Demand Requirements")
+        pd.DataFrame({'Projected On Hand': res['l4l']['poh'], 'Planned Order Receipts': res['l4l']['rec'], 'Planned Order Releases': res['l4l']['rel']}, index=[f"P{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="L4L Strategy Model")
+        pd.DataFrame({'Projected On Hand': res['luc']['poh'], 'Planned Order Receipts': res['luc']['rec'], 'Planned Order Releases': res['luc']['rel']}, index=[f"P{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="LUC Strategy Model")
+        pd.DataFrame({'Projected On Hand': res['eoq']['poh'], 'Planned Order Receipts': res['eoq']['rec'], 'Planned Order Releases': res['eoq']['rel']}, index=[f"P{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="EOQ Strategy Model")
+        pd.DataFrame({'Projected On Hand': res['ppb']['poh'], 'Planned Order Receipts': res['ppb']['rec'], 'Planned Order Releases': res['ppb']['rel']}, index=[f"P{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="PPB Strategy Model")
+    
+    buffer.seek(0)
+        
+    st.download_button(
+        label="Download Analytical Performance Report (Excel)", 
+        data=buffer, 
+        file_name="OptiLot_MRP_Performance_Report.xlsx", 
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+else:
+    st.info("💡 Establish baseline transaction vectors above to trigger automated matrix computations.")
