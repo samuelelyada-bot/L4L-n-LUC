@@ -15,7 +15,7 @@ st.set_page_config(page_title="OptiLot — Advanced MRP Engine", layout="wide")
 st.markdown("""
     <style>
         /* Base typography setting */
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;500;600;700&display=swap');
         html, body, [class*="css"] {
             font-family: 'Inter', sans-serif;
         }
@@ -78,8 +78,8 @@ st.markdown("---")
 # ==========================================
 st.sidebar.header("Configuration Panel")
 
-setup_cost = st.sidebar.number_input("Ordering / Setup Cost ($)", min_value=0.0, value=100000.0, step=500.0)
-holding_cost = st.sidebar.number_input("Holding Cost (per unit / period)", min_value=0.0, value=2000.0, step=500.0)
+setup_cost = st.sidebar.number_input("Ordering / Setup Cost", min_value=0.0, value=100.0, step=10.0)
+holding_cost = st.sidebar.number_input("Holding Cost (per unit / period)", min_value=0.0, value=2.0, step=0.5)
 initial_inv = st.sidebar.number_input("Initial Inventory", min_value=0, value=35, step=5)
 safety_stock = st.sidebar.number_input("Safety Stock", min_value=0, value=0, step=1)
 lead_time = st.sidebar.number_input("Lead Time (Periods)", min_value=0, value=1, step=1)
@@ -105,8 +105,17 @@ def get_styled_mrp_table(df_mrp_transposed, max_cap):
         return [''] * len(row)
     return df_mrp_transposed.style.apply(highlight_row_capacity, axis=1)
 
-def highlight_stop(row):
-    return ['background-color: #fee2e2; color: #991b1b; font-weight: bold;' if 'Stop!' in str(row['Status']) else '' for _ in row]
+def highlight_status_iterasi(row):
+    styles = []
+    for val in row:
+        val_str = str(val)
+        if 'Stop' in val_str:
+            styles.append('background-color: #fee2e2; color: #991b1b; font-weight: bold;')
+        elif 'Feasible' in val_str:
+            styles.append('background-color: #e8f5e9; color: #1b5e20; font-weight: bold;')
+        else:
+            styles.append('')
+    return styles
 
 # ==========================================
 # 3. DATA INPUT SECTION
@@ -138,7 +147,7 @@ if input_method == "Upload File (Excel / CSV)":
             if col_periode and col_periode in df_raw.columns:
                 df_kerja['Period'] = df_raw[col_periode].astype(str)
             else:
-                df_kerja['Period'] = [f"P{i+1}" for i in range(len(df_raw))]
+                df_kerja['Period'] = [f"p{i+1}" for i in range(len(df_raw))]
                 
             if col_gr and col_gr in df_raw.columns:
                 df_kerja['Gross Requirements'] = df_raw[col_gr].fillna(0).astype(int)
@@ -156,7 +165,7 @@ if input_method == "Upload File (Excel / CSV)":
 elif input_method == "Manual Interface Input":
     num_periods_input = st.number_input("Planning Horizon (Periods):", min_value=1, max_value=52, value=10, step=1)
     init_data = {
-        'Period': [f"P{i+1}" for i in range(num_periods_input)],
+        'Period': [f"p{i+1}" for i in range(num_periods_input)],
         'Gross Requirements': [35, 30, 40, 0, 10, 40, 30, 0, 30, 55] if num_periods_input == 10 else [0] * num_periods_input,
         'Scheduled Receipts': [0] * num_periods_input
     }
@@ -165,7 +174,7 @@ elif input_method == "Manual Interface Input":
 
 else:
     default_data = {
-        'Period': [f"P{i}" for i in range(1, 11)],
+        'Period': [f"p{i}" for i in range(1, 11)],
         'Gross Requirements': [35, 30, 40, 0, 10, 40, 30, 0, 30, 55],
         'Scheduled Receipts': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     }
@@ -187,7 +196,7 @@ if df_kerja is not None and not df_kerja.empty:
     sched_rec = df_edited_preview.loc['Scheduled Receipts'].astype(int).tolist()
 
     # ==========================================
-    # CORE ALGORITHM - MULTI METHOD MRP (UNTOUCHED LOGIC)
+    # CORE ALGORITHM - MULTI METHOD MRP 
     # ==========================================
     def calculate_multi_mrp(demands, s_receipts, setup, hold, init_inv, ss, lt):
         n = len(demands)
@@ -242,13 +251,16 @@ if df_kerja is not None and not df_kerja.empty:
                 t_cost = setup + acc_h
                 uc = t_cost / acc_d if acc_d > 0 else float('inf')
                 
+                # Single column label maker (e.g. p1, p2)
+                p_label = ", ".join([f"p{m+1}" for m in range(idx, k+1)])
+                
                 if uc <= min_uc:
                     min_uc, best_k = uc, k
-                    status = "Selected (Min)"
-                    t_log.append({'Iteration From': f"P{idx+1}", 'To': f"P{k+1}", 'Total Units': acc_d, 'Setup Cost': setup, 'Holding Cost': acc_h, 'Total Cost': t_cost, 'LUC (Cost/Unit)': uc, 'Status': status})
+                    status = "Feasible"
+                    t_log.append({'Period': p_label, 'Total Units': acc_d, 'Setup Cost': setup, 'Holding Cost': acc_h, 'Total Cost': t_cost, 'LUC (Cost/Unit)': uc, 'Status': status})
                 else:
-                    status = "Stop! Cost Rises"
-                    t_log.append({'Iteration From': f"P{idx+1}", 'To': f"P{k+1}", 'Total Units': acc_d, 'Setup Cost': setup, 'Holding Cost': acc_h, 'Total Cost': t_cost, 'LUC (Cost/Unit)': uc, 'Status': status})
+                    status = "Stop (Prev Closer)"
+                    t_log.append({'Period': p_label, 'Total Units': acc_d, 'Setup Cost': setup, 'Holding Cost': acc_h, 'Total Cost': t_cost, 'LUC (Cost/Unit)': uc, 'Status': status})
                     break
             luc_iters.append(pd.DataFrame(t_log))
             luc_rec[idx] = sum(net_req[idx:best_k+1])
@@ -296,14 +308,15 @@ if df_kerja is not None and not df_kerja.empty:
             for k in range(idx, n):
                 part_period_k = net_req[k] * (k - idx)
                 new_cum_part_period = cum_part_period + part_period_k
+                p_label = ", ".join([f"p{m+1}" for m in range(idx, k+1)])
                 
                 if new_cum_part_period <= epp_limit:
                     acc_d += net_req[k]
                     cum_part_period = new_cum_part_period
                     best_k = k
                     t_log.append({
-                        'Iteration From': f"P{idx+1}", 'To': f"P{k+1}", 'Total Units': acc_d, 
-                        'EPP Limit': epp_limit, 'Cumulative Part-Period': cum_part_period, 'Status': "Balancing"
+                        'Period': p_label, 'Total Units': acc_d, 
+                        'EPP Limit': epp_limit, 'Cumulative Part-Period': cum_part_period, 'Status': "Feasible"
                     })
                 else:
                     dist_sebelum = abs(cum_part_period - epp_limit)
@@ -314,13 +327,13 @@ if df_kerja is not None and not df_kerja.empty:
                         cum_part_period = new_cum_part_period
                         best_k = k
                         t_log.append({
-                            'Iteration From': f"P{idx+1}", 'To': f"P{k+1}", 'Total Units': acc_d, 
-                            'EPP Limit': epp_limit, 'Cumulative Part-Period': cum_part_period, 'Status': "Selected (Overshoot Closer)"
+                            'Period': p_label, 'Total Units': acc_d, 
+                            'EPP Limit': epp_limit, 'Cumulative Part-Period': cum_part_period, 'Status': "Feasible"
                         })
                     else:
                         t_log.append({
-                            'Iteration From': f"P{idx+1}", 'To': f"P{k+1}", 'Total Units': acc_d + net_req[k], 
-                            'EPP Limit': epp_limit, 'Cumulative Part-Period': new_cum_part_period, 'Status': "Stop! Prior Step Closer"
+                            'Period': p_label, 'Total Units': acc_d + net_req[k], 
+                            'EPP Limit': epp_limit, 'Cumulative Part-Period': new_cum_part_period, 'Status': "Stop (Prev Closer)"
                         })
                     break
                     
@@ -343,12 +356,6 @@ if df_kerja is not None and not df_kerja.empty:
     # RUN MRP ENGINE
     res = calculate_multi_mrp(gross_req, sched_rec, setup_cost, holding_cost, initial_inv, safety_stock, lead_time)
     num_periods = len(gross_req)
-
-    # ==========================================
-    # 5. MAIN INTERFACE - PERFORMANCE TILES
-    # ==========================================
-    st.markdown("---")
-    st.header("Multi-Method Performance Analysis")
     
     biaya_dict = {
         'Lot-for-Lot (L4L)': res['l4l']['total'], 
@@ -357,81 +364,14 @@ if df_kerja is not None and not df_kerja.empty:
         'Part Period Balancing (PPB)': res['ppb']['total']
     }
     best_method = min(biaya_dict, key=biaya_dict.get)
+
+    # ==========================================
+    # 4. MAIN INTERFACE - TABS FOR STRATEGIES
+    # ==========================================
+    st.markdown("---")
+    st.header("Material Requirements Planning Matrix Breakdown")
     
-    # HTML Cards Component Rendering
-    m1, m2, m3, m4 = st.columns(4)
-    with m1:
-        diff_l4l = res['l4l']['total'] - biaya_dict[best_method]
-        l4l_sub = f"<div style='color: #b91c1c; font-size: 13px; font-weight: 600; margin-top: 4px;'>+ ${diff_l4l:,.2f} Deviation</div>" if diff_l4l > 0 else "<div style='color: #15803d; font-size: 13px; font-weight: 600; margin-top: 4px;'>🏆 Optimal Strategy</div>"
-        st.markdown(f"""<div style='background-color: #f4efdc; padding: 16px; border-radius: 6px; border-top: 4px solid #6a0708;'>
-                        <div style='color: #4a4a4a; font-size: 12px; font-weight: 600; text-transform: uppercase;'>Total Cost L4L</div>
-                        <div style='font-size: 22px; font-weight: 700; color: #6a0708; margin-top: 4px;'>${res['l4l']['total']:,.2f}</div>
-                        {l4l_sub}</div>""", unsafe_allow_html=True)
-    with m2:
-        diff_luc = res['luc']['total'] - biaya_dict[best_method]
-        luc_sub = f"<div style='color: #b91c1c; font-size: 13px; font-weight: 600; margin-top: 4px;'>+ ${diff_luc:,.2f} Deviation</div>" if diff_luc > 0 else "<div style='color: #15803d; font-size: 13px; font-weight: 600; margin-top: 4px;'>🏆 Optimal Strategy</div>"
-        st.markdown(f"""<div style='background-color: #f4efdc; padding: 16px; border-radius: 6px; border-top: 4px solid #6a0708;'>
-                        <div style='color: #4a4a4a; font-size: 12px; font-weight: 600; text-transform: uppercase;'>Total Cost LUC</div>
-                        <div style='font-size: 22px; font-weight: 700; color: #6a0708; margin-top: 4px;'>${res['luc']['total']:,.2f}</div>
-                        {luc_sub}</div>""", unsafe_allow_html=True)
-    with m3:
-        diff_eoq = res['eoq']['total'] - biaya_dict[best_method]
-        eoq_sub = f"<div style='color: #b91c1c; font-size: 13px; font-weight: 600; margin-top: 4px;'>+ ${diff_eoq:,.2f} Deviation</div>" if diff_eoq > 0 else "<div style='color: #15803d; font-size: 13px; font-weight: 600; margin-top: 4px;'>🏆 Optimal Strategy</div>"
-        st.markdown(f"""<div style='background-color: #f4efdc; padding: 16px; border-radius: 6px; border-top: 4px solid #6a0708;'>
-                        <div style='color: #4a4a4a; font-size: 12px; font-weight: 600; text-transform: uppercase;'>Total Cost EOQ</div>
-                        <div style='font-size: 22px; font-weight: 700; color: #6a0708; margin-top: 4px;'>${res['eoq']['total']:,.2f}</div>
-                        {eoq_sub}</div>""", unsafe_allow_html=True)
-    with m4:
-        diff_ppb = res['ppb']['total'] - biaya_dict[best_method]
-        ppb_sub = f"<div style='color: #b91c1c; font-size: 13px; font-weight: 600; margin-top: 4px;'>+ ${diff_ppb:,.2f} Deviation</div>" if diff_ppb > 0 else "<div style='color: #15803d; font-size: 13px; font-weight: 600; margin-top: 4px;'>🏆 Optimal Strategy</div>"
-        st.markdown(f"""<div style='background-color: #f4efdc; padding: 16px; border-radius: 6px; border-top: 4px solid #6a0708;'>
-                        <div style='color: #4a4a4a; font-size: 12px; font-weight: 600; text-transform: uppercase;'>Total Cost PPB</div>
-                        <div style='font-size: 22px; font-weight: 700; color: #6a0708; margin-top: 4px;'>${res['ppb']['total']:,.2f}</div>
-                        {ppb_sub}</div>""", unsafe_allow_html=True)
-
-    st.info(f"💡 **Operational Recommendation:** **{best_method}** presents the most cost-efficient tactical approach for this demand pattern.")
-
-    # ==========================================
-    # 6. TABS ARTIFACTS VIEW
-    # ==========================================
-    tab_grafik, t_l4l, t_luc, t_eoq, t_ppb = st.tabs(["📉 Charts & Sensitivity", "📋 Lot-for-Lot (L4L)", "🔍 Least Unit Cost (LUC)", "🎯 Economic Order Quantity (EOQ)", "⚖️ Part Period Balancing (PPB)"])
-
-    with tab_grafik:
-        cg1, cg2 = st.columns(2)
-        with cg1:
-            st.markdown("### Cost Breakdown Framework ($)")
-            fig, ax = plt.subplots(figsize=(6, 4))
-            fig.patch.set_facecolor('#faf8f2')
-            ax.set_facecolor('#faf8f2')
-            ax.bar(biaya_dict.keys(), biaya_dict.values(), color=['#a01a1e', '#415a77', '#2a9d8f', '#e9c46a'])
-            plt.xticks(rotation=15, ha='right')
-            ax.grid(axis='y', linestyle='--', alpha=0.3)
-            st.pyplot(fig)
-        with cg2:
-            st.markdown("### Demand Sensitivity Simulation")
-            scale_factors = np.arange(0.70, 1.35, 0.05)
-            s_l4l, s_luc, s_eoq, s_ppb, labels_pct = [], [], [], [], []
-            for f in scale_factors:
-                sim_demand = [max(1, int(d * f)) for d in gross_req]
-                s_res = calculate_multi_mrp(sim_demand, sched_rec, setup_cost, holding_cost, initial_inv, safety_stock, lead_time)
-                s_l4l.append(s_res['l4l']['total'])
-                s_luc.append(s_res['luc']['total'])
-                s_eoq.append(s_res['eoq']['total'])
-                s_ppb.append(s_res['ppb']['total'])
-                labels_pct.append(f"{int(round((f-1)*100)):+}%")
-            
-            fig2, ax2 = plt.subplots(figsize=(6, 4))
-            fig2.patch.set_facecolor('#faf8f2')
-            ax2.set_facecolor('#faf8f2')
-            ax2.plot(labels_pct, s_l4l, marker='o', label='L4L', color='#a01a1e')
-            ax2.plot(labels_pct, s_luc, marker='s', label='LUC', color='#415a77')
-            ax2.plot(labels_pct, s_eoq, marker='^', label='EOQ', color='#2a9d8f')
-            ax2.plot(labels_pct, s_ppb, marker='x', label='PPB', color='#e9c46a')
-            ax2.set_ylabel('Total Operation Cost ($)')
-            ax2.grid(True, linestyle=':', alpha=0.4)
-            ax2.legend()
-            plt.xticks(rotation=45)
-            st.pyplot(fig2)
+    t_l4l, t_luc, t_eoq, t_ppb = st.tabs(["📋 Lot-for-Lot (L4L)", "🔍 Least Unit Cost (LUC)", "🎯 Economic Order Quantity (EOQ)", "⚖️ Part Period Balancing (PPB)"])
 
     # REUSABLE MRP RENDERER
     def tampilkan_tabel_mrp(nama_metode, data_dict, max_cap):
@@ -442,7 +382,7 @@ if df_kerja is not None and not df_kerja.empty:
             'Net Requirements': res['net_req'],
             'Planned Order Receipts': data_dict['rec'],
             'Planned Order Releases': data_dict['rel']
-        }, index=[f"P{i+1}" for i in range(num_periods)]).T
+        }, index=[f"p{i+1}" for i in range(num_periods)]).T
         st.dataframe(get_styled_mrp_table(df, max_cap), use_container_width=True)
         if max(data_dict['poh']) > max_cap:
             st.error(f"⚠️ **Capacity Violation Threshold Raised:** Inventory accumulation via {nama_metode} breaches physical facility space constraints ({max_cap} units).")
@@ -453,28 +393,15 @@ if df_kerja is not None and not df_kerja.empty:
 
     with t_luc:
         st.subheader("Least Unit Cost Operational Evaluation Logs")
-        
-        # CHANGED: Render LUC calculations step by step inside separate expanders like PPB
         format_luc = {'Setup Cost': '{:.2f}', 'Holding Cost': '{:.2f}', 'Total Cost': '{:.2f}', 'LUC (Cost/Unit)': '{:.4f}'}
         for idx, df_iter in enumerate(res['luc']['iters']):
-            # Relabeling column context for translation consistency
-            df_iter_en = df_iter.rename(columns={
-                'Iterasi Dari': 'Iteration From', 'Hingga': 'To', 'Total Unit': 'Total Units',
-                'Biaya Pesan': 'Setup Cost', 'Biaya Simpan': 'Holding Cost'
-            })
-            # Handle condition conversion for highlight function matching
-            df_iter_en['Status'] = df_iter_en['Status'].replace({"Stop! Biaya Naik": "Stop! Cost Rises", "Terpilih (Min)": "Selected (Min)"})
-            
             with st.expander(f"Order Cycle Discovery Step {idx+1}"):
-                styled_df = df_iter_en.style.apply(highlight_stop, axis=1).format(format_luc)
+                styled_df = df_iter.style.apply(highlight_status_iterasi, axis=1).format(format_luc)
                 st.dataframe(styled_df, hide_index=True, use_container_width=True)
-
         tampilkan_tabel_mrp("LUC", res['luc'], max_capacity)
 
     with t_eoq:
         st.subheader("Economic Order Quantity Model Assessment")
-        
-        # CHANGED: Fixed Order Math breakouts cleanly formatted into system constants expander
         with st.expander("Formula Calculation & Parameter Trace"):
             total_gross_req = sum(gross_req)
             n_periode = len(gross_req)
@@ -484,13 +411,11 @@ if df_kerja is not None and not df_kerja.empty:
             st.markdown("**1. Data Discovery Parameters:**")
             st.markdown(f"""
             * Discrete Timeline Profile: `{gross_req}`
-            * Total Gross Requirements ($\sum$ Gross Req) = `{total_gross_req}` units
+            * Total Gross Requirements = `{total_gross_req}` units
             * Planning Horizon Length ($n$) = `{n_periode}` periods
             """)
             
             st.markdown("**2. Periodic Average Target Rate ($D$):**")
-            st.markdown(f"$$\sum \\text{{Gross Requirements}} = {total_gross_req}$$")
-            st.markdown(f"$$n = {n_periode}$$")
             st.markdown(f"$$D = \\frac{{{total_gross_req}}}{{{n_periode}}} = {avg_demand_calc:.4f} \\text{{ units/period}}$$")
             
             nilai_atas = 2 * avg_demand_calc * setup_cost
@@ -498,52 +423,123 @@ if df_kerja is not None and not df_kerja.empty:
             eoq_final_raw = math.sqrt(nilai_bagi)
             
             st.markdown("**3. Constant Value Synthesis:**")
-            st.markdown(f"$$EOQ = \\sqrt{{\\frac{{2 \\times D \\times \\text{{Setup Cost}}}}{{\\text{{Holding Cost}}}}}}$$")
-            st.markdown(f"$$EOQ = \\sqrt{{\\frac{{2 \\times {avg_demand_calc:.4f} \\times {setup_cost:,.2f}}}{{{holding_cost:,.2f}}}}}$$")
-            st.markdown(f"$$EOQ = \\sqrt{{\\frac{{{nilai_atas:,.4f}}}{{{holding_cost:,.2f}}}}} = \\sqrt{{{nilai_bagi:,.4f}}}$$")
-            st.markdown(f"$$EOQ = {eoq_final_raw:.4f} \\text{{ units}}$$")
-            
-            st.markdown("**4. Integral Discretization (Ceiling Rounding):**")
-            st.markdown(f"* Continuous Scale Solution = `{eoq_final_raw:.4f}`")
+            st.markdown(f"$$EOQ = \\sqrt{{\\frac{{2 \\times D \\times \\text{{Setup Cost}}}}{{\\text{{Holding Cost}}}}}} = {eoq_final_raw:.4f}$$")
             st.markdown(f"* Rounded up to practical unit lot size: **`{res['eoq']['size']}` units**.")
             
-        st.info(f"💡 **Fixed Lot Control Rule:** Based on the structural deduction above, the baseline order scale for the EOQ profile is locked at **{res['eoq']['size']} units** per cycle.")
+        st.info(f"💡 **Fixed Lot Control Rule:** Baseline order scale for the EOQ profile is locked at **{res['eoq']['size']} units** per cycle.")
         tampilkan_tabel_mrp("EOQ", res['eoq'], max_capacity)
 
     with t_ppb:
         st.subheader("Part Period Balancing Operational Evaluation Logs")
-        
         format_ppb = {'EPP Limit': '{:.2f}', 'Cumulative Part-Period': '{:.2f}'}
         for idx, df_iter in enumerate(res['ppb']['iters']):
-            df_iter_en = df_iter.rename(columns={
-                'Iterasi Dari': 'Iteration From', 'Hingga': 'To', 'Total Unit': 'Total Units',
-                'Batas EPP': 'EPP Limit', 'Part-Period Kumulatif': 'Cumulative Part-Period'
-            })
-            df_iter_en['Status'] = df_iter_en['Status'].replace({
-                "Mendekati Imbang": "Balancing",
-                "Terpilih (Lebih Dekat Melampaui)": "Selected (Overshoot Closer)",
-                "Stop! Jarak Sebelumnya Lebih Dekat": "Stop! Prior Step Closer"
-            })
-            
             with st.expander(f"Order Window Evaluation Strategy {idx+1}"):
-                styled_df = df_iter_en.style.apply(highlight_stop, axis=1).format(format_ppb)
+                styled_df = df_iter.style.apply(highlight_status_iterasi, axis=1).format(format_ppb)
                 st.dataframe(styled_df, hide_index=True, use_container_width=True)
-                
         tampilkan_tabel_mrp("PPB", res['ppb'], max_capacity)
 
     # ==========================================
-    # 7. EXPORT DATA LAYER
+    # 5. MOVED TO END: PERFORMANCE ANALYSIS & CHARTS
+    # ==========================================
+    st.markdown("---")
+    st.header("Multi-Method Performance Analysis")
+    
+    # HTML Cards Component Rendering (No currency symbols)
+    m1, m2, m3, m4 = st.columns(4)
+    with m1:
+        diff_l4l = res['l4l']['total'] - biaya_dict[best_method]
+        l4l_sub = f"<div style='color: #b91c1c; font-size: 13px; font-weight: 600; margin-top: 4px;'>+ {diff_l4l:,.2f} Deviation</div>" if diff_l4l > 0 else "<div style='color: #15803d; font-size: 13px; font-weight: 600; margin-top: 4px;'>🏆 Optimal Strategy</div>"
+        st.markdown(f"""<div style='background-color: #f4efdc; padding: 16px; border-radius: 6px; border-top: 4px solid #6a0708;'>
+                        <div style='color: #4a4a4a; font-size: 12px; font-weight: 600; text-transform: uppercase;'>Total Cost L4L</div>
+                        <div style='font-size: 22px; font-weight: 700; color: #6a0708; margin-top: 4px;'>{res['l4l']['total']:,.2f}</div>
+                        {l4l_sub}</div>""", unsafe_allow_html=True)
+    with m2:
+        diff_luc = res['luc']['total'] - biaya_dict[best_method]
+        luc_sub = f"<div style='color: #b91c1c; font-size: 13px; font-weight: 600; margin-top: 4px;'>+ {diff_luc:,.2f} Deviation</div>" if diff_luc > 0 else "<div style='color: #15803d; font-size: 13px; font-weight: 600; margin-top: 4px;'>🏆 Optimal Strategy</div>"
+        st.markdown(f"""<div style='background-color: #f4efdc; padding: 16px; border-radius: 6px; border-top: 4px solid #6a0708;'>
+                        <div style='color: #4a4a4a; font-size: 12px; font-weight: 600; text-transform: uppercase;'>Total Cost LUC</div>
+                        <div style='font-size: 22px; font-weight: 700; color: #6a0708; margin-top: 4px;'>{res['luc']['total']:,.2f}</div>
+                        {luc_sub}</div>""", unsafe_allow_html=True)
+    with m3:
+        diff_eoq = res['eoq']['total'] - biaya_dict[best_method]
+        eoq_sub = f"<div style='color: #b91c1c; font-size: 13px; font-weight: 600; margin-top: 4px;'>+ {diff_eoq:,.2f} Deviation</div>" if diff_eoq > 0 else "<div style='color: #15803d; font-size: 13px; font-weight: 600; margin-top: 4px;'>🏆 Optimal Strategy</div>"
+        st.markdown(f"""<div style='background-color: #f4efdc; padding: 16px; border-radius: 6px; border-top: 4px solid #6a0708;'>
+                        <div style='color: #4a4a4a; font-size: 12px; font-weight: 600; text-transform: uppercase;'>Total Cost EOQ</div>
+                        <div style='font-size: 22px; font-weight: 700; color: #6a0708; margin-top: 4px;'>{res['eoq']['total']:,.2f}</div>
+                        {eoq_sub}</div>""", unsafe_allow_html=True)
+    with m4:
+        diff_ppb = res['ppb']['total'] - biaya_dict[best_method]
+        ppb_sub = f"<div style='color: #b91c1c; font-size: 13px; font-weight: 600; margin-top: 4px;'>+ {diff_ppb:,.2f} Deviation</div>" if diff_ppb > 0 else "<div style='color: #15803d; font-size: 13px; font-weight: 600; margin-top: 4px;'>🏆 Optimal Strategy</div>"
+        st.markdown(f"""<div style='background-color: #f4efdc; padding: 16px; border-radius: 6px; border-top: 4px solid #6a0708;'>
+                        <div style='color: #4a4a4a; font-size: 12px; font-weight: 600; text-transform: uppercase;'>Total Cost PPB</div>
+                        <div style='font-size: 22px; font-weight: 700; color: #6a0708; margin-top: 4px;'>{res['ppb']['total']:,.2f}</div>
+                        {ppb_sub}</div>""", unsafe_allow_html=True)
+
+    st.info(f"💡 **Operational Recommendation:** **{best_method}** presents the most cost-efficient tactical approach for this demand pattern.")
+
+    # Charts Area
+    cg1, cg2 = st.columns(2)
+    with cg1:
+        st.markdown("### Cost Breakdown Framework")
+        fig, ax = plt.subplots(figsize=(6, 4.2))
+        fig.patch.set_facecolor('#faf8f2')
+        ax.set_facecolor('#faf8f2')
+        ax.bar(biaya_dict.keys(), biaya_dict.values(), color=['#a01a1e', '#415a77', '#2a9d8f', '#e9c46a'])
+        
+        # Clean horizontal labels (no rotation)
+        plt.xticks(rotation=0, fontsize=8)
+        ax.set_ylabel('Total Cost', fontsize=9, fontweight='bold')
+        ax.grid(axis='y', linestyle='--', alpha=0.3)
+        st.pyplot(fig)
+        
+    with cg2:
+        st.markdown("### Demand Sensitivity Simulation (-30% to +30%)")
+        
+        # Fixed Scale Factors: -30% to +30% with exactly 5% steps (removes 35%)
+        scale_factors = np.arange(0.70, 1.35, 0.05)
+        s_l4l, s_luc, s_eoq, s_ppb, labels_pct = [], [], [], [], []
+        
+        for f in scale_factors:
+            pct_val = int(round((f - 1) * 100))
+            if pct_val > 30: # Hard ceiling override to prevent precision floats going over 30
+                continue
+            sim_demand = [max(1, int(d * f)) for d in gross_req]
+            s_res = calculate_multi_mrp(sim_demand, sched_rec, setup_cost, holding_cost, initial_inv, safety_stock, lead_time)
+            s_l4l.append(s_res['l4l']['total'])
+            s_luc.append(s_res['luc']['total'])
+            s_eoq.append(s_res['eoq']['total'])
+            s_ppb.append(s_res['ppb']['total'])
+            labels_pct.append(f"{pct_val}%" if pct_val <= 0 else f"+{pct_val}%")
+        
+        fig2, ax2 = plt.subplots(figsize=(7, 4.2))
+        fig2.patch.set_facecolor('#faf8f2')
+        ax2.set_facecolor('#faf8f2')
+        ax2.plot(labels_pct, s_l4l, marker='o', label='L4L', color='#a01a1e')
+        ax2.plot(labels_pct, s_luc, marker='s', label='LUC', color='#415a77')
+        ax2.plot(labels_pct, s_eoq, marker='^', label='EOQ', color='#2a9d8f')
+        ax2.plot(labels_pct, s_ppb, marker='x', label='PPB', color='#e9c46a')
+        
+        ax2.set_ylabel('Total Operation Cost', fontsize=9, fontweight='bold')
+        ax2.grid(True, linestyle=':', alpha=0.4)
+        ax2.legend(fontsize=8)
+        
+        # Clean horizontal alignment for line chart percentages
+        plt.xticks(rotation=0, fontsize=8)
+        st.pyplot(fig2)
+
+    # ==========================================
+    # 6. EXPORT DATA LAYER
     # ==========================================
     st.markdown("---")
     st.subheader("Management Reporting Layer")
     
     buffer = io.BytesIO()
     with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-        pd.DataFrame({'Gross Requirements': gross_req, 'Scheduled Receipts': sched_rec, 'Net Requirements': res['net_req']}, index=[f"P{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="Baseline Demand Requirements")
-        pd.DataFrame({'Projected On Hand': res['l4l']['poh'], 'Planned Order Receipts': res['l4l']['rec'], 'Planned Order Releases': res['l4l']['rel']}, index=[f"P{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="L4L Strategy Model")
-        pd.DataFrame({'Projected On Hand': res['luc']['poh'], 'Planned Order Receipts': res['luc']['rec'], 'Planned Order Releases': res['luc']['rel']}, index=[f"P{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="LUC Strategy Model")
-        pd.DataFrame({'Projected On Hand': res['eoq']['poh'], 'Planned Order Receipts': res['eoq']['rec'], 'Planned Order Releases': res['eoq']['rel']}, index=[f"P{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="EOQ Strategy Model")
-        pd.DataFrame({'Projected On Hand': res['ppb']['poh'], 'Planned Order Receipts': res['ppb']['rec'], 'Planned Order Releases': res['ppb']['rel']}, index=[f"P{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="PPB Strategy Model")
+        pd.DataFrame({'Gross Requirements': gross_req, 'Scheduled Receipts': sched_rec, 'Net Requirements': res['net_req']}, index=[f"p{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="Baseline Requirements")
+        pd.DataFrame({'Projected On Hand': res['l4l']['poh'], 'Planned Order Receipts': res['l4l']['rec'], 'Planned Order Releases': res['l4l']['rel']}, index=[f"p{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="L4L Model")
+        pd.DataFrame({'Projected On Hand': res['luc']['poh'], 'Planned Order Receipts': res['luc']['rec'], 'Planned Order Releases': res['luc']['rel']}, index=[f"p{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="LUC Model")
+        pd.DataFrame({'Projected On Hand': res['eoq']['poh'], 'Planned Order Receipts': res['eoq']['rec'], 'Planned Order Releases': res['eoq']['rel']}, index=[f"p{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="EOQ Model")
+        pd.DataFrame({'Projected On Hand': res['ppb']['poh'], 'Planned Order Receipts': res['ppb']['rec'], 'Planned Order Releases': res['ppb']['rel']}, index=[f"p{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="PPB Model")
     
     buffer.seek(0)
         
