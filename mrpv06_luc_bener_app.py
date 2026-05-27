@@ -368,3 +368,120 @@ if df_kerja is not None and not df_kerja.empty:
             
             fig2, ax2 = plt.subplots(figsize=(6, 4))
             ax2.plot(labels_pct, s_l4l, marker='o', label='L4L', color='#FF6B6B')
+            ax2.plot(labels_pct, s_luc, marker='s', label='LUC', color='#4D96FF')
+            ax2.plot(labels_pct, s_eoq, marker='^', label='EOQ', color='#6BCB77')
+            ax2.plot(labels_pct, s_ppb, marker='x', label='PPB', color='#f9d949')
+            ax2.set_ylabel('Total Biaya (Rp)')
+            ax2.grid(True, linestyle=':', alpha=0.6)
+            ax2.legend()
+            plt.xticks(rotation=45)
+            st.pyplot(fig2)
+
+    # REUSABLE MRP RENDERER
+    def tampilkan_tabel_mrp(nama_metode, data_dict, max_cap):
+        df = pd.DataFrame({
+            'Gross Requirements': gross_req,
+            'Scheduled Receipts': sched_rec,
+            'Projected On Hand': data_dict['poh'],
+            'Net Requirements': res['net_req'],
+            'Planned Order Receipts': data_dict['rec'],
+            'Planned Order Releases': data_dict['rel']
+        }, index=[f"P{i+1}" for i in range(num_periods)]).T
+        st.dataframe(get_styled_mrp_table(df, max_cap), use_container_width=True)
+        if max(data_dict['poh']) > max_cap:
+            st.error(f"⚠️ **Kapasitas Terlampaui Kritis:** Stok pengaman + keputusan akumulasi lot pada {nama_metode} melanggar kapasitas limit gudang ({max_cap} unit).")
+
+    with t_l4l:
+        st.subheader("Tabel Hasil Analisis MRP - Lot-for-Lot")
+        tampilkan_tabel_mrp("L4L", res['l4l'], max_capacity)
+
+    with t_luc:
+        st.subheader("Proses & Tabel Analisis MRP - Least Unit Cost")
+        with st.expander("🔬 KLIK DI SINI UNTUK MELIHAT LOG ITERASI PERHITUNGAN DETAIL (LUC)"):
+            format_luc = {
+                'Biaya Pesan': '{:.4f}', 'Biaya Simpan': '{:.4f}', 'Total Biaya': '{:.4f}', 'LUC (Cost/Unit)': '{:.4f}'
+            }
+            for idx, df_iter in enumerate(res['luc']['iters']):
+                st.markdown(f"**Langkah Pembentukan Lot Ke-{idx+1}:**")
+                styled_df = df_iter.style.apply(highlight_stop, axis=1).format(format_luc)
+                st.dataframe(styled_df, hide_index=True, use_container_width=True)
+                st.markdown("---")
+        tampilkan_tabel_mrp("LUC", res['luc'], max_capacity)
+
+    with t_eoq:
+        st.subheader("Tabel Hasil Analisis MRP - Economic Order Quantity")
+        
+        with st.expander("🔬 KLIK DI SINI UNTUK MELIHAT LOG PERHITUNGAN RUMUS DETAIL (EOQ)"):
+            total_gross_req = sum(gross_req)
+            n_periode = len(gross_req)
+            avg_demand_calc = res['eoq']['avg_demand_gross']
+            
+            st.markdown("#### 📝 Langkah-Langkah Perhitungan Ukuran Lot EOQ:")
+            st.markdown("**1. Mengidentifikasi Data Kebutuhan Kotor (Gross Requirements):**")
+            st.markdown(f"""
+            * Data per Periode: `{gross_req}`
+            * Total Kebutuhan Kotor ($\sum$ Gross Req) = `{total_gross_req}` unit
+            * Jumlah Periode Planning ($n$) = `{n_periode}` periode
+            """)
+            
+            st.markdown("**2. Menghitung Rata-rata Kebutuhan per Periode ($D$):**")
+            st.markdown(f"$$\sum \\text{{Gross Requirements}} = {total_gross_req}$$")
+            st.markdown(f"$$n = {n_periode}$$")
+            st.markdown(f"$$D = \\frac{{{total_gross_req}}}{{{n_periode}}}$$")
+            st.markdown(f"$$D = {avg_demand_calc:.4f} \\text{{ unit/periode}}$$")
+            
+            nilai_atas = 2 * avg_demand_calc * setup_cost
+            nilai_bagi = nilai_atas / holding_cost
+            eoq_final_raw = math.sqrt(nilai_bagi)
+            
+            st.markdown("**3. Substitusi Parameter ke Rumus Standar EOQ:**")
+            st.markdown(f"$$EOQ = \\sqrt{{\\frac{{2 \\times D \\times \\text{{Setup Cost}}}}{{\\text{{Holding Cost}}}}}}$$")
+            st.markdown(f"$$EOQ = \\sqrt{{\\frac{{2 \\times {avg_demand_calc:.4f} \\times {setup_cost:,.2f}}}{{{holding_cost:,.2f}}}}}$$")
+            st.markdown(f"$$EOQ = \\sqrt{{\\frac{{{nilai_atas:,.4f}}}{{{holding_cost:,.2f}}}}}$$")
+            st.markdown(f"$$EOQ = \\sqrt{{{nilai_bagi:,.4f}}}$$")
+            st.markdown(f"$$EOQ = {eoq_final_raw:.4f} \\text{{ unit}}$$")
+            
+            st.markdown("**4. Pembulatan Ke Atas (Ceil):**")
+            st.markdown(f"* Hasil eksak desimal = `{eoq_final_raw:.4f}`")
+            st.markdown(f"* Dibulatkan ke atas menjadi bilangan bulat diskret: **`{res['eoq']['size']}` unit**.")
+            
+        st.info(f"💡 **Informasi Ukuran Lot:** Berdasarkan rincian rumus di atas, ukuran lot tetap (Fixed Order Quantity) untuk metode EOQ dikunci bernilai **{res['eoq']['size']} unit** per pesanan.")
+        tampilkan_tabel_mrp("EOQ", res['eoq'], max_capacity)
+
+    with t_ppb:
+        st.subheader("Proses & Tabel Analisis MRP - Part Period Balancing")
+        with st.expander("🔬 KLIK DI SINI UNTUK MELIHAT LOG ITERASI KESEIMBANGAN PART PERIOD (PPB)"):
+            format_ppb = {
+                'Batas EPP': '{:.2f}', 'Part-Period Kumulatif': '{:.2f}'
+            }
+            for idx, df_iter in enumerate(res['ppb']['iters']):
+                st.markdown(f"**Langkah Pembentukan Lot Ke-{idx+1}:**")
+                styled_df = df_iter.style.apply(highlight_stop, axis=1).format(format_ppb)
+                st.dataframe(styled_df, hide_index=True, use_container_width=True)
+                st.markdown("---")
+        tampilkan_tabel_mrp("PPB", res['ppb'], max_capacity)
+
+    # --- FIX BUG 5: EXPORT EXCEL VIA MEMORY BUFFER (BYTESIO) ---
+    st.markdown("---")
+    st.subheader("💾 Ekspor Laporan Multi-Metode")
+    
+    # Membuat buffer memori virtual
+    buffer = io.BytesIO()
+    with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+        pd.DataFrame({'Gross Requirements': gross_req, 'Scheduled Receipts': sched_rec, 'Net Requirements': res['net_req']}, index=[f"P{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="Data Kebutuhan Dasar")
+        pd.DataFrame({'Projected On Hand': res['l4l']['poh'], 'Planned Order Receipts': res['l4l']['rec'], 'Planned Order Releases': res['l4l']['rel']}, index=[f"P{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="Metode L4L")
+        pd.DataFrame({'Projected On Hand': res['luc']['poh'], 'Planned Order Receipts': res['luc']['rec'], 'Planned Order Releases': res['luc']['rel']}, index=[f"P{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="Metode LUC")
+        pd.DataFrame({'Projected On Hand': res['eoq']['poh'], 'Planned Order Receipts': res['eoq']['rec'], 'Planned Order Releases': res['eoq']['rel']}, index=[f"P{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="Metode EOQ")
+        pd.DataFrame({'Projected On Hand': res['ppb']['poh'], 'Planned Order Receipts': res['ppb']['rec'], 'Planned Order Releases': res['ppb']['rel']}, index=[f"P{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="Metode PPB")
+    
+    # Reset penunjuk buffer ke awal byte data
+    buffer.seek(0)
+        
+    st.download_button(
+        label="📥 Download Hasil Perhitungan 4 Metode (Excel)", 
+        data=buffer, 
+        file_name="Laporan_MRP_MultiMetode.xlsx", 
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+else:
+    st.info("💡 Hubungkan atau masukkan data kebutuhan di atas terlebih dahulu untuk memulai perhitungan otomasi MRP.")
