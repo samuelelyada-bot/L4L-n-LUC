@@ -453,59 +453,52 @@ if df_kerja is not None and not df_kerja.empty:
     with t_eoq:
         st.subheader("Economic Order Quantity Model Assessment")
         
-        # Bagian Perhitungan Formula Sesuai Struktur Awal
+        # Penjabaran Detail Formula Poin 3 (Sesuai Request)
         with st.expander("Formula Calculation & Parameter Trace", expanded=True):
             total_gross_req = sum(gross_req)
             n_periode = len(gross_req)
             avg_demand_calc = res['eoq']['avg_demand_gross']
             
+            # Hitungan Tengah untuk Visualisasi Step-by-Step
+            numerator = 2 * avg_demand_calc * setup_cost
+            divided_val = numerator / holding_cost
+            eoq_final_raw = math.sqrt(divided_val)
+            
             st.markdown("#### Operational Sizing Calculus Steps")
+            
             st.markdown("**1. Data Discovery Parameters:**")
             st.markdown(f"""
             * Discrete Timeline Profile: `{gross_req}`
-            * Total Gross Requirements = `{total_gross_req}` units
+            * Total Gross Requirements ($\sum GR$) = `{total_gross_req}` units
             * Planning Horizon Length ($n$) = `{n_periode}` periods
+            * Setup Cost ($S$) = `{setup_cost}`
+            * Holding Cost ($H$) = `{holding_cost}`
             """)
             
             st.markdown("**2. Periodic Average Target Rate ($D$):**")
-            st.markdown(f"$$D = \\frac{{{total_gross_req}}}{{{n_periode}}} = {avg_demand_calc:.4f} \\text{{ units/period}}$$")
+            st.markdown(f"""
+            $$D = \\frac{{\\sum GR}}{{n}} = \\frac{{{total_gross_req}}}{{{n_periode}}} = {avg_demand_calc:.4f} \\text{{ units/period}}$$
+            """)
             
-            nilai_atas = 2 * avg_demand_calc * setup_cost
-            nilai_bagi = nilai_atas / holding_cost
-            eoq_final_raw = math.sqrt(nilai_bagi)
+            st.markdown("**3. Constant Value Synthesis (Step-by-Step):**")
+            st.markdown(f"""
+            Rumus dasar EOQ:
+            $$EOQ = \\sqrt{{\\frac{{2 \\times D \\times S}}{{H}}}}$$
             
-            st.markdown("**3. Constant Value Synthesis:**")
-            st.markdown(f"$$EOQ = \\sqrt{{\\frac{{2 \\times D \\times \\text{{Setup Cost}}}}{{\\text{{Holding Cost}}}}}} = {eoq_final_raw:.4f}$$")
-            st.markdown(f"* Rounded up to practical unit lot size: **$Q^* = {res['eoq']['size']}$ units**.")
+            * **Langkah A (Substitusi Nilai & Perkalian Atas):**
+              $$2 \\times D \\times S = 2 \\times {avg_demand_calc:.4f} \\times {setup_cost} = {numerator:.4f}$$
+              
+            * **Langkah B (Pembagian Pembilang dengan Holding Cost):**
+              $$\\frac{{{numerator:.4f}}}{{H}} = \\frac{{{numerator:.4f}}}{{{holding_cost}}} = {divided_val:.4f}$$
+              
+            * **Langkah C (Akar Kuadrat Hasil Pembagian):**
+              $$EOQ = \\sqrt{{{divided_val:.4f}}} = {eoq_final_raw:.4f}$$
+              
+            * **Langkah D (Pembulatan ke Atas untuk Lot Praktis):**
+              $$Q^* = \\lceil {eoq_final_raw:.4f} \\rceil = {res['eoq']['size']} \\text{{ units}}$$
+            """)
+            st.markdown(f"Maka, kuantitas ukuran lot tetap yang dikunci untuk eksekusi adalah **$Q^* = {res['eoq']['size']}$ units**.")
         
-        # PERBAIKAN: Menjabarkan hitungan pemenuhan Net Requirements menggunakan Q fix EOQ
-        with st.expander("Dynamic Lot Sizing Breakdown (Fixed Q Execution)", expanded=True):
-            st.markdown("#### Step-by-Step Lot Sizing Calculus")
-            st.markdown(f"Fixed Lot Size Rule: **$Q^* = {res['eoq']['size']}$ units**. Setiap kali pesanan dipicu, kuantitas harus berupa kelipatan dari $Q^*$.")
-            
-            for log in res['eoq']['sim_logs']:
-                p = log["Period"]
-                nr = log["Net Requirement"]
-                prev_rem = log["Available from Prev Lot"]
-                ordered = log["Planned Order Qty"]
-                mult = log["Multiples"]
-                rem = log["Remaining Stock Carried"]
-                
-                st.markdown(f"**Periode {p}:**")
-                if nr == 0:
-                    st.markdown(f"* Tidak ada Net Requirement pada periode ini. Sisa stok dari periode sebelumnya yang dibawa: `{prev_rem}` unit.")
-                else:
-                    st.markdown(f"* Net Requirement = `{nr}` unit. Stok tersedia dari sisa pesanan sebelumnya = `{prev_rem}` unit.")
-                    if prev_rem >= nr:
-                        st.markdown(f"  * *Evaluasi:* Stok tersedia (`{prev_rem}`) mencukupi untuk menutup Net Requirement (`{nr}`). Tidak ada pesanan baru.")
-                        st.markdown(f"  * *Sisa Stok Baru:* `{prev_rem} - {nr} = {rem}` unit.")
-                    else:
-                        needed = nr - prev_rem
-                        st.markdown(f"  * *Evaluasi:* Stok tersedia tidak mencukupi. Kekurangan bersih = `{nr} - {prev_rem} = {needed}` unit.")
-                        st.markdown(f"  * *Kalkulasi Lot:* $\\lceil \\frac{{{needed}}}{{{res['eoq']['size']}}} \\rceil = {mult}$ Lot $\\rightarrow$ Dipicu pesanan sebesar: ${mult} \\times {res['eoq']['size']} = {ordered}$ unit.")
-                        st.markdown(f"  * *Sisa Stok Baru:* `({prev_rem} + {ordered}) - {nr} = {rem}` unit dibawa ke periode berikutnya.")
-                st.markdown("---")
-            
         st.info(f"💡 **Fixed Lot Control Rule:** Baseline order scale for the EOQ profile is locked at **{res['eoq']['size']} units** per cycle.")
         tampilkan_tabel_mrp("EOQ", res['eoq'], max_capacity)
 
