@@ -6,161 +6,125 @@ import math
 import io
 
 # ==========================================
-# 1. PAGE CONFIGURATION & AGGRESSIVE CSS OVERRIDE
+# 1. PAGE CONFIGURATION & CLEAN CSS OVERRIDE
 # ==========================================
-st.set_page_config(page_title="NexusMRP Engine - Enterprise DSS", layout="wide")
+st.set_page_config(page_title="MRP Lot Sizing Calculator", layout="wide")
 
-# Force styling with extreme CSS priority encapsulation
+# CSS minimalis untuk mengatur tema warna marun, teks sidebar, dan spasi
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
-    
     html, body, .stApp {
-        font-family: 'Inter', sans-serif;
         background-color: #faf8f2;
+        color: #111111;
     }
     
-    /* Main Content Headers */
+    /* Header Utama */
     h1, h2, h3 {
         color: #6a0708 !important;
-        font-weight: 700 !important;
     }
     
-    h4, h5, h6 {
-        color: #111111 !important;
-        font-weight: 600 !important;
-    }
-    
-    /* SIDEBAR CRITICAL FIX: Forces ALL text inside sidebar to be light cream, ignoring Streamlit defaults */
+    /* Sidebar Layout (Marun) */
     [data-testid="stSidebar"] {
         background-color: #6a0708 !important;
     }
-    [data-testid="stSidebar"] *, 
-    [data-testid="stSidebar"] label, 
-    [data-testid="stSidebar"] p, 
-    [data-testid="stSidebar"] span, 
-    [data-testid="stSidebar"] div {
-        color: #faf8f2 !important;
+    
+    /* Label teks di luar kolom input (Warna Krem Soft) */
+    [data-testid="stSidebar"] label,
+    [data-testid="stSidebar"] p,
+    [data-testid="stSidebar"] span {
+        color: #f4efdc !important;
         font-weight: 600 !important;
     }
-    [data-testid="stSidebar"] p {
-        font-weight: 400 !important;
-        opacity: 0.85 !important;
-    }
     
-    /* Main Content Widgets */
-    .stNumberInput label, .stRadio label {
+    /* FIX POIN 2: Mengunci teks angka/isi di dalam kolom input agar TETAP HITAM */
+    [data-testid="stSidebar"] input {
         color: #111111 !important;
-        font-weight: 600 !important;
+        font-weight: normal !important;
+        background-color: #ffffff !important;
     }
     
-    /* Primary Action Buttons */
+    /* Tombol Utama */
     .stButton>button {
         background-color: #6a0708 !important;
         color: #faf8f2 !important;
-        border-radius: 6px !important;
+        border-radius: 4px !important;
         border: none !important;
-        font-weight: 600 !important;
-        width: 100%;
     }
     .stButton>button:hover {
         background-color: #d90429 !important;
     }
     
-    /* UNIFIED WINDOW BOX: Left-border maroon accent with justified text alignment */
-    .calculation-window {
-        background-color: #f4efdc !important;
-        border-left: 6px solid #6a0708 !important;
-        padding: 22px !important;
-        border-radius: 6px !important;
-        margin-bottom: 25px !important;
-        color: #111111 !important;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.04) !important;
-    }
-    
-    .window-text-justify {
+    /* Format Teks Justify untuk Penjelasan Rumus di dalam Window Buka-Tutup */
+    .text-justify {
         text-align: justify !important;
         line-height: 1.6 !important;
-        margin-bottom: 12px !important;
-        color: #111111 !important;
-    }
-    
-    /* KPI Cards Inside Window */
-    .kpi-card {
-        background-color: #faf8f2 !important;
-        padding: 15px !important;
-        border-radius: 6px !important;
-        border-top: 4px solid #6a0708 !important;
-        margin-bottom: 10px !important;
+        margin-bottom: 8px !important;
     }
     </style>
 """, unsafe_allow_html=True)
 
-st.title("📦 NexusMRP Engine — Enterprise Decision Support System")
-st.caption("Advanced Material Requirements Planning Multi-Method Optimization Platform")
+st.title("📦 MRP Lot Sizing Calculator")
 st.markdown("---")
 
 
 # ==========================================
-# 2. GLOSSARY SECTION (SHIFTED TO THE VERY TOP — 4 MODULAR WINDOWS)
+# 2. GLOSSARY SECTION (TOP OF PAGE — NO LATEX)
 # ==========================================
-st.subheader("📚 System Reference Manual & Knowledge Base Glossary")
+st.subheader("📚 Glossary")
 g_col1, g_col2, g_col3, g_col4 = st.columns(4)
 
 with g_col1:
     with st.expander("📋 1. Lot-for-Lot (L4L)", expanded=False):
-        st.markdown("""<div class='window-text-justify'>
-        <b>Concept:</b> Orders exact absolute volume constraints matching discrete net periods instantly.<br><br>
-        <b>Equation Paradigm:</b><br>$Lot(t) = Net\\_Requirement(t)$<br><br>
-        <b>Advantage Strategy:</b> Drives inventory carrying charge factors down to bare absolute minimum zero points.
+        st.markdown("""<div class='text-justify'>
+        <b>Konsep:</b> Memesan jumlah material dalam volume yang sama persis dengan jumlah kebutuhan bersih di setiap periode.<br><br>
+        <b>Rumus:</b><br>Lot Size = Kebutuhan Bersih<br><br>
+        <b>Fungsi:</b> Meminimalkan biaya penyimpanan hingga mencapai nilai nol.
         </div>""", unsafe_allow_html=True)
 
 with g_col2:
     with st.expander("🎯 2. Economic Order Quantity (EOQ)", expanded=False):
-        st.markdown("""<div class='window-text-justify'>
-        <b>Concept:</b> Establishes fixed structural sizing boundaries balancing average annualized production cycles perfectly.<br><br>
-        <b>Advantage Strategy:</b> Provides high asset utilization efficiency when multi-period gross profiles maintain linear predictability constants.
+        st.markdown("""<div class='text-justify'>
+        <b>Konsep:</b> Menentukan jumlah pesanan yang tetap untuk meminimalkan total biaya pemesanan dan penyimpanan.<br><br>
+        <b>Fungsi:</b> Efektif digunakan jika pola permintaan barang bersifat konstan dan stabil.
         </div>""", unsafe_allow_html=True)
 
 with g_col3:
     with st.expander("🔍 3. Least Unit Cost (LUC)", expanded=False):
-        st.markdown("""<div class='window-text-justify'>
-        <b>Concept:</b> Sequential search algorithm aggregating horizons continuously until individual unit cost optimization points break trends.<br><br>
-        <b>Advantage Strategy:</b> Minimizes cost variations by tracking specific trial horizons dynamically.
+        st.markdown("""<div class='text-justify'>
+        <b>Konsep:</b> Menentukan ukuran lot dengan mengevaluasi beberapa periode ke depan hingga diperoleh biaya per unit yang paling minimum.
         </div>""", unsafe_allow_html=True)
 
 with g_col4:
     with st.expander("⚖️ 4. Part Period Balancing (PPB)", expanded=False):
-        st.markdown("""<div class='window-text-justify'>
-        <b>Concept:</b> Equates carrying charges against setup factors looking for optimal look-ahead closest-distance convergence coordinates.<br><br>
-        <b>Advantage Strategy:</b> Achieves exceptional balancing precision across heavily spiked discrete parameter inputs.
+        st.markdown("""<div class='text-justify'>
+        <b>Konsep:</b> Menyeimbangkan antara biaya pemesanan dengan kumulatif biaya penyimpanan untuk periode pesanan yang bervariasi.
         </div>""", unsafe_allow_html=True)
 
 st.markdown("---")
 
 
 # ==========================================
-# 3. SIDEBAR PARAMETER INPUTS (TEXT CORRECTIONS CAPTURED BY GLOBAL CSS)
+# 3. SIDEBAR PARAMETER INPUTS
 # ==========================================
-st.sidebar.header("⚙️ Control Dashboard")
+st.sidebar.header("⚙️ Input Parameter")
 
-st.sidebar.subheader("Financial Factors")
-setup_cost = st.sidebar.number_input("Setup / Ordering Cost", min_value=0.0, value=100000.0, step=500.0)
-holding_cost = st.sidebar.number_input("Holding Cost (per unit/period)", min_value=0.0, value=2000.0, step=100.0)
+st.sidebar.subheader("Biaya")
+setup_cost = st.sidebar.number_input("Setup Cost", min_value=0.0, value=100000.0, step=500.0)
+holding_cost = st.sidebar.number_input("Holding Cost", min_value=0.0, value=2000.0, step=100.0)
 
 st.sidebar.markdown("<br>", unsafe_allow_html=True)
-st.sidebar.subheader("Inventory Profiles")
-initial_inv = st.sidebar.number_input("Initial On-Hand Inventory", min_value=0, value=35, step=5)
-safety_stock = st.sidebar.number_input("Safety Stock Level", min_value=0, value=0, step=1)
-lead_time = st.sidebar.number_input("Lead Time Duration (Periods)", min_value=0, value=1, step=1)
+st.sidebar.subheader("Persediaan")
+initial_inv = st.sidebar.number_input("Initial Inventory", min_value=0, value=35, step=5)
+safety_stock = st.sidebar.number_input("Safety Stock", min_value=0, value=0, step=1)
+lead_time = st.sidebar.number_input("Lead Time", min_value=0, value=1, step=1)
 
 st.sidebar.markdown("<br>", unsafe_allow_html=True)
-st.sidebar.subheader("Operational Boundaries")
-max_capacity = st.sidebar.number_input("Maximum Warehouse Capacity (Units)", min_value=1, value=100, step=10)
+st.sidebar.subheader("Kapasitas")
+max_capacity = st.sidebar.number_input("Warehouse Capacity", min_value=1, value=100, step=10)
 
 
 # ==========================================
-# UTILITY HELPER & EXTREME PASTEL MASKING FUNCTIONS
+# UTILITY HELPER & PASTEL THEME MASKING
 # ==========================================
 def find_matching_column(columns, targets):
     for col in columns:
@@ -176,16 +140,13 @@ def style_mrp_grid(df_transposed, max_cap):
         return [''] * len(row)
     return df_transposed.style.apply(check_capacity, axis=1)
 
-# FIXED: Re-engineered with ultra-soft pastel transparencies for extreme readability
 def style_iteration_rows(df_step):
     style_matrix = pd.DataFrame('', index=df_step.index, columns=df_step.columns)
     for idx, row in df_step.iterrows():
         status_str = str(row['Status'])
         if "Stop" in status_str:
-            # Ultra-soft pastel pink/red transparency (No orange hints)
             style_matrix.loc[idx] = 'background-color: #ffebee; color: #c62828; font-weight: bold;'
         elif "Selected" in status_str or "Horizon End" in status_str:
-            # Ultra-soft pastel mint green transparency
             style_matrix.loc[idx] = 'background-color: #e8f5e9; color: #2e7d32; font-weight: bold;'
     return style_matrix
 
@@ -193,17 +154,17 @@ def style_iteration_rows(df_step):
 # ==========================================
 # 4. DATA ACQUISITION WORKBENCH
 # ==========================================
-st.subheader("📊 Requirements & Inbound Supply Workbench")
+st.subheader("📊 Data Input")
 
 input_method = st.radio(
-    "Select Target Data Source Configuration:", 
-    ["Upload External File (Excel / CSV)", "Interactive App Data Grid Manual Entry", "Load Pre-Configured Blueprint Template"]
+    "Pilih Metode Input Data:", 
+    ["Upload File", "Manual Entry", "Load Template"]
 )
 
 df_workbench = None
 
-if input_method == "Upload External File (Excel / CSV)":
-    uploaded_file = st.file_uploader("Upload requirement documents (.csv, .xlsx, .xls)", type=["csv", "xlsx", "xls"])
+if input_method == "Upload File":
+    uploaded_file = st.file_uploader("Upload File (.csv, .xlsx)", type=["csv", "xlsx"])
     if uploaded_file is not None:
         try:
             if uploaded_file.name.endswith('.csv'):
@@ -224,17 +185,17 @@ if input_method == "Upload External File (Excel / CSV)":
             if col_gr and col_gr in df_raw.columns:
                 df_workbench['Gross Requirements'] = df_raw[col_gr].fillna(0).astype(int)
             else:
-                st.error("❌ Data Engine Error: Gross Requirements (GR) attribute could not be mapped automatically.")
+                st.error("Gagal memetakan kolom Gross Requirements.")
                 
             if col_sr and col_sr in df_raw.columns:
                 df_workbench['Scheduled Receipts'] = df_raw[col_sr].fillna(0).astype(int)
             else:
                 df_workbench['Scheduled Receipts'] = 0
         except Exception as e:
-            st.error(f"Engine Failed to Parse Uploaded Manifest. Trace: {e}")
+            st.error(f"Gagal memproses file: {e}")
             
-elif input_method == "Interactive App Data Grid Manual Entry":
-    num_periods_input = st.number_input("Horizon Planning Length (Periods):", min_value=1, max_value=52, value=10, step=1)
+elif input_method == "Manual Entry":
+    num_periods_input = st.number_input("Jumlah Periode:", min_value=1, max_value=52, value=10, step=1)
     init_data = {
         'Period': [f"P{i+1}" for i in range(num_periods_input)],
         'Gross Requirements': [35, 30, 40, 0, 10, 40, 30, 0, 30, 55] if num_periods_input == 10 else [0] * num_periods_input,
@@ -254,7 +215,7 @@ if df_workbench is not None and not df_workbench.empty:
     sched_rec = df_workbench['Scheduled Receipts'].fillna(0).astype(int).tolist()
     period_labels = df_workbench['Period'].astype(str).tolist()
     
-    st.markdown("##### 🔍 Active Input Data Matrix Summary")
+    st.markdown("##### Tabel Ringkasan Input:")
     df_preview_transposed = pd.DataFrame({
         'Gross Requirements': gross_req,
         'Scheduled Receipts': sched_rec
@@ -271,7 +232,7 @@ if df_workbench is not None and not df_workbench.empty:
     def calculate_multi_mrp(demands, s_receipts, setup, hold, init_inv, ss, lt):
         n = len(demands)
         
-        # Calculate Net Requirements Matrix
+        # Hitung Kebutuhan Bersih
         net_req = []
         prev_inv = init_inv
         for i in range(n):
@@ -453,7 +414,7 @@ if df_workbench is not None and not df_workbench.empty:
             'ppb': {'poh': ppb_poh, 'rec': ppb_rec, 'rel': ppb_rel, 'setup': c_ppb_setup, 'hold': c_ppb_hold, 'total': c_ppb_setup + c_ppb_hold, 'iters': ppb_trace_logs, 'epp': epp_limit}
         }
 
-    # Run Calculations Engine
+    # Jalankan Mesin Perhitungan
     res = calculate_multi_mrp(gross_req, sched_rec, setup_cost, holding_cost, initial_inv, safety_stock, lead_time)
     num_periods = len(gross_req)
 
@@ -468,42 +429,26 @@ if df_workbench is not None and not df_workbench.empty:
         }, index=[f"P{i+1}" for i in range(num_periods)]).T
         st.dataframe(style_mrp_grid(df, max_cap), use_container_width=True)
         if max(data_dict['poh']) > max_cap:
-            st.error(f"⚠️ Operational Capacity Violation: Projected On-Hand exceeds maximum asset constraint threshold ({max_cap} units).")
+            st.error(f"⚠️ POH melebihi kapasitas gudang ({max_cap} unit).")
 
-    # FIXED CHRONOLOGY MODULE: Built as a final standalone window at the bottom of each tab
+    # FIX POIN 5: Mengubah Ringkasan Biaya Menjadi Window Buka-Tutup (Expander) dan ditaruh paling bawah tabel
     def render_cost_audit_window(data_dict, setup_val, hold_val, rec_array, poh_array):
         order_count = sum(1 for x in rec_array if x > 0)
         sum_poh = sum(max(0, x) for x in poh_array)
         
-        st.markdown("<br><h5>💰 Operational Strategy Financial Breakdown</h5>", unsafe_allow_html=True)
-        st.markdown("<div class='calculation-window'>", unsafe_allow_html=True)
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            st.markdown(f"""<div class='kpi-card'>
-                <h6>Total Setup Cost</h6>
-                <h3>{data_dict['setup']:,.2f}</h3>
-                <p style='color:#555; font-size:12px;'>Formula:<br>{order_count} Orders × {setup_val:,.2f}</p>
+        with st.expander("💰 Detail Biaya Perhitungan", expanded=False):
+            st.markdown(f"""<div class='text-justify'>
+            <b>1. Setup Cost:</b> {data_dict['setup']:,.2f} (Perhitungan: {order_count} kali order &times; {setup_val:,.2f})<br><br>
+            <b>2. Holding Cost:</b> {data_dict['hold']:,.2f} (Perhitungan: {sum_poh} akumulasi unit &times; {hold_val:,.2f})<br><br>
+            <b>3. Total Cost:</b> <b>{data_dict['total']:,.2f}</b> (Perhitungan: Setup Cost + Holding Cost)
             </div>""", unsafe_allow_html=True)
-        with c2:
-            st.markdown(f"""<div class='kpi-card'>
-                <h6>Total Holding Cost</h6>
-                <h3>{data_dict['hold']:,.2f}</h3>
-                <p style='color:#555; font-size:12px;'>Formula:<br>{sum_poh} Accumulated Units × {hold_val:,.2f}</p>
-            </div>""", unsafe_allow_html=True)
-        with c3:
-            st.markdown(f"""<div class='kpi-card'>
-                <h6>Total Operational Strategy Cost</h6>
-                <h3 style='color: #6a0708;'>{data_dict['total']:,.2f}</h3>
-                <p style='color:#555; font-size:12px;'>Sum Matrix:<br>Setup Cost + Holding Cost Summary</p>
-            </div>""", unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
 
 
     # ==========================================
-    # 5. METHODS MODULES EXECUTION WORKBENCH TABS
+    # 5. METHODS EXECUTION TABS
     # ==========================================
     st.markdown("---")
-    st.subheader("⚙️ Localized Sizing Heuristics Execution Modules")
+    st.subheader("⚙️ Hasil Metode Lot Sizing")
     
     t_l4l, t_eoq, t_luc, t_ppb = st.tabs([
         "📋 Lot-for-Lot (L4L)", 
@@ -514,68 +459,71 @@ if df_workbench is not None and not df_workbench.empty:
 
     # TAB 1: LOT-FOR-LOT
     with t_l4l:
-        st.subheader("Lot-for-Lot (L4L) Master Execution Matrix")
+        st.subheader("Metode Lot-for-Lot (L4L)")
         render_mrp_grid_view(res['l4l'], max_capacity)
         render_cost_audit_window(res['l4l'], setup_cost, holding_cost, res['l4l']['rec'], res['l4l']['poh'])
 
-    # TAB 2: EOQ (FIXED TO DOWNWARD FLOW, TEXT-JUSTIFY, SINGLE CALCULATIONS WINDOW)
+    # TAB 2: EOQ (FIXED POIN 4: MASUK DI WINDOW BUKA-TUTUP, KE BAWAH, JUSTIFY, NO LATEX)
     with t_eoq:
-        st.subheader("Economic Order Quantity (EOQ) Sizing Optimization")
+        st.subheader("Metode Economic Order Quantity (EOQ)")
         
-        avg_d_calc = res['eoq']['avg_demand_gross']
-        val_top = 2 * avg_d_calc * setup_cost
-        val_div = val_top / holding_cost
-        eoq_raw_val = math.sqrt(val_div)
-        
-        st.markdown("#### 📝 Sizing Optimization Formulation Equation Window")
-        st.markdown("<div class='calculation-window'>", unsafe_allow_html=True)
-        
-        st.markdown("<p class='window-text-justify'><b>Step 1: Compute Average Demand Gross Per Period (D)</b><br>"
-                    "The framework aggregates all requirements split across active planning windows divided by horizon metrics to locate linear trends.</p>", unsafe_allow_html=True)
-        st.latex(r"D = \frac{\sum \text{Gross Requirements}}{n} = \frac{" + str(sum(gross_req)) + "}{" + str(num_periods) + r"} = " + f"{avg_d_calc:.4f}" + r"\text{ Units/Period}")
-        
-        st.markdown("<p class='window-text-justify'><b>Step 2: Apply Classical Square-Root Sizing Mathematical Equation</b><br>"
-                    "This calculates the absolute mathematical cross-over equilibrium balancing point where ordering cost matches structural carrying charges.</p>", unsafe_allow_html=True)
-        st.latex(r"EOQ = \sqrt{\frac{2 \times D \times \text{Setup Cost}}{\text{Holding Cost}}} = \sqrt{\frac{2 \times " + f"{avg_d_calc:.4f}" + r"\times " + f"{setup_cost:.2f}" + "}{" + f"{holding_cost:.2f}" + r" }}")
-        st.latex(r"EOQ = \sqrt{" + f"{val_div:.4f}" + r"} = " + f"{eoq_raw_val:.4f}" + r"\text{ Units}")
-        
-        st.markdown(f"<p class='window-text-justify'><b>Step 3: Discrete Upper Integer Ceiling Bound Rounding</b><br>"
-                    f"Because inventory quantities cannot be processed fractionally, an upper ceiling bound locking sequence is deployed. "
-                    f"Discrete Lot Factor Quantity Constraint Locked Value = <b>{res['eoq']['size']} Units</b> per Order Placement.</p>", unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-        
+        with st.expander("📝 Rumus Perhitungan EOQ", expanded=False):
+            avg_d_calc = res['eoq']['avg_demand_gross']
+            val_top = 2 * avg_d_calc * setup_cost
+            val_div = val_top / holding_cost
+            eoq_raw_val = math.sqrt(val_div)
+            
+            st.markdown(f"""<div class='text-justify'>
+            <b>Step 1: Hitung Rata-rata Kebutuhan Kotor (D)</b><br>
+            D = Total Kebutuhan Kotor / Jumlah Periode<br>
+            D = {sum(gross_req)} / {num_periods}<br>
+            D = <b>{avg_d_calc:.4f} unit/periode</b><br><br>
+            
+            <b>Step 2: Hitung Nilai Nilai Sizing EOQ</b><br>
+            EOQ = Akar( (2 * D * Setup Cost) / Holding Cost )<br>
+            EOQ = Akar( (2 * {avg_d_calc:.4f} * {setup_cost:,.2f}) / {holding_cost:,.2f} )<br>
+            EOQ = Akar( {val_div:,.4f} )<br>
+            EOQ = <b>{eoq_raw_val:.4f} unit</b><br><br>
+            
+            <b>Step 3: Pembulatan ke Atas (Ceiling)</b><br>
+            Hasil pembulatan ukuran lot pemesanan EOQ = <b>{res['eoq']['size']} unit</b>.
+            </div>""", unsafe_allow_html=True)
+            
         render_mrp_grid_view(res['eoq'], max_capacity)
         render_cost_audit_window(res['eoq'], setup_cost, holding_cost, res['eoq']['rec'], res['eoq']['poh'])
 
-    # TAB 3: LUC (FIXED CHRONOLOGY AND PASTEL THEME)
+    # TAB 3: LUC
     with t_luc:
-        st.subheader("Least Unit Cost (LUC) Iterative Sizing Matrix")
-        st.markdown("#### 🔬 Dynamic Lot Compilation Optimization Processing Steps")
+        st.subheader("Metode Least Unit Cost (LUC)")
+        st.markdown("##### Langkah Iterasi:")
         
         fmt_luc = {'Setup Cost': '{:.2f}', 'Holding Cost': '{:.2f}', 'Total Cost': '{:.2f}', 'Unit Cost': '{:.4f}'}
         for step_idx, df_step in enumerate(res['luc']['iters']):
-            with st.expander(f"Step Block {step_idx + 1} — Lot Consolidation Initialization Trace Window", expanded=True):
+            with st.expander(f"Iterasi {step_idx + 1}", expanded=True):
                 st.dataframe(df_step.style.apply(style_iteration_rows, axis=None).format(fmt_luc), hide_index=True, use_container_width=True)
                 
         render_mrp_grid_view(res['luc'], max_capacity)
         render_cost_audit_window(res['luc'], setup_cost, holding_cost, res['luc']['rec'], res['luc']['poh'])
 
-    # TAB 4: PPB (FIXED TO DOWNWARD FLOW, TEXT-JUSTIFY, SINGLE CALCULATIONS WINDOW)
+    # TAB 4: PPB (FIXED POIN 4: MASUK DI WINDOW BUKA-TUTUP, KE BAWAH, JUSTIFY, NO LATEX)
     with t_ppb:
-        st.subheader("Part Period Balancing (PPB) Dynamic Policy Execution Grid")
+        st.subheader("Metode Part Period Balancing (PPB)")
         
-        st.markdown("#### ⚖️ Economic Part Period (EPP) Target Metric Identification Window")
-        st.markdown("<div class='calculation-window'>", unsafe_allow_html=True)
-        st.markdown("<p class='window-text-justify'><b>Step 1: Compute Target Balanced EPP Baseline Limit</b><br>"
-                    "The system calculates the exact equilibrium threshold coefficient where the financial strain of holding one stock unit across one period perfectly balances single setup expenses.</p>", unsafe_allow_html=True)
-        st.latex(r"EPP = \frac{\text{Setup Cost}}{\text{Holding Cost}} = \frac{" + f"{setup_cost:.2f}" + "}{" + f"{holding_cost:.2f}" + r"} = " + f"{res['ppb']['epp']:.4f}" + r"\text{ Part-Periods}")
-        st.markdown("<p class='window-text-justify'><b>Step 2: Balance Horizon and Execute Look-Ahead</b><br>The EPP coefficient is used as a cumulative benchmark reference scale. Horizons are clustered continuously until the closest convergence point is located.</p>", unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-        
-        st.markdown("#### 🔬 Balanced Horizon Iterative Search Traces Execution Stream")
+        with st.expander("⚖️ Rumus Perhitungan Nilai EPP", expanded=False):
+            st.markdown(f"""<div class='text-justify'>
+            <b>Step 1: Hitung Nilai Target Economic Part Period (EPP)</b><br>
+            EPP = Setup Cost / Holding Cost<br>
+            EPP = {setup_cost:,.2f} / {holding_cost:,.2f}<br>
+            EPP = <b>{res['ppb']['epp']:.4f} part-periods</b><br><br>
+            
+            <b>Step 2: Menyeimbangkan Kebutuhan Periode</b><br>
+            Akumulasi nilai part-period dihitung ke bawah baris demi baris pada jendela iterasi di bawah sampai mendekati target batas EPP di atas.
+            </div>""", unsafe_allow_html=True)
+            
+        st.markdown("##### Langkah Iterasi:")
         fmt_ppb = {'Target EPP': '{:.2f}', 'Accumulated Part-Period': '{:.2f}', 'Setup Cost': '{:.2f}', 'Holding Cost': '{:.2f}', 'Total Cost': '{:.2f}'}
         for step_idx, df_step in enumerate(res['ppb']['iters']):
-            with st.expander(f"Step Block {step_idx + 1} — Part Period Equating Calibration Trace Window", expanded=True):
+            with st.expander(f"Iterasi {step_idx + 1}", expanded=True):
                 st.dataframe(df_step.style.apply(style_iteration_rows, axis=None).format(fmt_ppb), hide_index=True, use_container_width=True)
                 
         render_mrp_grid_view(res['ppb'], max_capacity)
@@ -583,10 +531,10 @@ if df_workbench is not None and not df_workbench.empty:
 
 
     # ==========================================
-    # 6. GLOBAL PERFORMANCE MATRIX COMPARISON
+    # 6. GLOBAL PERFORMANCE MATRIX COMPARISON (FIXED POIN 6: RED + INEFFICIENT VERDICT)
     # ==========================================
     st.markdown("---")
-    st.header("🏁 Global Portfolio Performance Matrix Comparison")
+    st.header("🏁 Perbandingan Efisiensi Metode")
     
     biaya_dict = {
         'L4L': res['l4l']['total'], 
@@ -599,50 +547,68 @@ if df_workbench is not None and not df_workbench.empty:
     m1, m2, m3, m4 = st.columns(4)
     with m1:
         diff_l4l = res['l4l']['total'] - biaya_dict[best_method]
-        sub_text = f"<div style='color: #c62828; font-size: 13px; font-weight: bold;'>+{diff_l4l:,.2f} Variance</div>" if diff_l4l > 0 else "<div style='color: #2e7d32; font-size: 13px; font-weight: bold;'>🏆 Optimal Minimum Strategy</div>"
+        if diff_l4l > 0:
+            sub_text = f"<div style='color: #c62828; font-size: 13px; font-weight: bold;'>Inefficient by {diff_l4l:,.2f}</div>"
+            main_color = "#c62828"
+        else:
+            sub_text = "<div style='color: #2e7d32; font-size: 13px; font-weight: bold;'>🏆 Optimal Strategy</div>"
+            main_color = "#111111"
         st.markdown(f"""<div style='background-color: #f4efdc; padding: 16px; border-radius: 8px; border-left: 5px solid #6a0708;'>
                         <div style='color: #333; font-size: 13px; font-weight: 600;'>Total Cost L4L</div>
-                        <div style='font-size: 22px; font-weight: 700; color: #111; margin-top: 4px;'>{res['l4l']['total']:,.2f}</div>
+                        <div style='font-size: 22px; font-weight: 700; color: {main_color}; margin-top: 4px;'>{res['l4l']['total']:,.2f}</div>
                         {sub_text}</div>""", unsafe_allow_html=True)
     with m2:
         diff_luc = res['luc']['total'] - biaya_dict[best_method]
-        sub_text = f"<div style='color: #c62828; font-size: 13px; font-weight: bold;'>+{diff_luc:,.2f} Variance</div>" if diff_luc > 0 else "<div style='color: #2e7d32; font-size: 13px; font-weight: bold;'>🏆 Optimal Minimum Strategy</div>"
+        if diff_luc > 0:
+            sub_text = f"<div style='color: #c62828; font-size: 13px; font-weight: bold;'>Inefficient by {diff_luc:,.2f}</div>"
+            main_color = "#c62828"
+        else:
+            sub_text = "<div style='color: #2e7d32; font-size: 13px; font-weight: bold;'>🏆 Optimal Strategy</div>"
+            main_color = "#111111"
         st.markdown(f"""<div style='background-color: #f4efdc; padding: 16px; border-radius: 8px; border-left: 5px solid #6a0708;'>
                         <div style='color: #333; font-size: 13px; font-weight: 600;'>Total Cost LUC</div>
-                        <div style='font-size: 22px; font-weight: 700; color: #111; margin-top: 4px;'>{res['luc']['total']:,.2f}</div>
+                        <div style='font-size: 22px; font-weight: 700; color: {main_color}; margin-top: 4px;'>{res['luc']['total']:,.2f}</div>
                         {sub_text}</div>""", unsafe_allow_html=True)
     with m3:
         diff_eoq = res['eoq']['total'] - biaya_dict[best_method]
-        sub_text = f"<div style='color: #c62828; font-size: 13px; font-weight: bold;'>+{diff_eoq:,.2f} Variance</div>" if diff_eoq > 0 else "<div style='color: #2e7d32; font-size: 13px; font-weight: bold;'>🏆 Optimal Minimum Strategy</div>"
+        if diff_eoq > 0:
+            sub_text = f"<div style='color: #c62828; font-size: 13px; font-weight: bold;'>Inefficient by {diff_eoq:,.2f}</div>"
+            main_color = "#c62828"
+        else:
+            sub_text = "<div style='color: #2e7d32; font-size: 13px; font-weight: bold;'>🏆 Optimal Strategy</div>"
+            main_color = "#111111"
         st.markdown(f"""<div style='background-color: #f4efdc; padding: 16px; border-radius: 8px; border-left: 5px solid #6a0708;'>
                         <div style='color: #333; font-size: 13px; font-weight: 600;'>Total Cost EOQ</div>
-                        <div style='font-size: 22px; font-weight: 700; color: #111; margin-top: 4px;'>{res['eoq']['total']:,.2f}</div>
+                        <div style='font-size: 22px; font-weight: 700; color: {main_color}; margin-top: 4px;'>{res['eoq']['total']:,.2f}</div>
                         {sub_text}</div>""", unsafe_allow_html=True)
     with m4:
         diff_ppb = res['ppb']['total'] - biaya_dict[best_method]
-        sub_text = f"<div style='color: #c62828; font-size: 13px; font-weight: bold;'>+{diff_ppb:,.2f} Variance</div>" if diff_ppb > 0 else "<div style='color: #2e7d32; font-size: 13px; font-weight: bold;'>🏆 Optimal Minimum Strategy</div>"
+        if diff_ppb > 0:
+            sub_text = f"<div style='color: #c62828; font-size: 13px; font-weight: bold;'>Inefficient by {diff_ppb:,.2f}</div>"
+            main_color = "#c62828"
+        else:
+            sub_text = "<div style='color: #2e7d32; font-size: 13px; font-weight: bold;'>🏆 Optimal Strategy</div>"
+            main_color = "#111111"
         st.markdown(f"""<div style='background-color: #f4efdc; padding: 16px; border-radius: 8px; border-left: 5px solid #6a0708;'>
                         <div style='color: #333; font-size: 13px; font-weight: 600;'>Total Cost PPB</div>
-                        <div style='font-size: 22px; font-weight: 700; color: #111; margin-top: 4px;'>{res['ppb']['total']:,.2f}</div>
+                        <div style='font-size: 22px; font-weight: 700; color: {main_color}; margin-top: 4px;'>{res['ppb']['total']:,.2f}</div>
                         {sub_text}</div>""", unsafe_allow_html=True)
 
-    st.success(f"🏆 Recommendation Verdict: Deploy **{best_method}** strategy to minimize structural inventory expenditures.")
+    st.success(f"Rekomendasi terbaik adalah menggunakan metode: **{best_method}**")
 
 
     # ==========================================
-    # 7. VISUALIZATION ENGINE - SHORTER LABELS & ENFORCED ±30% BOUNDS
+    # 7. GRAPH VISUALIZATION
     # ==========================================
     st.markdown("---")
-    st.subheader("📉 Advanced Parametric Demand Stress Testing Sensitivity Analysis")
+    st.subheader("📉 Grafik Analisis Sensitivitas")
     
     cg1, cg2 = st.columns(2)
     with cg1:
-        st.markdown("##### Strategy Cost Comparison Profile")
         fig, ax = plt.subplots(figsize=(7, 4.2))
         fig.patch.set_facecolor('#faf8f2')
         ax.set_facecolor('#faf8f2')
         
-        # FIXED: Pure acronym short names, standing straight up, translated labels
         ax.bar(biaya_dict.keys(), biaya_dict.values(), color=['#444444', '#6a0708', '#e65c00', '#2a7b4c'], width=0.45)
         ax.set_title("Comparison of Lot Sizing Methods", fontsize=11, fontweight='bold', color='#6a0708', pad=12)
         ax.set_xlabel('Lot Sizing Strategy', color='#111', fontsize=9, fontweight='bold')
@@ -651,15 +617,12 @@ if df_workbench is not None and not df_workbench.empty:
         st.pyplot(fig)
         
     with cg2:
-        st.markdown("##### Dynamic Boundary Risk Stress Profile")
-        
-        # HARD CONSTRAINT: Scale factors locked from -30% to +30% maximum (0.70 to 1.30)
         scale_factors = np.arange(0.70, 1.31, 0.05) 
         s_l4l, s_luc, s_eoq, s_ppb, labels_pct = [], [], [], [], []
         
         for f in scale_factors:
             pct_val = int(round((f - 1) * 100))
-            if pct_val > 30: # Multi-layer failsafe filter protection
+            if pct_val > 30: 
                 continue
             sim_demand = [max(1, int(d * f)) for d in gross_req]
             s_res = calculate_multi_mrp(sim_demand, sched_rec, setup_cost, holding_cost, initial_inv, safety_stock, lead_time)
@@ -673,7 +636,6 @@ if df_workbench is not None and not df_workbench.empty:
         fig2.patch.set_facecolor('#faf8f2')
         ax2.set_facecolor('#faf8f2')
         
-        # FIXED: Pure acronym clean legends, fully translated labels
         ax2.plot(labels_pct, s_l4l, marker='o', label='L4L', color='#444444', linewidth=2)
         ax2.plot(labels_pct, s_luc, marker='s', label='LUC', color='#6a0708', linewidth=2)
         ax2.plot(labels_pct, s_eoq, marker='^', label='EOQ', color='#e65c00', linewidth=2)
@@ -687,9 +649,7 @@ if df_workbench is not None and not df_workbench.empty:
         plt.xticks(rotation=30)
         st.pyplot(fig2)
 
-    # ==========================================
-    # 9. EXCEL DATA EXPORT DESK
-    # ==========================================
+    # Export Data Excel
     buffer = io.BytesIO()
     with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
         pd.DataFrame({'Gross Requirements': gross_req, 'Scheduled Receipts': sched_rec, 'Net Requirements': res['net_req']}, index=[f"P{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="Baseline Framework")
@@ -701,10 +661,10 @@ if df_workbench is not None and not df_workbench.empty:
     buffer.seek(0)
     st.sidebar.markdown("---")
     st.sidebar.download_button(
-        label="📥 Download Data Report Manifest", 
+        label="📥 Download Data Report", 
         data=buffer, 
-        file_name="NexusMRP_Optimized_Report.xlsx", 
+        file_name="MRP_Lot_Sizing_Report.xlsx", 
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 else:
-    st.info("💡 Workbench Framework Notice: Please enter data variables or upload structural manifests inside the entry section to execute system engines.")
+    st.info("Silakan masukan data terlebih dahulu.")
