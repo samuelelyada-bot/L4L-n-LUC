@@ -28,7 +28,7 @@ st.markdown("""
         background-color: #6a0708 !important;
     }
     
-    /* FIX POIN 1: Specific Sidebar Section and Input Header Labels forced to Soft Cream */
+    /* Sidebar Section and Input Header Labels forced to Soft Cream */
     [data-testid="stSidebar"] h1,
     [data-testid="stSidebar"] h2,
     [data-testid="stSidebar"] h3,
@@ -42,7 +42,7 @@ st.markdown("""
         font-weight: 600 !important;
     }
     
-    /* Input Values remain crisp Black inside white fields for maximum contrast */
+    /* Input Fields styling */
     [data-testid="stSidebar"] input {
         color: #111111 !important;
         font-weight: normal !important;
@@ -60,22 +60,21 @@ st.markdown("""
         background-color: #d90429 !important;
     }
     
-    /* Justified text blocks inside Expanders */
+    /* Justified text blocks for general insights & cost expanders */
     .text-justify {
         text-align: justify !important;
-        line-height: 1.6 !important;
-        margin-bottom: 8px !important;
+        line-height: 1.5 !important;
+        font-size: 14px !important;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# FIX POIN 5: Translated all UI elements to full English
 st.title("📦 MRP Lot Sizing Calculator")
 st.markdown("---")
 
 
 # ==========================================
-# 2. GLOSSARY SECTION (FULL ENGLISH & STRUCTURALLY ALIGNED)
+# 2. GLOSSARY SECTION
 # ==========================================
 st.subheader("📚 Glossary")
 g_col1, g_col2, g_col3, g_col4 = st.columns(4)
@@ -87,7 +86,6 @@ with g_col1:
         <b>Function:</b> Minimizes holding values straight to a zero-point baseline.
         </div>""", unsafe_allow_html=True)
 
-# FIX POIN 2: Standardized the structure layout for both EOQ and PPB
 with g_col2:
     with st.expander("🎯 2. Economic Order Quantity (EOQ)", expanded=False):
         st.markdown("""<div class='text-justify'>
@@ -113,23 +111,24 @@ st.markdown("---")
 
 
 # ==========================================
-# 3. SIDEBAR PARAMETER INPUTS (POIN 1: TEXT LABELS KREMED VIA GLOBAL CSS)
+# 3. SIDEBAR PARAMETER INPUTS (FIX POIN 1 & 6)
 # ==========================================
 st.sidebar.header("⚙️ Control Dashboard")
 
-st.sidebar.subheader("Biaya")  # Costs Category Header
-setup_cost = st.sidebar.number_input("Setup Cost", min_value=0.0, value=100000.0, step=500.0)
-holding_cost = st.sidebar.number_input("Holding Cost", min_value=0.0, value=2000.0, step=100.0)
+# Fix Poin 1 & 6: English Translation & Added Controlled Emojis to Labels
+st.sidebar.subheader("💰 Financial Factors")  
+setup_cost = st.sidebar.number_input("Setup / Ordering Cost", min_value=0.0, value=100000.0, step=500.0)
+holding_cost = st.sidebar.number_input("Holding Cost (per unit/period)", min_value=0.0, value=2000.0, step=100.0)
 
 st.sidebar.markdown("<br>", unsafe_allow_html=True)
-st.sidebar.subheader("Persediaan")  # Inventory Category Header
-initial_inv = st.sidebar.number_input("Initial Inventory", min_value=0, value=35, step=5)
-safety_stock = st.sidebar.number_input("Safety Stock", min_value=0, value=0, step=1)
-lead_time = st.sidebar.number_input("Lead Time", min_value=0, value=1, step=1)
+st.sidebar.subheader("🗂️ Inventory Profiles")  
+initial_inv = st.sidebar.number_input("Initial On-Hand Inventory", min_value=0, value=35, step=5)
+safety_stock = st.sidebar.number_input("Safety Stock Level", min_value=0, value=0, step=1)
+lead_time = st.sidebar.number_input("Lead Time Duration (Periods)", min_value=0, value=1, step=1)
 
 st.sidebar.markdown("<br>", unsafe_allow_html=True)
-st.sidebar.subheader("Kapasitas Gudang")  # Warehouse Capacity Category Header
-max_capacity = st.sidebar.number_input("Warehouse Capacity", min_value=1, value=100, step=10)
+st.sidebar.subheader("🛑 Operational Boundaries")  
+max_capacity = st.sidebar.number_input("Maximum Warehouse Capacity (Units)", min_value=1, value=100, step=10)
 
 
 # ==========================================
@@ -163,7 +162,7 @@ def style_iteration_rows(df_step):
 # ==========================================
 # 4. DATA ACQUISITION WORKBENCH
 # ==========================================
-st.subheader("📊 Data Input")
+st.subheader("📊 Data Input workbench")
 
 input_method = st.radio(
     "Select Input Configuration Method:", 
@@ -440,30 +439,33 @@ if df_workbench is not None and not df_workbench.empty:
         if max(data_dict['poh']) > max_cap:
             st.error(f"⚠️ Capacity Boundary Overrun: Projected On Hand crosses terminal warehouse constraints ({max_cap} units).")
 
-    # FIX POIN 4: Re-engineered Strategy Cost Summaries into 3 Sideways Independent Expanders using LaTeX Calculations
+    # FIX POIN 2: Removed massive st.latex blocks inside expanders to fix clipping. Used text-justified clean markdown templates.
     def render_cost_audit_window(data_dict, setup_val, hold_val, rec_array, poh_array):
         order_count = sum(1 for x in rec_array if x > 0)
         sum_poh = sum(max(0, x) for x in poh_array)
         
         c1, c2, c3 = st.columns(3)
         with c1:
-            with st.expander("⚙️ Click to View Setup Cost Calculation"):
-                st.markdown("**Setup Cost Formulation:**")
-                st.latex(r"\text{Total Setup Cost} = \text{Order Count} \times \text{Unit Setup Cost}")
-                st.latex(f"\\text{{Total Setup Cost}} = {order_count} \\times {setup_val:,.2f}")
-                st.latex(f"\\text{{Total Setup Cost}} = {data_dict['setup']:,.2f}")
+            with st.expander("🛠️ Setup Cost Detail"):
+                st.markdown(f"""<div class='text-justify'>
+                <b>Formula:</b><br>Orders Count &times; Unit Setup Cost<br><br>
+                <b>Calculation:</b><br>{order_count} &times; {setup_val:,.2f}<br><br>
+                <b>Total:</b> ${data_dict['setup']:,.2f}
+                </div>""", unsafe_allow_html=True)
         with c2:
-            with st.expander("📦 Click to View Inventory Cost Calculation"):
-                st.markdown("**Inventory Holding Cost Formulation:**")
-                st.latex(r"\text{Total Holding Cost} = \left(\sum \text{Projected On Hand}\right) \times \text{Holding Cost Rate}")
-                st.latex(f"\\text{{Total Holding Cost}} = {sum_poh} \\times {hold_val:,.2f}")
-                st.latex(f"\\text{{Total Holding Cost}} = {data_dict['hold']:,.2f}")
+            with st.expander("📦 Holding Cost Detail"):
+                st.markdown(f"""<div class='text-justify'>
+                <b>Formula:</b><br>(&sum; Projected On Hand) &times; Holding Rate<br><br>
+                <b>Calculation:</b><br>{sum_poh} &times; {hold_val:,.2f}<br><br>
+                <b>Total:</b> ${data_dict['hold']:,.2f}
+                </div>""", unsafe_allow_html=True)
         with c3:
-            with st.expander("💰 Click to View Total Cost Calculation"):
-                st.markdown("**Combined Operational Strategy Cost:**")
-                st.latex(r"\text{Total Cost} = \text{Total Setup Cost} + \text{Total Holding Cost}")
-                st.latex(f"\\text{{Total Cost}} = {data_dict['setup']:,.2f} + {data_dict['hold']:,.2f}")
-                st.latex(f"\\text{{Total Cost}} = {data_dict['total']:,.2f}")
+            with st.expander("💰 Total Operational Cost"):
+                st.markdown(f"""<div class='text-justify'>
+                <b>Formula:</b><br>Setup Cost + Holding Cost<br><br>
+                <b>Calculation:</b><br>{data_dict['setup']:,.2f} + {data_dict['hold']:,.2f}<br><br>
+                <b>Total:</b> <b>${data_dict['total']:,.2f}</b>
+                </div>""", unsafe_allow_html=True)
 
 
     # ==========================================
@@ -485,11 +487,11 @@ if df_workbench is not None and not df_workbench.empty:
         render_mrp_grid_view(res['l4l'], max_capacity)
         render_cost_audit_window(res['l4l'], setup_cost, holding_cost, res['l4l']['rec'], res['l4l']['poh'])
 
-    # TAB 2: EOQ (FIX POIN 3: EXACT LOG IMPLEMENTATION MATCHING USER SPECIFICATIONS WITH LATEX)
+    # TAB 2: EOQ (FIX POIN 5: Condensed substitution steps into simplified clean direct lines)
     with t_eoq:
         st.subheader("Economic Order Quantity (EOQ) Optimization")
         
-        with st.expander("🔬 CLICK HERE TO VIEW DETAILED FORMULA LOG CALCULATIONS (EOQ)"):
+        with st.expander("🔬 CLICK HERE TO VIEW FORMULA LOG CALCULATIONS (EOQ)"):
             total_gross_req = sum(gross_req)
             n_periode = len(gross_req)
             avg_demand_calc = res['eoq']['avg_demand_gross']
@@ -498,30 +500,18 @@ if df_workbench is not None and not df_workbench.empty:
             st.markdown("**1. Identify Input Gross Requirements Data Matrix:**")
             st.markdown(f"""
             * Data per Period: `{gross_req}`
-            * Total Gross Requirements ($\sum$ Gross Req) = `{total_gross_req}` units
-            * Number of Planning Periods ($n$) = `{n_periode}` periods
+            * Total Kebutuhan ($\sum$ Gross Req) = `{total_gross_req}` units / Planning Horizon ($n$) = `{n_periode}` periods
+            * Average Demand ($D$) = `{avg_demand_calc:.4f}` units/period
             """)
             
-            st.markdown("**2. Calculate Average Demand Profile per Period ($D$):**")
-            st.markdown(f"$$\sum \\text{{Gross Requirements}} = {total_gross_req}$$")
-            st.markdown(f"$$n = {n_periode}$$")
-            st.markdown(f"$$D = \\frac{{{total_gross_req}}}{{{n_periode}}}$$")
-            st.markdown(f"$$D = {avg_demand_calc:.4f} \\text{{ units/period}}$$")
-            
-            nilai_atas = 2 * avg_demand_calc * setup_cost
-            nilai_bagi = nilai_atas / holding_cost
-            eoq_final_raw = math.sqrt(nilai_bagi)
-            
-            st.markdown("**3. Substitute Operational Parameters into Standard EOQ Equation:**")
+            # Fix Poin 5: Cut intermediate math steps, direct substitution to output
+            st.markdown("**2. Standard Square-Root Mathematical Equation Substitution:**")
             st.markdown(f"$$EOQ = \\sqrt{{\\frac{{2 \\times D \\times \\text{{Setup Cost}}}}{{\\text{{Holding Cost}}}}}}$$")
             st.markdown(f"$$EOQ = \\sqrt{{\\frac{{2 \\times {avg_demand_calc:.4f} \\times {setup_cost:,.2f}}}{{{holding_cost:,.2f}}}}}$$")
-            st.markdown(f"$$EOQ = \\sqrt{{\\frac{{{nilai_atas:,.4f}}}{{{holding_cost:,.2f}}}}}$$")
-            st.markdown(f"$$EOQ = \\sqrt{{{nilai_bagi:,.4f}}}$$")
-            st.markdown(f"$$EOQ = {eoq_final_raw:.4f} \\text{{ units}}$$")
+            st.markdown(f"$$EOQ = {math.sqrt((2 * avg_demand_calc * setup_cost) / holding_cost):.4f} \\text{{ units}}$$")
             
-            st.markdown("**4. Discrete Upper Integer Ceiling Bound Rounding:**")
-            st.markdown(f"* Exact decimal calculation = `{eoq_final_raw:.4f}`")
-            st.markdown(f"* Rounded up via ceiling constraints to discrete structural lot units: **`{res['eoq']['size']}` units**.")
+            st.markdown("**3. Discrete Upper Integer Ceiling Rounding:**")
+            st.markdown(f"* Rounded up via ceiling constraints: **`{res['eoq']['size']}` units**.")
             
         st.info(f"💡 **Lot Sizing Matrix Status:** Based on formula steps validated above, the Fixed Order Quantity boundary constraint for the EOQ profile is locked at **{res['eoq']['size']} units** per order entry.")
         render_mrp_grid_view(res['eoq'], max_capacity)
@@ -534,13 +524,13 @@ if df_workbench is not None and not df_workbench.empty:
         
         fmt_luc = {'Setup Cost': '{:.2f}', 'Holding Cost': '{:.2f}', 'Total Cost': '{:.2f}', 'Unit Cost': '{:.4f}'}
         for step_idx, df_step in enumerate(res['luc']['iters']):
-            with st.expander(f"Iterasi Block Block {step_idx + 1}", expanded=True):
+            with st.expander(f"Iteration Block {step_idx + 1}", expanded=True):
                 st.dataframe(df_step.style.apply(style_iteration_rows, axis=None).format(fmt_luc), hide_index=True, use_container_width=True)
                 
         render_mrp_grid_view(res['luc'], max_capacity)
         render_cost_audit_window(res['luc'], setup_cost, holding_cost, res['luc']['rec'], res['luc']['poh'])
 
-    # TAB 4: PPB (FIX POIN 3: ADAPTED SAME EOQ RECURSION CONCEPT TO CALCULATE AND VISUALIZE PPB VALUES VIA LATEX EXPANDER)
+    # TAB 4: PPB
     with t_ppb:
         st.subheader("Part Period Balancing (PPB) Dynamic Policy Grid")
         
@@ -548,24 +538,18 @@ if df_workbench is not None and not df_workbench.empty:
             st.markdown("#### 📝 Sizing Steps for PPB:")
             st.markdown("**1. Identify Operational Control Parameters:**")
             st.markdown(f"""
-            * Setup Cost Value = `{setup_cost:,.2f}`
-            * Holding Cost Value per Unit/Period = `{holding_cost:,.2f}`
+            * Setup Cost Value = `{setup_cost:,.2f}` | Holding Cost Value = `{holding_cost:,.2f}`
             """)
-            
             st.markdown("**2. Calculate Balanced Economic Part Period (EPP) Target Limit Baseline:**")
             st.markdown(r"$$EPP = \frac{\text{Setup Cost}}{\text{Holding Cost}}$$")
-            st.markdown(f"$$EPP = \\frac{{{setup_cost:,.2f}}}{{{holding_cost:,.2f}}}$$")
-            st.markdown(f"$$EPP = {res['ppb']['epp']:.4f} \\text{{ part-periods}}$$")
+            st.markdown(f"$$EPP = \\frac{{{setup_cost:,.2f}}}{{{holding_cost:,.2f}}} = {res['ppb']['epp']:.4f} \\text{{ part-periods}}$$")
             
-            st.markdown("**3. Allocation Matching Threshold Principle:**")
-            st.markdown(f"Horizons accumulate individual part-periods stepwise until tracking boundaries approach the target benchmark coefficient value of **{res['ppb']['epp']:.4f}** units.")
-            
-        st.info(f"💡 **Part Period Matrix Target Status:** Dynamic search loops monitor operational records using an active EPP ceiling target coefficient value locked at **{res['ppb']['epp']:.4f} part-periods**.")
+        st.info(f"💡 **Part Period Matrix Target Status:** Dynamic search loops monitor operational records using an active EPP ceiling target coefficient value locked at **{res['ppb']['epp']:.4f part-periods}**.")
         
-        st.markdown("##### Langkah Iterasi:")
+        st.markdown("##### Iteration Steps Trace:")
         fmt_ppb = {'Target EPP': '{:.2f}', 'Accumulated Part-Period': '{:.2f}', 'Setup Cost': '{:.2f}', 'Holding Cost': '{:.2f}', 'Total Cost': '{:.2f}'}
         for step_idx, df_step in enumerate(res['ppb']['iters']):
-            with st.expander(f"Iterasi Block Block {step_idx + 1}", expanded=True):
+            with st.expander(f"Iteration Block {step_idx + 1}", expanded=True):
                 st.dataframe(df_step.style.apply(style_iteration_rows, axis=None).format(fmt_ppb), hide_index=True, use_container_width=True)
                 
         render_mrp_grid_view(res['ppb'], max_capacity)
@@ -573,7 +557,7 @@ if df_workbench is not None and not df_workbench.empty:
 
 
     # ==========================================
-    # 6. GLOBAL PERFORMANCE MATRIX COMPARISON (FIX POIN 6: RED TEXT FOR INEFFICIENT METHODS WITH EXACT VARIANCE VALUES)
+    # 6. GLOBAL PERFORMANCE MATRIX COMPARISON (FIX POIN 3 & 4)
     # ==========================================
     st.markdown("---")
     st.header("🏁 Strategic Portfolio Cost Summary Comparison Matrix")
@@ -587,56 +571,52 @@ if df_workbench is not None and not df_workbench.empty:
     best_method = min(biaya_dict, key=biaya_dict.get)
     
     m1, m2, m3, m4 = st.columns(4)
+    
+    # Fix Poin 3: Reverted main numeric values back to a unified dark color profile, restricted red highlights to variance flags only.
     with m1:
         diff_l4l = res['l4l']['total'] - biaya_dict[best_method]
-        if diff_l4l > 0:
-            sub_text = f"<div style='color: #c62828; font-size: 13px; font-weight: bold;'>Inefficient by {diff_l4l:,.2f}</div>"
-            main_color = "#c62828"
-        else:
-            sub_text = "<div style='color: #2e7d32; font-size: 13px; font-weight: bold;'>🏆 Optimal Strategy</div>"
-            main_color = "#111111"
+        sub_text = f"<div style='color: #d90429; font-size: 13px; font-weight: bold;'>⚠️ Inefficient by {diff_l4l:,.2f}</div>" if diff_l4l > 0 else "<div style='color: #2e7d32; font-size: 13px; font-weight: bold;'>🏆 Optimal Strategy</div>"
         st.markdown(f"""<div style='background-color: #f4efdc; padding: 16px; border-radius: 8px; border-left: 5px solid #6a0708;'>
                         <div style='color: #333; font-size: 13px; font-weight: 600;'>Total Cost L4L</div>
-                        <div style='font-size: 22px; font-weight: 700; color: {main_color}; margin-top: 4px;'>{res['l4l']['total']:,.2f}</div>
+                        <div style='font-size: 22px; font-weight: 700; color: #111111; margin-top: 4px;'>{res['l4l']['total']:,.2f}</div>
                         {sub_text}</div>""", unsafe_allow_html=True)
     with m2:
         diff_luc = res['luc']['total'] - biaya_dict[best_method]
-        if diff_luc > 0:
-            sub_text = f"<div style='color: #c62828; font-size: 13px; font-weight: bold;'>Inefficient by {diff_luc:,.2f}</div>"
-            main_color = "#c62828"
-        else:
-            sub_text = "<div style='color: #2e7d32; font-size: 13px; font-weight: bold;'>🏆 Optimal Strategy</div>"
-            main_color = "#111111"
+        sub_text = f"<div style='color: #d90429; font-size: 13px; font-weight: bold;'>⚠️ Inefficient by {diff_luc:,.2f}</div>" if diff_luc > 0 else "<div style='color: #2e7d32; font-size: 13px; font-weight: bold;'>🏆 Optimal Strategy</div>"
         st.markdown(f"""<div style='background-color: #f4efdc; padding: 16px; border-radius: 8px; border-left: 5px solid #6a0708;'>
                         <div style='color: #333; font-size: 13px; font-weight: 600;'>Total Cost LUC</div>
-                        <div style='font-size: 22px; font-weight: 700; color: {main_color}; margin-top: 4px;'>{res['luc']['total']:,.2f}</div>
+                        <div style='font-size: 22px; font-weight: 700; color: #111111; margin-top: 4px;'>{res['luc']['total']:,.2f}</div>
                         {sub_text}</div>""", unsafe_allow_html=True)
     with m3:
         diff_eoq = res['eoq']['total'] - biaya_dict[best_method]
-        if diff_eoq > 0:
-            sub_text = f"<div style='color: #c62828; font-size: 13px; font-weight: bold;'>Inefficient by {diff_eoq:,.2f}</div>"
-            main_color = "#c62828"
-        else:
-            sub_text = "<div style='color: #2e7d32; font-size: 13px; font-weight: bold;'>🏆 Optimal Strategy</div>"
-            main_color = "#111111"
+        sub_text = f"<div style='color: #d90429; font-size: 13px; font-weight: bold;'>⚠️ Inefficient by {diff_eoq:,.2f}</div>" if diff_eoq > 0 else "<div style='color: #2e7d32; font-size: 13px; font-weight: bold;'>🏆 Optimal Strategy</div>"
         st.markdown(f"""<div style='background-color: #f4efdc; padding: 16px; border-radius: 8px; border-left: 5px solid #6a0708;'>
                         <div style='color: #333; font-size: 13px; font-weight: 600;'>Total Cost EOQ</div>
-                        <div style='font-size: 22px; font-weight: 700; color: {main_color}; margin-top: 4px;'>{res['eoq']['total']:,.2f}</div>
+                        <div style='font-size: 22px; font-weight: 700; color: #111111; margin-top: 4px;'>{res['eoq']['total']:,.2f}</div>
                         {sub_text}</div>""", unsafe_allow_html=True)
     with m4:
         diff_ppb = res['ppb']['total'] - biaya_dict[best_method]
-        if diff_ppb > 0:
-            sub_text = f"<div style='color: #c62828; font-size: 13px; font-weight: bold;'>Inefficient by {diff_ppb:,.2f}</div>"
-            main_color = "#c62828"
-        else:
-            sub_text = "<div style='color: #2e7d32; font-size: 13px; font-weight: bold;'>🏆 Optimal Strategy</div>"
-            main_color = "#111111"
+        sub_text = f"<div style='color: #d90429; font-size: 13px; font-weight: bold;'>⚠️ Inefficient by {diff_ppb:,.2f}</div>" if diff_ppb > 0 else "<div style='color: #2e7d32; font-size: 13px; font-weight: bold;'>🏆 Optimal Strategy</div>"
         st.markdown(f"""<div style='background-color: #f4efdc; padding: 16px; border-radius: 8px; border-left: 5px solid #6a0708;'>
                         <div style='color: #333; font-size: 13px; font-weight: 600;'>Total Cost PPB</div>
-                        <div style='font-size: 22px; font-weight: 700; color: {main_color}; margin-top: 4px;'>{res['ppb']['total']:,.2f}</div>
+                        <div style='font-size: 22px; font-weight: 700; color: #111111; margin-top: 4px;'>{res['ppb']['total']:,.2f}</div>
                         {sub_text}</div>""", unsafe_allow_html=True)
 
-    st.success(f"Strategy Deployment Recommendation Verdict: Apply **{best_method}** model to optimize operational margins.")
+    # Fix Poin 4: Enhanced Verdict block visibility with amplified styling and striking emoji components
+    st.markdown(f"""
+    <div style="background-color: #e8f5e9; border: 2px solid #2e7d32; padding: 18px; border-radius: 8px; margin-top: 15px; text-align: center;">
+        <span style="font-size: 20px;">👑</span> 
+        <span style="color: #1b5e20; font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">
+            Strategy Deployment Recommendation Verdict:
+        </span>
+        <span style="color: #ffffff; background-color: #2e7d32; padding: 4px 12px; border-radius: 4px; font-size: 16px; font-weight: bold; margin-left: 5px;">
+            APPLY {best_method} MODEL
+        </span>
+        <span style="color: #1b5e20; font-size: 15px; font-weight: 600; margin-left: 5px;">
+            to successfully secure maximum operational margins! 🎯⚡
+        </span>
+    </div>
+    """, unsafe_allow_html=True)
 
 
     # ==========================================
@@ -691,7 +671,7 @@ if df_workbench is not None and not df_workbench.empty:
         plt.xticks(rotation=30)
         st.pyplot(fig2)
 
-    # Export Data Openpyxl Excel
+    # Export Excel File Report workbench
     buffer = io.BytesIO()
     with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
         pd.DataFrame({'Gross Requirements': gross_req, 'Scheduled Receipts': sched_rec, 'Net Requirements': res['net_req']}, index=[f"P{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="Baseline Framework")
