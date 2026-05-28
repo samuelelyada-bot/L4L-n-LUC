@@ -111,28 +111,28 @@ st.markdown("---")
 
 
 # ==========================================
-# 3. SIDEBAR PARAMETER INPUTS (FIX POIN 3 & 4)
+# 3. SIDEBAR PARAMETER INPUTS
 # ==========================================
 st.sidebar.header("⚙️ Control Dashboard")
 
 # Financial Factors Section
 st.sidebar.subheader("💰 Financial Factors")  
-setup_cost = st.sidebar.number_input("Setup Cost", min_value=0.0, value=100.0, step=5.0) # Fix Poin 4: Label disederhanakan
-holding_cost = st.sidebar.number_input("Holding Cost (per unit/period)", min_value=0.0, value=2.0, step=0.5) # Fix Poin 4: Tetap
+setup_cost = st.sidebar.number_input("Setup Cost", min_value=0.0, value=100.0, step=5.0)
+holding_cost = st.sidebar.number_input("Holding Cost (per unit/period)", min_value=0.0, value=2.0, step=0.5)
 
 st.sidebar.markdown("<br>", unsafe_allow_html=True)
 
 # Inventory Profiles Section
 st.sidebar.subheader("🗂️ Inventory Profiles")  
-initial_inv = st.sidebar.number_input("Initial Inventory", min_value=0, value=35, step=5) # Fix Poin 4: Label disederhanakan
-safety_stock = st.sidebar.number_input("Safety Stock", min_value=0, value=0, step=1) # Fix Poin 4: Label disederhanakan
-lead_time = st.sidebar.number_input("Lead Time", min_value=0, value=1, step=1) # Fix Poin 4: Label disederhanakan
+initial_inv = st.sidebar.number_input("Initial Inventory", min_value=0, value=35, step=5)
+safety_stock = st.sidebar.number_input("Safety Stock", min_value=0, value=0, step=1)
+lead_time = st.sidebar.number_input("Lead Time", min_value=0, value=1, step=1)
 
 st.sidebar.markdown("<br>", unsafe_allow_html=True)
 
 # Operational Boundaries Section
-st.sidebar.subheader("🏭 Operational Boundaries") # Fix Poin 3: Menggunakan emoji warehouse/pabrik
-max_capacity = st.sidebar.number_input("Maximum Warehouse Capacity (Units)", min_value=1, value=100, step=10) # Fix Poin 4: Tetap
+st.sidebar.subheader("🏭 Operational Boundaries")
+max_capacity = st.sidebar.number_input("Maximum Warehouse Capacity (Units)", min_value=1, value=100, step=10)
 
 
 # ==========================================
@@ -443,7 +443,6 @@ if df_workbench is not None and not df_workbench.empty:
         if max(data_dict['poh']) > max_cap:
             st.error(f"⚠️ Capacity Boundary Overrun: Projected On Hand crosses terminal warehouse constraints ({max_cap} units).")
 
-    # FIX POIN 5: Menghilangkan simbol mata uang ($) agar menyisakan angka murni saja
     def render_cost_audit_window(data_dict, setup_val, hold_val, rec_array, poh_array):
         order_count = sum(1 for x in rec_array if x > 0)
         sum_poh = sum(max(0, x) for x in poh_array)
@@ -533,7 +532,7 @@ if df_workbench is not None and not df_workbench.empty:
         render_mrp_grid_view(res['luc'], max_capacity)
         render_cost_audit_window(res['luc'], setup_cost, holding_cost, res['luc']['rec'], res['luc']['poh'])
 
-    # TAB 4: PPB (FIX POIN 1, 2, 6: Struktur perhitungan disusun menurun ke bawah dan bug string dibereskan)
+    # TAB 4: PPB 
     with t_ppb:
         st.subheader("Part Period Balancing (PPB) Dynamic Policy Grid")
         
@@ -544,13 +543,11 @@ if df_workbench is not None and not df_workbench.empty:
             * Setup Cost Value = `{setup_cost:,.2f}` | Holding Cost Value = `{holding_cost:,.2f}`
             """)
             
-            # Fix Poin 6: Disusun berurutan ke bawah (Rumus -> Input -> Hasil Akhir), tidak ke samping
             st.markdown("**2. Calculate Balanced Economic Part Period (EPP) Target Limit Baseline:**")
             st.markdown(r"$$EPP = \frac{\text{Setup Cost}}{\text{Holding Cost}}$$")
             st.markdown(f"$$EPP = \\frac{{{setup_cost:,.2f}}}{{{holding_cost:,.2f}}}$$")
             st.markdown(f"$$EPP = {res['ppb']['epp']:.4f} \\text{{ part-periods}}$$")
             
-        # Fix Poin 2: String formatting error fixed (`.4f` diletakkan terpisah dari teks biasa)
         st.info(f"💡 **Part Period Matrix Target Status:** Dynamic search loops monitor operational records using an active EPP ceiling target coefficient value locked at **{res['ppb']['epp']:.4f}** part-periods.")
         
         st.markdown("##### Iteration Steps Trace:")
@@ -608,18 +605,14 @@ if df_workbench is not None and not df_workbench.empty:
                         <div style='font-size: 22px; font-weight: 700; color: #111111; margin-top: 4px;'>{res['ppb']['total']:,.2f}</div>
                         {sub_text}</div>""", unsafe_allow_html=True)
 
-    # Verdict Banner
+    # Verdict Banner (Updated: Clean, Minimalist, & Eye-Catching)
     st.markdown(f"""
-    <div style="background-color: #e8f5e9; border: 2px solid #2e7d32; padding: 18px; border-radius: 8px; margin-top: 15px; text-align: center;">
-        <span style="font-size: 20px;">👑</span> 
-        <span style="color: #1b5e20; font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">
-            Strategy Deployment Recommendation Verdict:
+    <div style="background-color: #ffffff; border-left: 5px solid #2e7d32; padding: 16px 20px; border-radius: 4px; margin-top: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+        <span style="color: #2e7d32; font-size: 15px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
+            🎯 Strategy Deployment Recommendation:
         </span>
-        <span style="color: #ffffff; background-color: #2e7d32; padding: 4px 12px; border-radius: 4px; font-size: 16px; font-weight: bold; margin-left: 5px;">
-            APPLY {best_method} MODEL
-        </span>
-        <span style="color: #1b5e20; font-size: 15px; font-weight: 600; margin-left: 5px;">
-            to successfully secure maximum operational margins! 🎯⚡
+        <span style="color: #111111; font-size: 15px; font-weight: 500; margin-left: 4px;">
+            It is recommended to <b>Apply {best_method} Model</b> to optimize your overall operational margins.
         </span>
     </div>
     """, unsafe_allow_html=True)
