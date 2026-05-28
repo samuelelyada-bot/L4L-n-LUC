@@ -6,11 +6,11 @@ import math
 import io
 
 # ==========================================
-# 1. PAGE CONFIGURATION & ENTERPRISE CSS INJECTION
+# 1. PAGE CONFIGURATION & AGGRESSIVE CSS OVERRIDE
 # ==========================================
 st.set_page_config(page_title="NexusMRP Engine - Enterprise DSS", layout="wide")
 
-# Custom CSS for Deep Maroon Theme, Pastel Table Masking, and Structural Windows
+# Force styling with extreme CSS priority encapsulation
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
@@ -31,27 +31,24 @@ st.markdown("""
         font-weight: 600 !important;
     }
     
-    /* Sidebar Overhaul (Deep Maroon Dominant) */
+    /* SIDEBAR CRITICAL FIX: Forces ALL text inside sidebar to be light cream, ignoring Streamlit defaults */
     [data-testid="stSidebar"] {
         background-color: #6a0708 !important;
     }
-    
-    /* CRITICAL FIX: Forces ALL labels, text paragraphs, and spans inside Sidebar to Cream/White */
-    [data-testid="stSidebar"] label,
-    [data-testid="stSidebar"] p,
-    [data-testid="stSidebar"] span,
+    [data-testid="stSidebar"] *, 
+    [data-testid="stSidebar"] label, 
+    [data-testid="stSidebar"] p, 
+    [data-testid="stSidebar"] span, 
     [data-testid="stSidebar"] div {
         color: #faf8f2 !important;
         font-weight: 600 !important;
     }
-    
-    /* Secondary small text inside sidebar inputs */
     [data-testid="stSidebar"] p {
         font-weight: 400 !important;
-        opacity: 0.9;
+        opacity: 0.85 !important;
     }
     
-    /* Main Content Widget Labels */
+    /* Main Content Widgets */
     .stNumberInput label, .stRadio label {
         color: #111111 !important;
         font-weight: 600 !important;
@@ -64,39 +61,37 @@ st.markdown("""
         border-radius: 6px !important;
         border: none !important;
         font-weight: 600 !important;
-        transition: all 0.3s ease;
         width: 100%;
     }
     .stButton>button:hover {
         background-color: #d90429 !important;
-        box-shadow: 0px 4px 10px rgba(0,0,0,0.15);
     }
     
-    /* Unified Window Blocks (Equation & Breakdown Containers) */
+    /* UNIFIED WINDOW BOX: Left-border maroon accent with justified text alignment */
     .calculation-window {
-        background-color: #f4efdc;
-        border-left: 6px solid #6a0708;
-        padding: 22px;
-        border-radius: 6px;
-        margin-bottom: 25px;
-        color: #111111;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+        background-color: #f4efdc !important;
+        border-left: 6px solid #6a0708 !important;
+        padding: 22px !important;
+        border-radius: 6px !important;
+        margin-bottom: 25px !important;
+        color: #111111 !important;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.04) !important;
     }
     
     .window-text-justify {
-        text-align: justify;
-        line-height: 1.6;
-        margin-bottom: 12px;
+        text-align: justify !important;
+        line-height: 1.6 !important;
+        margin-bottom: 12px !important;
+        color: #111111 !important;
     }
     
-    /* Operational Breakdown KPI Display Cards */
+    /* KPI Cards Inside Window */
     .kpi-card {
-        background-color: #f4efdc;
-        padding: 18px;
-        border-radius: 6px;
-        border-top: 4px solid #6a0708;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.04);
-        margin-bottom: 15px;
+        background-color: #faf8f2 !important;
+        padding: 15px !important;
+        border-radius: 6px !important;
+        border-top: 4px solid #6a0708 !important;
+        margin-bottom: 10px !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -105,8 +100,9 @@ st.title("📦 NexusMRP Engine — Enterprise Decision Support System")
 st.caption("Advanced Material Requirements Planning Multi-Method Optimization Platform")
 st.markdown("---")
 
+
 # ==========================================
-# 2. GLOSSARY SECTION (SHIFTED TO THE VERY TOP — 4 MODULAR EXPANDERS)
+# 2. GLOSSARY SECTION (SHIFTED TO THE VERY TOP — 4 MODULAR WINDOWS)
 # ==========================================
 st.subheader("📚 System Reference Manual & Knowledge Base Glossary")
 g_col1, g_col2, g_col3, g_col4 = st.columns(4)
@@ -142,8 +138,9 @@ with g_col4:
 
 st.markdown("---")
 
+
 # ==========================================
-# 3. SIDEBAR PARAMETER SELECTION
+# 3. SIDEBAR PARAMETER INPUTS (TEXT CORRECTIONS CAPTURED BY GLOBAL CSS)
 # ==========================================
 st.sidebar.header("⚙️ Control Dashboard")
 
@@ -163,7 +160,7 @@ max_capacity = st.sidebar.number_input("Maximum Warehouse Capacity (Units)", min
 
 
 # ==========================================
-# UTILITY HELPER & PASTEL MASKING FUNCTIONS
+# UTILITY HELPER & EXTREME PASTEL MASKING FUNCTIONS
 # ==========================================
 def find_matching_column(columns, targets):
     for col in columns:
@@ -179,22 +176,22 @@ def style_mrp_grid(df_transposed, max_cap):
         return [''] * len(row)
     return df_transposed.style.apply(check_capacity, axis=1)
 
-# FIXED: Re-engineered with ultra-soft pastel transparencies for extreme clarity
+# FIXED: Re-engineered with ultra-soft pastel transparencies for extreme readability
 def style_iteration_rows(df_step):
     style_matrix = pd.DataFrame('', index=df_step.index, columns=df_step.columns)
     for idx, row in df_step.iterrows():
         status_str = str(row['Status'])
         if "Stop" in status_str:
-            # Ultra-soft pastel pink/red transparency
+            # Ultra-soft pastel pink/red transparency (No orange hints)
             style_matrix.loc[idx] = 'background-color: #ffebee; color: #c62828; font-weight: bold;'
         elif "Selected" in status_str or "Horizon End" in status_str:
-            # Ultra-soft pastel light green transparency
+            # Ultra-soft pastel mint green transparency
             style_matrix.loc[idx] = 'background-color: #e8f5e9; color: #2e7d32; font-weight: bold;'
     return style_matrix
 
 
 # ==========================================
-# 4. DATA ACQUISITION & WORKBENCH EDITOR
+# 4. DATA ACQUISITION WORKBENCH
 # ==========================================
 st.subheader("📊 Requirements & Inbound Supply Workbench")
 
@@ -266,6 +263,7 @@ if df_workbench is not None and not df_workbench.empty:
     df_edited_preview = st.data_editor(df_preview_transposed, use_container_width=True)
     gross_req = df_edited_preview.loc['Gross Requirements'].astype(int).tolist()
     sched_rec = df_edited_preview.loc['Scheduled Receipts'].astype(int).tolist()
+
 
     # ==========================================
     # CORE PROCESSING MATHEMATICAL ALGORITHMS
@@ -472,7 +470,7 @@ if df_workbench is not None and not df_workbench.empty:
         if max(data_dict['poh']) > max_cap:
             st.error(f"⚠️ Operational Capacity Violation: Projected On-Hand exceeds maximum asset constraint threshold ({max_cap} units).")
 
-    # FIXED CHRONOLOGY: Display calculations first, then wrap operational costs in a clean window container at the bottom
+    # FIXED CHRONOLOGY MODULE: Built as a final standalone window at the bottom of each tab
     def render_cost_audit_window(data_dict, setup_val, hold_val, rec_array, poh_array):
         order_count = sum(1 for x in rec_array if x > 0)
         sum_poh = sum(max(0, x) for x in poh_array)
@@ -500,8 +498,9 @@ if df_workbench is not None and not df_workbench.empty:
             </div>""", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
+
     # ==========================================
-    # 5. METHODS EXECUTION TABS
+    # 5. METHODS MODULES EXECUTION WORKBENCH TABS
     # ==========================================
     st.markdown("---")
     st.subheader("⚙️ Localized Sizing Heuristics Execution Modules")
@@ -519,7 +518,7 @@ if df_workbench is not None and not df_workbench.empty:
         render_mrp_grid_view(res['l4l'], max_capacity)
         render_cost_audit_window(res['l4l'], setup_cost, holding_cost, res['l4l']['rec'], res['l4l']['poh'])
 
-    # TAB 2: EOQ (FIXED TO DOWNWARD FLOW, RATA KANAN-KIRI, WRAPPED IN 1 WINDOW)
+    # TAB 2: EOQ (FIXED TO DOWNWARD FLOW, TEXT-JUSTIFY, SINGLE CALCULATIONS WINDOW)
     with t_eoq:
         st.subheader("Economic Order Quantity (EOQ) Sizing Optimization")
         
@@ -531,24 +530,24 @@ if df_workbench is not None and not df_workbench.empty:
         st.markdown("#### 📝 Sizing Optimization Formulation Equation Window")
         st.markdown("<div class='calculation-window'>", unsafe_allow_html=True)
         
-        st.markdown("<div class='window-text-justify'><b>Step 1: Compute Average Demand Gross Per Period (D)</b><br>"
-                    "The framework aggregates all requirements split across active planning windows divided by horizon metrics to locate linear trends.</div>", unsafe_allow_html=True)
+        st.markdown("<p class='window-text-justify'><b>Step 1: Compute Average Demand Gross Per Period (D)</b><br>"
+                    "The framework aggregates all requirements split across active planning windows divided by horizon metrics to locate linear trends.</p>", unsafe_allow_html=True)
         st.latex(r"D = \frac{\sum \text{Gross Requirements}}{n} = \frac{" + str(sum(gross_req)) + "}{" + str(num_periods) + r"} = " + f"{avg_d_calc:.4f}" + r"\text{ Units/Period}")
         
-        st.markdown("<div class='window-text-justify'><b>Step 2: Apply Classical Square-Root Sizing Mathematical Equation</b><br>"
-                    "This calculates the absolute mathematical cross-over equilibrium balancing point where ordering cost matches structural carrying charges.</div>", unsafe_allow_html=True)
+        st.markdown("<p class='window-text-justify'><b>Step 2: Apply Classical Square-Root Sizing Mathematical Equation</b><br>"
+                    "This calculates the absolute mathematical cross-over equilibrium balancing point where ordering cost matches structural carrying charges.</p>", unsafe_allow_html=True)
         st.latex(r"EOQ = \sqrt{\frac{2 \times D \times \text{Setup Cost}}{\text{Holding Cost}}} = \sqrt{\frac{2 \times " + f"{avg_d_calc:.4f}" + r"\times " + f"{setup_cost:.2f}" + "}{" + f"{holding_cost:.2f}" + r" }}")
         st.latex(r"EOQ = \sqrt{" + f"{val_div:.4f}" + r"} = " + f"{eoq_raw_val:.4f}" + r"\text{ Units}")
         
-        st.markdown(f"<div class='window-text-justify'><b>Step 3: Discrete Upper Integer Ceiling Bound Rounding</b><br>"
+        st.markdown(f"<p class='window-text-justify'><b>Step 3: Discrete Upper Integer Ceiling Bound Rounding</b><br>"
                     f"Because inventory quantities cannot be processed fractionally, an upper ceiling bound locking sequence is deployed. "
-                    f"Discrete Lot Factor Quantity Constraint Locked Value = <b>{res['eoq']['size']} Units</b> per Order Placement.</div>", unsafe_allow_html=True)
+                    f"Discrete Lot Factor Quantity Constraint Locked Value = <b>{res['eoq']['size']} Units</b> per Order Placement.</p>", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
         
         render_mrp_grid_view(res['eoq'], max_capacity)
         render_cost_audit_window(res['eoq'], setup_cost, holding_cost, res['eoq']['rec'], res['eoq']['poh'])
 
-    # TAB 3: LUC (FIXED PASTEL COLOR MASKING)
+    # TAB 3: LUC (FIXED CHRONOLOGY AND PASTEL THEME)
     with t_luc:
         st.subheader("Least Unit Cost (LUC) Iterative Sizing Matrix")
         st.markdown("#### 🔬 Dynamic Lot Compilation Optimization Processing Steps")
@@ -561,21 +560,20 @@ if df_workbench is not None and not df_workbench.empty:
         render_mrp_grid_view(res['luc'], max_capacity)
         render_cost_audit_window(res['luc'], setup_cost, holding_cost, res['luc']['rec'], res['luc']['poh'])
 
-    # TAB 4: PPB (FIXED TO DOWNWARD FLOW, RATA KANAN-KIRI, WRAPPED IN 1 WINDOW)
+    # TAB 4: PPB (FIXED TO DOWNWARD FLOW, TEXT-JUSTIFY, SINGLE CALCULATIONS WINDOW)
     with t_ppb:
         st.subheader("Part Period Balancing (PPB) Dynamic Policy Execution Grid")
         
         st.markdown("#### ⚖️ Economic Part Period (EPP) Target Metric Identification Window")
         st.markdown("<div class='calculation-window'>", unsafe_allow_html=True)
-        st.markdown("<div class='window-text-justify'><b>Step 1: Compute Target Balanced EPP Baseline Limit</b><br>"
-                    "The system calculates the exact equilibrium threshold coefficient where the financial strain of holding one stock unit across one period perfectly balances single setup expenses.</div>", unsafe_allow_html=True)
+        st.markdown("<p class='window-text-justify'><b>Step 1: Compute Target Balanced EPP Baseline Limit</b><br>"
+                    "The system calculates the exact equilibrium threshold coefficient where the financial strain of holding one stock unit across one period perfectly balances single setup expenses.</p>", unsafe_allow_html=True)
         st.latex(r"EPP = \frac{\text{Setup Cost}}{\text{Holding Cost}} = \frac{" + f"{setup_cost:.2f}" + "}{" + f"{holding_cost:.2f}" + r"} = " + f"{res['ppb']['epp']:.4f}" + r"\text{ Part-Periods}")
-        st.markdown("<div class='window-text-justify'><i>Operational Logic Insight:</i> The EPP coefficient is used as a cumulative benchmark reference scale. "
-                    "Horizons are clustered continuously as long as the trial part-period sum closely balances out this target.</div>", unsafe_allow_html=True)
+        st.markdown("<p class='window-text-justify'><b>Step 2: Balance Horizon and Execute Look-Ahead</b><br>The EPP coefficient is used as a cumulative benchmark reference scale. Horizons are clustered continuously until the closest convergence point is located.</p>", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
         
         st.markdown("#### 🔬 Balanced Horizon Iterative Search Traces Execution Stream")
-        fmt_ppb = {'Target EPP': '{:.2f}', 'Accumulated Part-Period': '{:.2f}'}
+        fmt_ppb = {'Target EPP': '{:.2f}', 'Accumulated Part-Period': '{:.2f}', 'Setup Cost': '{:.2f}', 'Holding Cost': '{:.2f}', 'Total Cost': '{:.2f}'}
         for step_idx, df_step in enumerate(res['ppb']['iters']):
             with st.expander(f"Step Block {step_idx + 1} — Part Period Equating Calibration Trace Window", expanded=True):
                 st.dataframe(df_step.style.apply(style_iteration_rows, axis=None).format(fmt_ppb), hide_index=True, use_container_width=True)
@@ -632,7 +630,7 @@ if df_workbench is not None and not df_workbench.empty:
 
 
     # ==========================================
-    # 7. VISUALIZATION ENGINE - REVISED GRAPHS (LABELS FIXED)
+    # 7. VISUALIZATION ENGINE - SHORTER LABELS & ENFORCED ±30% BOUNDS
     # ==========================================
     st.markdown("---")
     st.subheader("📉 Advanced Parametric Demand Stress Testing Sensitivity Analysis")
@@ -644,7 +642,7 @@ if df_workbench is not None and not df_workbench.empty:
         fig.patch.set_facecolor('#faf8f2')
         ax.set_facecolor('#faf8f2')
         
-        # CHANGED: Clean short names, straight text, with clear Axis Labels
+        # FIXED: Pure acronym short names, standing straight up, translated labels
         ax.bar(biaya_dict.keys(), biaya_dict.values(), color=['#444444', '#6a0708', '#e65c00', '#2a7b4c'], width=0.45)
         ax.set_title("Comparison of Lot Sizing Methods", fontsize=11, fontweight='bold', color='#6a0708', pad=12)
         ax.set_xlabel('Lot Sizing Strategy', color='#111', fontsize=9, fontweight='bold')
@@ -655,13 +653,13 @@ if df_workbench is not None and not df_workbench.empty:
     with cg2:
         st.markdown("##### Dynamic Boundary Risk Stress Profile")
         
-        # FIXED CRITICAL BOUNDARY: Scaled exactly from -30% to +30% to stay perfectly inside the designated threshold
-        scale_factors = np.arange(0.70, 1.35, 0.05) 
+        # HARD CONSTRAINT: Scale factors locked from -30% to +30% maximum (0.70 to 1.30)
+        scale_factors = np.arange(0.70, 1.31, 0.05) 
         s_l4l, s_luc, s_eoq, s_ppb, labels_pct = [], [], [], [], []
         
         for f in scale_factors:
             pct_val = int(round((f - 1) * 100))
-            if pct_val > 30: # Hard stop constraint filter to remove any leak to +35%
+            if pct_val > 30: # Multi-layer failsafe filter protection
                 continue
             sim_demand = [max(1, int(d * f)) for d in gross_req]
             s_res = calculate_multi_mrp(sim_demand, sched_rec, setup_cost, holding_cost, initial_inv, safety_stock, lead_time)
@@ -675,7 +673,7 @@ if df_workbench is not None and not df_workbench.empty:
         fig2.patch.set_facecolor('#faf8f2')
         ax2.set_facecolor('#faf8f2')
         
-        # CHANGED: Cleaned Legends and translated axes cleanly
+        # FIXED: Pure acronym clean legends, fully translated labels
         ax2.plot(labels_pct, s_l4l, marker='o', label='L4L', color='#444444', linewidth=2)
         ax2.plot(labels_pct, s_luc, marker='s', label='LUC', color='#6a0708', linewidth=2)
         ax2.plot(labels_pct, s_eoq, marker='^', label='EOQ', color='#e65c00', linewidth=2)
@@ -690,7 +688,7 @@ if df_workbench is not None and not df_workbench.empty:
         st.pyplot(fig2)
 
     # ==========================================
-    # 8. DATA EXPORT DISPATCH DESK
+    # 9. EXCEL DATA EXPORT DESK
     # ==========================================
     buffer = io.BytesIO()
     with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
