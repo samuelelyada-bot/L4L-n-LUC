@@ -605,18 +605,17 @@ if df_workbench is not None and not df_workbench.empty:
                         <div style='font-size: 22px; font-weight: 700; color: #111111; margin-top: 4px;'>{res['ppb']['total']:,.2f}</div>
                         {sub_text}</div>""", unsafe_allow_html=True)
 
-# Verdict Banner (Updated: Clean Green, 1-Line Minimalist Center Layout)
+# Verdict Banner (Updated: Dynamic Method Name matches the Green Theme)
     st.markdown(f"""
     <div style="background-color: #e8f5e9; border: 1px solid #c8e6c9; border-left: 5px solid #2e7d32; padding: 14px; border-radius: 4px; margin-top: 20px; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-        <span style="color: #2e7d32; font-size: 15px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-right: 6px;">
+        <span style="color: #2e7d32; font-size: 15px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-right: 4px;">
             🎯 Strategy Recommendation:
         </span>
         <span style="color: #111111; font-size: 15px; font-weight: 500;">
-            It is highly recommended to <b>Apply {best_method} Model</b> to maximize your overall operational efficiency.
+            It is highly recommended to <span style="color: #2e7d32; font-weight: 700;">Apply {best_method} Model</span> to maximize your overall operational efficiency.
         </span>
     </div>
     """, unsafe_allow_html=True)
-
 
     # ==========================================
     # 7. GRAPH VISUALIZATION
