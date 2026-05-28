@@ -196,7 +196,7 @@ if input_method == "Upload File":
                 df_workbench['Gross Requirements'] = df_raw[col_gr].fillna(0).astype(int)
             else:
                 st.error("Failed to map Gross Requirements attribute automatically.")
-                st.stop() # Perbaikan Minor: Stop eksekusi agar tidak KeyError
+                st.stop() 
                 
             if col_sr and col_sr in df_raw.columns:
                 df_workbench['Scheduled Receipts'] = df_raw[col_sr].fillna(0).astype(int)
@@ -233,7 +233,6 @@ if df_workbench is not None and not df_workbench.empty:
         'Scheduled Receipts': sched_rec
     }, index=period_labels).T
     
-    # Perbaikan Critical 1: Hapus conditional ternary salah arah
     df_edited_preview = st.data_editor(df_preview_transposed, use_container_width=True)
     gross_req = df_edited_preview.loc['Gross Requirements'].astype(int).tolist()
     sched_rec = df_edited_preview.loc['Scheduled Receipts'].astype(int).tolist()
@@ -258,7 +257,7 @@ if df_workbench is not None and not df_workbench.empty:
                 net_req.append(0)
                 prev_inv = available_stock - demands[i]
 
-        # Perbaikan Warning: Sertakan parameter Safety Stock ke dalam POH
+        # Perbaikan Catatan 4: Menerima ss sebagai parameter untuk validasi visual di grid luar
         def generate_poh_and_release(rec_lot):
             poh = []
             r_inv = init_inv
@@ -293,8 +292,7 @@ if df_workbench is not None and not df_workbench.empty:
             t_log = []
             
             for k in range(idx, n):
-                if net_req[k] == 0:  # Perbaikan Critical 3: Skip periode jika net_req = 0
-                    continue
+                # Perbaikan Catatan 1: Hapus filter skip continue! Biarkan periode 0 masuk hitungan agar indeks penunjuk tidak loncat.
                 acc_d += net_req[k]
                 acc_h += net_req[k] * hold * (k - idx)
                 t_cost = setup + acc_h
@@ -302,7 +300,7 @@ if df_workbench is not None and not df_workbench.empty:
                 
                 covered_periods_str = ", ".join([period_labels[m] for m in range(idx, k+1)])
                 
-                if uc < min_uc:  # Perbaikan Critical 3: Gunakan strictly less than (<)
+                if uc < min_uc:  
                     min_uc, best_k = uc, k
                     t_log.append({
                         'Periods Covered': covered_periods_str, 'Total Units': acc_d, 
@@ -341,7 +339,7 @@ if df_workbench is not None and not df_workbench.empty:
         eoq_rec = [0] * n
         rem_stok = 0
         
-        # Perbaikan Critical 2: Perbaikan logika update rem_stok
+        # Perbaikan Catatan 3: Hapus total blok else mubazir. Periode net_req=0 tidak perlu diutak-atik.
         for i in range(n):
             if net_req[i] > 0:
                 if rem_stok < net_req[i]:
@@ -351,14 +349,6 @@ if df_workbench is not None and not df_workbench.empty:
                     rem_stok = (eoq_rec[i] + rem_stok) - net_req[i]
                 else:
                     rem_stok -= net_req[i]
-            else:
-                # Jika net_req = 0, kurangi sisa stok dengan kelebihan konsumsi jika ada demand kotor
-                if rem_stok > 0 and demands[i] > 0:
-                    available = rem_stok + s_receipts[i]
-                    if available >= demands[i]:
-                        rem_stok = available - demands[i]
-                    else:
-                        rem_stok = 0
                     
         eoq_poh, eoq_rel = generate_poh_and_release(eoq_rec)
         c_eoq_setup = sum(1 for x in eoq_rec if x > 0) * setup
@@ -397,24 +387,8 @@ if df_workbench is not None and not df_workbench.empty:
                     dist_before = abs(cum_part_period - epp_limit)
                     dist_after = abs(new_cum_part_period - epp_limit)
                     
-                    # Perbaikan Warning: Look-ahead check untuk "Closer Beyond Limit"
+                    # Perbaikan Catatan 2: Batasi look-ahead hanya sekali lewat break, hapus resiko over-consolidation
                     if dist_after < dist_before:
-                        # Cek satu periode ke depan lagi jika ada horizon tersisa
-                        if k + 1 < n:
-                            next_part_period = net_req[k+1] * ((k+1) - idx)
-                            next_cum = new_cum_part_period + next_part_period
-                            if abs(next_cum - epp_limit) < dist_after:
-                                # Jika periode depannya ternyata malah lebih dekat, jangan berhenti di sini
-                                acc_d += net_req[k]
-                                cum_part_period = new_cum_part_period
-                                best_k = k
-                                t_log.append({
-                                    'Periods Covered': covered_periods_str, 'Total Units': acc_d,
-                                    'Target EPP': epp_limit, 'Accumulated Part-Period': cum_part_period,
-                                    'Status': 'Feasible (Look-ahead ongoing)'
-                                })
-                                continue
-                        
                         acc_d += net_req[k]
                         cum_part_period = new_cum_part_period
                         best_k = k
@@ -461,7 +435,6 @@ if df_workbench is not None and not df_workbench.empty:
     res = calculate_multi_mrp(gross_req, sched_rec, setup_cost, holding_cost, initial_inv, safety_stock, lead_time)
     num_periods = len(gross_req)
 
-    # Perbaikan Minor: Ganti hardcoded index P1, P2 dengan user period_labels
     def render_mrp_grid_view(data_dict, max_cap, ss):
         df = pd.DataFrame({
             'Gross Requirements': gross_req,
@@ -473,7 +446,6 @@ if df_workbench is not None and not df_workbench.empty:
         }, index=period_labels).T
         st.dataframe(style_mrp_grid(df, max_cap, ss), use_container_width=True)
         
-        # Perbaikan Warning: Tambah alert eksplisit jika POH di bawah safety stock
         if min(data_dict['poh']) < ss:
             stockout_periods = [period_labels[i] for i, v in enumerate(data_dict['poh']) if v < ss]
             st.error(f"🚨 Shortage Warning: Stockout / Pelanggaran Safety Stock terjadi pada periode: {', '.join(stockout_periods)}")
@@ -531,7 +503,6 @@ if df_workbench is not None and not df_workbench.empty:
     with t_eoq:
         st.subheader("Economic Order Quantity (EOQ) Optimization")
         
-        # Perbaikan Warning: Guard clause agar tidak ZeroDivisionError di rumus display
         if holding_cost == 0:
             st.warning("⚠️ Holding cost bernilai 0. Formula log matematika EOQ dihentikan untuk mencegah pembagian nol.")
         else:
@@ -593,7 +564,6 @@ if df_workbench is not None and not df_workbench.empty:
         st.info(f"💡 **Part Period Matrix Target Status:** Target batas EPP dikunci pada **{res['ppb']['epp']:.4f}** part-periods.")
         
         st.markdown("##### Iteration Steps Trace:")
-        # Perbaikan Minor: Hilangkan kolom ga ada (Setup, Holding, Total) dari format dictionary
         fmt_ppb = {'Target EPP': '{:.2f}', 'Accumulated Part-Period': '{:.2f}'}
         for step_idx, df_step in enumerate(res['ppb']['iters']):
             if df_step.empty: continue
@@ -617,7 +587,6 @@ if df_workbench is not None and not df_workbench.empty:
         'PPB': res['ppb']['total']
     }
     
-    # Perbaikan Minor: Dukung multi-winner (tie-breaking) jika ada skor seri
     min_cost = min(biaya_dict.values())
     best_methods = [k for k, v in biaya_dict.items() if v == min_cost]
     
@@ -693,7 +662,6 @@ if df_workbench is not None and not df_workbench.empty:
             pct_val = int(round((f - 1) * 100))
             if pct_val > 30: 
                 continue
-            # Perbaikan Warning: Gunakan int(round(d * f)) tanpa memaksa ke nilai minimal 1 jika aslinya 0
             sim_demand = [int(round(d * f)) for d in gross_req]
             s_res = calculate_multi_mrp(sim_demand, sched_rec, setup_cost, holding_cost, initial_inv, safety_stock, lead_time)
             s_l4l.append(s_res['l4l']['total'])
