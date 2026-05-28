@@ -111,24 +111,28 @@ st.markdown("---")
 
 
 # ==========================================
-# 3. SIDEBAR PARAMETER INPUTS (FIX POIN 1 & 6)
+# 3. SIDEBAR PARAMETER INPUTS (FIX POIN 3 & 4)
 # ==========================================
 st.sidebar.header("⚙️ Control Dashboard")
 
-# Fix Poin 1 & 6: English Translation & Added Controlled Emojis to Labels
+# Financial Factors Section
 st.sidebar.subheader("💰 Financial Factors")  
-setup_cost = st.sidebar.number_input("Setup / Ordering Cost", min_value=0.0, value=100000.0, step=500.0)
-holding_cost = st.sidebar.number_input("Holding Cost (per unit/period)", min_value=0.0, value=2000.0, step=100.0)
+setup_cost = st.sidebar.number_input("Setup Cost", min_value=0.0, value=100.0, step=5.0) # Fix Poin 4: Label disederhanakan
+holding_cost = st.sidebar.number_input("Holding Cost (per unit/period)", min_value=0.0, value=2.0, step=0.5) # Fix Poin 4: Tetap
 
 st.sidebar.markdown("<br>", unsafe_allow_html=True)
+
+# Inventory Profiles Section
 st.sidebar.subheader("🗂️ Inventory Profiles")  
-initial_inv = st.sidebar.number_input("Initial On-Hand Inventory", min_value=0, value=35, step=5)
-safety_stock = st.sidebar.number_input("Safety Stock Level", min_value=0, value=0, step=1)
-lead_time = st.sidebar.number_input("Lead Time Duration (Periods)", min_value=0, value=1, step=1)
+initial_inv = st.sidebar.number_input("Initial Inventory", min_value=0, value=35, step=5) # Fix Poin 4: Label disederhanakan
+safety_stock = st.sidebar.number_input("Safety Stock", min_value=0, value=0, step=1) # Fix Poin 4: Label disederhanakan
+lead_time = st.sidebar.number_input("Lead Time", min_value=0, value=1, step=1) # Fix Poin 4: Label disederhanakan
 
 st.sidebar.markdown("<br>", unsafe_allow_html=True)
-st.sidebar.subheader("🛑 Operational Boundaries")  
-max_capacity = st.sidebar.number_input("Maximum Warehouse Capacity (Units)", min_value=1, value=100, step=10)
+
+# Operational Boundaries Section
+st.sidebar.subheader("🏭 Operational Boundaries") # Fix Poin 3: Menggunakan emoji warehouse/pabrik
+max_capacity = st.sidebar.number_input("Maximum Warehouse Capacity (Units)", min_value=1, value=100, step=10) # Fix Poin 4: Tetap
 
 
 # ==========================================
@@ -229,7 +233,7 @@ if df_workbench is not None and not df_workbench.empty:
         'Scheduled Receipts': sched_rec
     }, index=period_labels).T
     
-    df_edited_preview = st.data_editor(df_preview_transposed, use_container_width=True)
+    df_edited_preview = st.data_editor(df_edited_preview if 'df_edited_preview' in locals() else df_preview_transposed, use_container_width=True)
     gross_req = df_edited_preview.loc['Gross Requirements'].astype(int).tolist()
     sched_rec = df_edited_preview.loc['Scheduled Receipts'].astype(int).tolist()
 
@@ -439,7 +443,7 @@ if df_workbench is not None and not df_workbench.empty:
         if max(data_dict['poh']) > max_cap:
             st.error(f"⚠️ Capacity Boundary Overrun: Projected On Hand crosses terminal warehouse constraints ({max_cap} units).")
 
-    # FIX POIN 2: Removed massive st.latex blocks inside expanders to fix clipping. Used text-justified clean markdown templates.
+    # FIX POIN 5: Menghilangkan simbol mata uang ($) agar menyisakan angka murni saja
     def render_cost_audit_window(data_dict, setup_val, hold_val, rec_array, poh_array):
         order_count = sum(1 for x in rec_array if x > 0)
         sum_poh = sum(max(0, x) for x in poh_array)
@@ -450,21 +454,21 @@ if df_workbench is not None and not df_workbench.empty:
                 st.markdown(f"""<div class='text-justify'>
                 <b>Formula:</b><br>Orders Count &times; Unit Setup Cost<br><br>
                 <b>Calculation:</b><br>{order_count} &times; {setup_val:,.2f}<br><br>
-                <b>Total:</b> ${data_dict['setup']:,.2f}
+                <b>Total:</b> {data_dict['setup']:,.2f}
                 </div>""", unsafe_allow_html=True)
         with c2:
             with st.expander("📦 Holding Cost Detail"):
                 st.markdown(f"""<div class='text-justify'>
                 <b>Formula:</b><br>(&sum; Projected On Hand) &times; Holding Rate<br><br>
                 <b>Calculation:</b><br>{sum_poh} &times; {hold_val:,.2f}<br><br>
-                <b>Total:</b> ${data_dict['hold']:,.2f}
+                <b>Total:</b> {data_dict['hold']:,.2f}
                 </div>""", unsafe_allow_html=True)
         with c3:
             with st.expander("💰 Total Operational Cost"):
                 st.markdown(f"""<div class='text-justify'>
                 <b>Formula:</b><br>Setup Cost + Holding Cost<br><br>
                 <b>Calculation:</b><br>{data_dict['setup']:,.2f} + {data_dict['hold']:,.2f}<br><br>
-                <b>Total:</b> <b>${data_dict['total']:,.2f}</b>
+                <b>Total:</b> <b>{data_dict['total']:,.2f}</b>
                 </div>""", unsafe_allow_html=True)
 
 
@@ -487,7 +491,7 @@ if df_workbench is not None and not df_workbench.empty:
         render_mrp_grid_view(res['l4l'], max_capacity)
         render_cost_audit_window(res['l4l'], setup_cost, holding_cost, res['l4l']['rec'], res['l4l']['poh'])
 
-    # TAB 2: EOQ (FIX POIN 5: Condensed substitution steps into simplified clean direct lines)
+    # TAB 2: EOQ
     with t_eoq:
         st.subheader("Economic Order Quantity (EOQ) Optimization")
         
@@ -504,7 +508,6 @@ if df_workbench is not None and not df_workbench.empty:
             * Average Demand ($D$) = `{avg_demand_calc:.4f}` units/period
             """)
             
-            # Fix Poin 5: Cut intermediate math steps, direct substitution to output
             st.markdown("**2. Standard Square-Root Mathematical Equation Substitution:**")
             st.markdown(f"$$EOQ = \\sqrt{{\\frac{{2 \\times D \\times \\text{{Setup Cost}}}}{{\\text{{Holding Cost}}}}}}$$")
             st.markdown(f"$$EOQ = \\sqrt{{\\frac{{2 \\times {avg_demand_calc:.4f} \\times {setup_cost:,.2f}}}{{{holding_cost:,.2f}}}}}$$")
@@ -530,21 +533,25 @@ if df_workbench is not None and not df_workbench.empty:
         render_mrp_grid_view(res['luc'], max_capacity)
         render_cost_audit_window(res['luc'], setup_cost, holding_cost, res['luc']['rec'], res['luc']['poh'])
 
-    # TAB 4: PPB
+    # TAB 4: PPB (FIX POIN 1, 2, 6: Struktur perhitungan disusun menurun ke bawah dan bug string dibereskan)
     with t_ppb:
         st.subheader("Part Period Balancing (PPB) Dynamic Policy Grid")
         
-        with st.expander("🔬 CLICK HERE TO VIEW DETAILED FORMULA LOG CALCULATIONS (PPB)"):
+        with st.expander("🔬 CLICK HERE TO VIEW DETAILED FORMULA LOG CALCULATIONS (PPB)", expanded=True):
             st.markdown("#### 📝 Sizing Steps for PPB:")
             st.markdown("**1. Identify Operational Control Parameters:**")
             st.markdown(f"""
             * Setup Cost Value = `{setup_cost:,.2f}` | Holding Cost Value = `{holding_cost:,.2f}`
             """)
+            
+            # Fix Poin 6: Disusun berurutan ke bawah (Rumus -> Input -> Hasil Akhir), tidak ke samping
             st.markdown("**2. Calculate Balanced Economic Part Period (EPP) Target Limit Baseline:**")
             st.markdown(r"$$EPP = \frac{\text{Setup Cost}}{\text{Holding Cost}}$$")
-            st.markdown(f"$$EPP = \\frac{{{setup_cost:,.2f}}}{{{holding_cost:,.2f}}} = {res['ppb']['epp']:.4f} \\text{{ part-periods}}$$")
+            st.markdown(f"$$EPP = \\frac{{{setup_cost:,.2f}}}{{{holding_cost:,.2f}}}$$")
+            st.markdown(f"$$EPP = {res['ppb']['epp']:.4f} \\text{{ part-periods}}$$")
             
-        st.info(f"💡 **Part Period Matrix Target Status:** Dynamic search loops monitor operational records using an active EPP ceiling target coefficient value locked at **{res['ppb']['epp']:.4f part-periods}**.")
+        # Fix Poin 2: String formatting error fixed (`.4f` diletakkan terpisah dari teks biasa)
+        st.info(f"💡 **Part Period Matrix Target Status:** Dynamic search loops monitor operational records using an active EPP ceiling target coefficient value locked at **{res['ppb']['epp']:.4f}** part-periods.")
         
         st.markdown("##### Iteration Steps Trace:")
         fmt_ppb = {'Target EPP': '{:.2f}', 'Accumulated Part-Period': '{:.2f}', 'Setup Cost': '{:.2f}', 'Holding Cost': '{:.2f}', 'Total Cost': '{:.2f}'}
@@ -557,7 +564,7 @@ if df_workbench is not None and not df_workbench.empty:
 
 
     # ==========================================
-    # 6. GLOBAL PERFORMANCE MATRIX COMPARISON (FIX POIN 3 & 4)
+    # 6. GLOBAL PERFORMANCE MATRIX COMPARISON
     # ==========================================
     st.markdown("---")
     st.header("🏁 Strategic Portfolio Cost Summary Comparison Matrix")
@@ -572,7 +579,6 @@ if df_workbench is not None and not df_workbench.empty:
     
     m1, m2, m3, m4 = st.columns(4)
     
-    # Fix Poin 3: Reverted main numeric values back to a unified dark color profile, restricted red highlights to variance flags only.
     with m1:
         diff_l4l = res['l4l']['total'] - biaya_dict[best_method]
         sub_text = f"<div style='color: #d90429; font-size: 13px; font-weight: bold;'>⚠️ Inefficient by {diff_l4l:,.2f}</div>" if diff_l4l > 0 else "<div style='color: #2e7d32; font-size: 13px; font-weight: bold;'>🏆 Optimal Strategy</div>"
@@ -602,7 +608,7 @@ if df_workbench is not None and not df_workbench.empty:
                         <div style='font-size: 22px; font-weight: 700; color: #111111; margin-top: 4px;'>{res['ppb']['total']:,.2f}</div>
                         {sub_text}</div>""", unsafe_allow_html=True)
 
-    # Fix Poin 4: Enhanced Verdict block visibility with amplified styling and striking emoji components
+    # Verdict Banner
     st.markdown(f"""
     <div style="background-color: #e8f5e9; border: 2px solid #2e7d32; padding: 18px; border-radius: 8px; margin-top: 15px; text-align: center;">
         <span style="font-size: 20px;">👑</span> 
