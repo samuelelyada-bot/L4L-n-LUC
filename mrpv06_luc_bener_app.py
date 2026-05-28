@@ -6,11 +6,11 @@ import math
 import io
 
 # ==========================================
-# 1. PAGE CONFIGURATION & PREMIUM CSS INJECTION
+# 1. PAGE CONFIGURATION & ENTERPRISE CSS INJECTION
 # ==========================================
 st.set_page_config(page_title="NexusMRP Engine - Enterprise DSS", layout="wide")
 
-# Custom CSS for Deep Maroon Dominant Theme, Google Fonts, and Contrast Adjustments
+# Custom CSS for Deep Maroon Theme, Pastel Table Masking, and Structural Windows
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
@@ -20,7 +20,7 @@ st.markdown("""
         background-color: #faf8f2;
     }
     
-    /* Main Title and Header Aesthetics */
+    /* Main Content Headers */
     h1, h2, h3 {
         color: #6a0708 !important;
         font-weight: 700 !important;
@@ -34,31 +34,30 @@ st.markdown("""
     /* Sidebar Overhaul (Deep Maroon Dominant) */
     [data-testid="stSidebar"] {
         background-color: #6a0708 !important;
-        color: #faf8f2 !important;
-    }
-    [data-testid="stSidebar"] .stMarkdown p {
-        color: #f4efdc !important;
-    }
-    [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3, [data-testid="stSidebar"] h4 {
-        color: #faf8f2 !important;
-        border-bottom: 1px solid rgba(250, 248, 242, 0.2);
-        padding-bottom: 8px;
-        margin-top: 15px;
     }
     
-    /* CRITICAL FIX: Sidebar Widget Label Contrast (Forces white/cream instead of hidden black) */
-    [data-testid="stSidebar"] label {
+    /* CRITICAL FIX: Forces ALL labels, text paragraphs, and spans inside Sidebar to Cream/White */
+    [data-testid="stSidebar"] label,
+    [data-testid="stSidebar"] p,
+    [data-testid="stSidebar"] span,
+    [data-testid="stSidebar"] div {
         color: #faf8f2 !important;
         font-weight: 600 !important;
     }
     
-    /* Main Content Widget Label Color Adjustments */
+    /* Secondary small text inside sidebar inputs */
+    [data-testid="stSidebar"] p {
+        font-weight: 400 !important;
+        opacity: 0.9;
+    }
+    
+    /* Main Content Widget Labels */
     .stNumberInput label, .stRadio label {
         color: #111111 !important;
         font-weight: 600 !important;
     }
     
-    /* Primary Button Custom Styling */
+    /* Primary Action Buttons */
     .stButton>button {
         background-color: #6a0708 !important;
         color: #faf8f2 !important;
@@ -73,24 +72,31 @@ st.markdown("""
         box-shadow: 0px 4px 10px rgba(0,0,0,0.15);
     }
     
-    /* Metrics Custom Display Block */
-    .metric-container {
+    /* Unified Window Blocks (Equation & Breakdown Containers) */
+    .calculation-window {
         background-color: #f4efdc;
-        padding: 20px;
-        border-radius: 8px;
-        border-top: 5px solid #6a0708;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        margin-bottom: 15px;
+        border-left: 6px solid #6a0708;
+        padding: 22px;
+        border-radius: 6px;
+        margin-bottom: 25px;
+        color: #111111;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.04);
     }
     
-    /* Custom Info Box */
-    .info-box {
+    .window-text-justify {
+        text-align: justify;
+        line-height: 1.6;
+        margin-bottom: 12px;
+    }
+    
+    /* Operational Breakdown KPI Display Cards */
+    .kpi-card {
         background-color: #f4efdc;
-        border-left: 5px solid #6a0708;
-        padding: 20px;
-        border-radius: 4px;
-        margin-bottom: 20px;
-        color: #111111;
+        padding: 18px;
+        border-radius: 6px;
+        border-top: 4px solid #6a0708;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.04);
+        margin-bottom: 15px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -100,7 +106,44 @@ st.caption("Advanced Material Requirements Planning Multi-Method Optimization Pl
 st.markdown("---")
 
 # ==========================================
-# 2. SIDEBAR - PARAMETER CONFIGURATION (STRUCTURED WITH SHIFTED CONTRAST)
+# 2. GLOSSARY SECTION (SHIFTED TO THE VERY TOP — 4 MODULAR EXPANDERS)
+# ==========================================
+st.subheader("📚 System Reference Manual & Knowledge Base Glossary")
+g_col1, g_col2, g_col3, g_col4 = st.columns(4)
+
+with g_col1:
+    with st.expander("📋 1. Lot-for-Lot (L4L)", expanded=False):
+        st.markdown("""<div class='window-text-justify'>
+        <b>Concept:</b> Orders exact absolute volume constraints matching discrete net periods instantly.<br><br>
+        <b>Equation Paradigm:</b><br>$Lot(t) = Net\\_Requirement(t)$<br><br>
+        <b>Advantage Strategy:</b> Drives inventory carrying charge factors down to bare absolute minimum zero points.
+        </div>""", unsafe_allow_html=True)
+
+with g_col2:
+    with st.expander("🎯 2. Economic Order Quantity (EOQ)", expanded=False):
+        st.markdown("""<div class='window-text-justify'>
+        <b>Concept:</b> Establishes fixed structural sizing boundaries balancing average annualized production cycles perfectly.<br><br>
+        <b>Advantage Strategy:</b> Provides high asset utilization efficiency when multi-period gross profiles maintain linear predictability constants.
+        </div>""", unsafe_allow_html=True)
+
+with g_col3:
+    with st.expander("🔍 3. Least Unit Cost (LUC)", expanded=False):
+        st.markdown("""<div class='window-text-justify'>
+        <b>Concept:</b> Sequential search algorithm aggregating horizons continuously until individual unit cost optimization points break trends.<br><br>
+        <b>Advantage Strategy:</b> Minimizes cost variations by tracking specific trial horizons dynamically.
+        </div>""", unsafe_allow_html=True)
+
+with g_col4:
+    with st.expander("⚖️ 4. Part Period Balancing (PPB)", expanded=False):
+        st.markdown("""<div class='window-text-justify'>
+        <b>Concept:</b> Equates carrying charges against setup factors looking for optimal look-ahead closest-distance convergence coordinates.<br><br>
+        <b>Advantage Strategy:</b> Achieves exceptional balancing precision across heavily spiked discrete parameter inputs.
+        </div>""", unsafe_allow_html=True)
+
+st.markdown("---")
+
+# ==========================================
+# 3. SIDEBAR PARAMETER SELECTION
 # ==========================================
 st.sidebar.header("⚙️ Control Dashboard")
 
@@ -118,8 +161,9 @@ st.sidebar.markdown("<br>", unsafe_allow_html=True)
 st.sidebar.subheader("Operational Boundaries")
 max_capacity = st.sidebar.number_input("Maximum Warehouse Capacity (Units)", min_value=1, value=100, step=10)
 
+
 # ==========================================
-# UTILITY STYLING FUNCTIONS (FIXED ROW SHAPE SHAPE ERROR)
+# UTILITY HELPER & PASTEL MASKING FUNCTIONS
 # ==========================================
 def find_matching_column(columns, targets):
     for col in columns:
@@ -131,23 +175,26 @@ def find_matching_column(columns, targets):
 def style_mrp_grid(df_transposed, max_cap):
     def check_capacity(row):
         if row.name == 'Projected On Hand':
-            return ['background-color: #f3c68f; color: #6a0708; font-weight: bold;' if val > max_cap else '' for val in row]
+            return ['background-color: #ffe0b2; color: #6a0708; font-weight: bold;' if val > max_cap else '' for val in row]
         return [''] * len(row)
     return df_transposed.style.apply(check_capacity, axis=1)
 
-# FIXED: Replaced unsafe 1D axis=None DataFrame constructor with explicit element-by-element row index generation mask
+# FIXED: Re-engineered with ultra-soft pastel transparencies for extreme clarity
 def style_iteration_rows(df_step):
     style_matrix = pd.DataFrame('', index=df_step.index, columns=df_step.columns)
     for idx, row in df_step.iterrows():
         status_str = str(row['Status'])
         if "Stop" in status_str:
-            style_matrix.loc[idx] = 'background-color: #ff4d4d; color: black; font-weight: bold;'
+            # Ultra-soft pastel pink/red transparency
+            style_matrix.loc[idx] = 'background-color: #ffebee; color: #c62828; font-weight: bold;'
         elif "Selected" in status_str or "Horizon End" in status_str:
-            style_matrix.loc[idx] = 'background-color: #c8e6c9; color: black; font-weight: bold;'
+            # Ultra-soft pastel light green transparency
+            style_matrix.loc[idx] = 'background-color: #e8f5e9; color: #2e7d32; font-weight: bold;'
     return style_matrix
 
+
 # ==========================================
-# 3. DATA ACQUISITION & WORKBENCH DATA EDITOR
+# 4. DATA ACQUISITION & WORKBENCH EDITOR
 # ==========================================
 st.subheader("📊 Requirements & Inbound Supply Workbench")
 
@@ -180,7 +227,7 @@ if input_method == "Upload External File (Excel / CSV)":
             if col_gr and col_gr in df_raw.columns:
                 df_workbench['Gross Requirements'] = df_raw[col_gr].fillna(0).astype(int)
             else:
-                st.error("❌ Data Engine Error: Gross Requirements (GR) attribute could not be mapped automatically from file columns.")
+                st.error("❌ Data Engine Error: Gross Requirements (GR) attribute could not be mapped automatically.")
                 
             if col_sr and col_sr in df_raw.columns:
                 df_workbench['Scheduled Receipts'] = df_raw[col_sr].fillna(0).astype(int)
@@ -408,11 +455,10 @@ if df_workbench is not None and not df_workbench.empty:
             'ppb': {'poh': ppb_poh, 'rec': ppb_rec, 'rel': ppb_rel, 'setup': c_ppb_setup, 'hold': c_ppb_hold, 'total': c_ppb_setup + c_ppb_hold, 'iters': ppb_trace_logs, 'epp': epp_limit}
         }
 
-    # Run Multi-Method Optimization Core
+    # Run Calculations Engine
     res = calculate_multi_mrp(gross_req, sched_rec, setup_cost, holding_cost, initial_inv, safety_stock, lead_time)
     num_periods = len(gross_req)
 
-    # REUSABLE MRP GRID DISPLAY COMPONENT
     def render_mrp_grid_view(data_dict, max_cap):
         df = pd.DataFrame({
             'Gross Requirements': gross_req,
@@ -426,34 +472,36 @@ if df_workbench is not None and not df_workbench.empty:
         if max(data_dict['poh']) > max_cap:
             st.error(f"⚠️ Operational Capacity Violation: Projected On-Hand exceeds maximum asset constraint threshold ({max_cap} units).")
 
-    # REUSABLE AUDIT COST AUDITING WINDOW BLOCK
+    # FIXED CHRONOLOGY: Display calculations first, then wrap operational costs in a clean window container at the bottom
     def render_cost_audit_window(data_dict, setup_val, hold_val, rec_array, poh_array):
         order_count = sum(1 for x in rec_array if x > 0)
         sum_poh = sum(max(0, x) for x in poh_array)
         
-        st.markdown("#### 🛠️ Operational Cost Breakdown Window")
+        st.markdown("<br><h5>💰 Operational Strategy Financial Breakdown</h5>", unsafe_allow_html=True)
+        st.markdown("<div class='calculation-window'>", unsafe_allow_html=True)
         c1, c2, c3 = st.columns(3)
         with c1:
-            st.markdown(f"""<div class='metric-container'>
-                <h5>Total Setup Cost</h5>
-                <h2>{data_dict['setup']:.2f}</h2>
-                <p style='color:#555;'>Calculation Formula:<br>{order_count} Orders × {setup_val:,.2f}</p>
+            st.markdown(f"""<div class='kpi-card'>
+                <h6>Total Setup Cost</h6>
+                <h3>{data_dict['setup']:,.2f}</h3>
+                <p style='color:#555; font-size:12px;'>Formula:<br>{order_count} Orders × {setup_val:,.2f}</p>
             </div>""", unsafe_allow_html=True)
         with c2:
-            st.markdown(f"""<div class='metric-container'>
-                <h5>Total Holding Cost</h5>
-                <h2>{data_dict['hold']:.2f}</h2>
-                <p style='color:#555;'>Calculation Formula:<br>{sum_poh} Accumulated Units × {hold_val:,.2f}</p>
+            st.markdown(f"""<div class='kpi-card'>
+                <h6>Total Holding Cost</h6>
+                <h3>{data_dict['hold']:,.2f}</h3>
+                <p style='color:#555; font-size:12px;'>Formula:<br>{sum_poh} Accumulated Units × {hold_val:,.2f}</p>
             </div>""", unsafe_allow_html=True)
         with c3:
-            st.markdown(f"""<div class='metric-container'>
-                <h5>Total Operational Cost</h5>
-                <h2 style='color: #6a0708;'>{data_dict['total']:.2f}</h2>
-                <p style='color:#555;'>Sum Balance Structure:<br>Setup Cost + Holding Cost Summary</p>
+            st.markdown(f"""<div class='kpi-card'>
+                <h6>Total Operational Strategy Cost</h6>
+                <h3 style='color: #6a0708;'>{data_dict['total']:,.2f}</h3>
+                <p style='color:#555; font-size:12px;'>Sum Matrix:<br>Setup Cost + Holding Cost Summary</p>
             </div>""", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
     # ==========================================
-    # 4. METHOD LOGISTICS ENGINE ANALYSIS WORKBENCH TABS
+    # 5. METHODS EXECUTION TABS
     # ==========================================
     st.markdown("---")
     st.subheader("⚙️ Localized Sizing Heuristics Execution Modules")
@@ -465,199 +513,188 @@ if df_workbench is not None and not df_workbench.empty:
         "⚖️ Part Period Balancing (PPB)"
     ])
 
-    # TAB 1: LOT-FOR-LOT (Strict Sequence: Grid -> Final Cost Window)
+    # TAB 1: LOT-FOR-LOT
     with t_l4l:
         st.subheader("Lot-for-Lot (L4L) Master Execution Matrix")
         render_mrp_grid_view(res['l4l'], max_capacity)
         render_cost_audit_window(res['l4l'], setup_cost, holding_cost, res['l4l']['rec'], res['l4l']['poh'])
 
-    # TAB 2: EOQ (Strict Sequence: Formulation Window -> Grid -> Final Cost Window)
+    # TAB 2: EOQ (FIXED TO DOWNWARD FLOW, RATA KANAN-KIRI, WRAPPED IN 1 WINDOW)
     with t_eoq:
         st.subheader("Economic Order Quantity (EOQ) Sizing Optimization")
         
-        st.markdown("#### 📝 Fixed Sizing Optimization Formulation Equation Window")
         avg_d_calc = res['eoq']['avg_demand_gross']
         val_top = 2 * avg_d_calc * setup_cost
         val_div = val_top / holding_cost
         eoq_raw_val = math.sqrt(val_div)
         
-        # CRITICAL FIX: Separated LaTeX strings cleanly from raw HTML blocks to guarantee clean execution
-        st.markdown("<div class='info-box'><b>Step 1: Compute Average Demand Gross Per Period (D)</b>", unsafe_allow_html=True)
+        st.markdown("#### 📝 Sizing Optimization Formulation Equation Window")
+        st.markdown("<div class='calculation-window'>", unsafe_allow_html=True)
+        
+        st.markdown("<div class='window-text-justify'><b>Step 1: Compute Average Demand Gross Per Period (D)</b><br>"
+                    "The framework aggregates all requirements split across active planning windows divided by horizon metrics to locate linear trends.</div>", unsafe_allow_html=True)
         st.latex(r"D = \frac{\sum \text{Gross Requirements}}{n} = \frac{" + str(sum(gross_req)) + "}{" + str(num_periods) + r"} = " + f"{avg_d_calc:.4f}" + r"\text{ Units/Period}")
         
-        st.markdown("<b>Step 2: Apply Classical Square-Root Sizing Mathematical Equation</b>", unsafe_allow_html=True)
+        st.markdown("<div class='window-text-justify'><b>Step 2: Apply Classical Square-Root Sizing Mathematical Equation</b><br>"
+                    "This calculates the absolute mathematical cross-over equilibrium balancing point where ordering cost matches structural carrying charges.</div>", unsafe_allow_html=True)
         st.latex(r"EOQ = \sqrt{\frac{2 \times D \times \text{Setup Cost}}{\text{Holding Cost}}} = \sqrt{\frac{2 \times " + f"{avg_d_calc:.4f}" + r"\times " + f"{setup_cost:.2f}" + "}{" + f"{holding_cost:.2f}" + r" }}")
         st.latex(r"EOQ = \sqrt{" + f"{val_div:.4f}" + r"} = " + f"{eoq_raw_val:.4f}" + r"\text{ Units}")
         
-        st.markdown(f"<b>Step 3: Discrete Upper Integer Ceiling Bound Rounding</b><br>Discrete Lot Factor Quantity Constraint Locked Value = <b>{res['eoq']['size']} Units</b> per Order Placement.</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='window-text-justify'><b>Step 3: Discrete Upper Integer Ceiling Bound Rounding</b><br>"
+                    f"Because inventory quantities cannot be processed fractionally, an upper ceiling bound locking sequence is deployed. "
+                    f"Discrete Lot Factor Quantity Constraint Locked Value = <b>{res['eoq']['size']} Units</b> per Order Placement.</div>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
         
         render_mrp_grid_view(res['eoq'], max_capacity)
         render_cost_audit_window(res['eoq'], setup_cost, holding_cost, res['eoq']['rec'], res['eoq']['poh'])
 
-    # TAB 3: LUC (Strict Sequence: Iteration Traces -> Grid -> Final Cost Window)
+    # TAB 3: LUC (FIXED PASTEL COLOR MASKING)
     with t_luc:
         st.subheader("Least Unit Cost (LUC) Iterative Sizing Matrix")
-        
         st.markdown("#### 🔬 Dynamic Lot Compilation Optimization Processing Steps")
+        
         fmt_luc = {'Setup Cost': '{:.2f}', 'Holding Cost': '{:.2f}', 'Total Cost': '{:.2f}', 'Unit Cost': '{:.4f}'}
         for step_idx, df_step in enumerate(res['luc']['iters']):
             with st.expander(f"Step Block {step_idx + 1} — Lot Consolidation Initialization Trace Window", expanded=True):
-                # FIX: Calling row style matrix matching strict df dimensions perfectly
                 st.dataframe(df_step.style.apply(style_iteration_rows, axis=None).format(fmt_luc), hide_index=True, use_container_width=True)
                 
         render_mrp_grid_view(res['luc'], max_capacity)
         render_cost_audit_window(res['luc'], setup_cost, holding_cost, res['luc']['rec'], res['luc']['poh'])
 
-    # TAB 4: PPB (Strict Sequence: EPP Formula Window -> Iteration Traces -> Grid -> Final Cost Window)
+    # TAB 4: PPB (FIXED TO DOWNWARD FLOW, RATA KANAN-KIRI, WRAPPED IN 1 WINDOW)
     with t_ppb:
         st.subheader("Part Period Balancing (PPB) Dynamic Policy Execution Grid")
         
         st.markdown("#### ⚖️ Economic Part Period (EPP) Target Metric Identification Window")
-        st.markdown("<div class='info-box'><b>Step 1: Compute Target Balanced EPP Baseline Limit</b>", unsafe_allow_html=True)
+        st.markdown("<div class='calculation-window'>", unsafe_allow_html=True)
+        st.markdown("<div class='window-text-justify'><b>Step 1: Compute Target Balanced EPP Baseline Limit</b><br>"
+                    "The system calculates the exact equilibrium threshold coefficient where the financial strain of holding one stock unit across one period perfectly balances single setup expenses.</div>", unsafe_allow_html=True)
         st.latex(r"EPP = \frac{\text{Setup Cost}}{\text{Holding Cost}} = \frac{" + f"{setup_cost:.2f}" + "}{" + f"{holding_cost:.2f}" + r"} = " + f"{res['ppb']['epp']:.4f}" + r"\text{ Part-Periods}")
-        st.markdown("""<br><i>Operational Logic Insight Documentation Warning Tooltip:</i> The EPP threshold is <b>NOT</b> an operational ceiling cap restriction regarding total allowable unit delivery dimensions. 
-            It represents the exact mathematical cross-over equilibrium target where total accumulated storage carry charges perfectly match fixed production setup overhead costs.</div>""", unsafe_allow_html=True)
+        st.markdown("<div class='window-text-justify'><i>Operational Logic Insight:</i> The EPP coefficient is used as a cumulative benchmark reference scale. "
+                    "Horizons are clustered continuously as long as the trial part-period sum closely balances out this target.</div>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
         
         st.markdown("#### 🔬 Balanced Horizon Iterative Search Traces Execution Stream")
-        fmt_ppb = {'Target EPP': '{:.2f}', 'Accumulated Part-Period': '{:.2f}', 'Setup Cost': '{:.2f}', 'Holding Cost': '{:.2f}', 'Total Cost': '{:.2f}'}
+        fmt_ppb = {'Target EPP': '{:.2f}', 'Accumulated Part-Period': '{:.2f}'}
         for step_idx, df_step in enumerate(res['ppb']['iters']):
             with st.expander(f"Step Block {step_idx + 1} — Part Period Equating Calibration Trace Window", expanded=True):
-                # FIX: Calling row style matrix matching strict df dimensions perfectly
                 st.dataframe(df_step.style.apply(style_iteration_rows, axis=None).format(fmt_ppb), hide_index=True, use_container_width=True)
                 
         render_mrp_grid_view(res['ppb'], max_capacity)
         render_cost_audit_window(res['ppb'], setup_cost, holding_cost, res['ppb']['rec'], res['ppb']['poh'])
 
+
     # ==========================================
-    # 5. GLOBAL PERFORMANCE COMPARISON MATRIX (SHIFTED TO BOTTOM)
+    # 6. GLOBAL PERFORMANCE MATRIX COMPARISON
     # ==========================================
     st.markdown("---")
     st.header("🏁 Global Portfolio Performance Matrix Comparison")
     
     biaya_dict = {
-        'Lot-for-Lot (L4L)': res['l4l']['total'], 
-        'Least Unit Cost (LUC)': res['luc']['total'], 
-        'Economic Order Quantity (EOQ)': res['eoq']['total'], 
-        'Part Period Balancing (PPB)': res['ppb']['total']
+        'L4L': res['l4l']['total'], 
+        'LUC': res['luc']['total'], 
+        'EOQ': res['eoq']['total'], 
+        'PPB': res['ppb']['total']
     }
     best_method = min(biaya_dict, key=biaya_dict.get)
     
     m1, m2, m3, m4 = st.columns(4)
     with m1:
         diff_l4l = res['l4l']['total'] - biaya_dict[best_method]
-        sub_text = f"<div style='color: #ff4d4d; font-size: 13px; font-weight: bold;'>+{diff_l4l:,.2f} Penalty Variance</div>" if diff_l4l > 0 else "<div style='color: #2a7b4c; font-size: 13px; font-weight: bold;'>🏆 Optimal Minimum Strategy</div>"
+        sub_text = f"<div style='color: #c62828; font-size: 13px; font-weight: bold;'>+{diff_l4l:,.2f} Variance</div>" if diff_l4l > 0 else "<div style='color: #2e7d32; font-size: 13px; font-weight: bold;'>🏆 Optimal Minimum Strategy</div>"
         st.markdown(f"""<div style='background-color: #f4efdc; padding: 16px; border-radius: 8px; border-left: 5px solid #6a0708;'>
                         <div style='color: #333; font-size: 13px; font-weight: 600;'>Total Cost L4L</div>
                         <div style='font-size: 22px; font-weight: 700; color: #111; margin-top: 4px;'>{res['l4l']['total']:,.2f}</div>
                         {sub_text}</div>""", unsafe_allow_html=True)
     with m2:
         diff_luc = res['luc']['total'] - biaya_dict[best_method]
-        sub_text = f"<div style='color: #ff4d4d; font-size: 13px; font-weight: bold;'>+{diff_luc:,.2f} Penalty Variance</div>" if diff_luc > 0 else "<div style='color: #2a7b4c; font-size: 13px; font-weight: bold;'>🏆 Optimal Minimum Strategy</div>"
+        sub_text = f"<div style='color: #c62828; font-size: 13px; font-weight: bold;'>+{diff_luc:,.2f} Variance</div>" if diff_luc > 0 else "<div style='color: #2e7d32; font-size: 13px; font-weight: bold;'>🏆 Optimal Minimum Strategy</div>"
         st.markdown(f"""<div style='background-color: #f4efdc; padding: 16px; border-radius: 8px; border-left: 5px solid #6a0708;'>
                         <div style='color: #333; font-size: 13px; font-weight: 600;'>Total Cost LUC</div>
                         <div style='font-size: 22px; font-weight: 700; color: #111; margin-top: 4px;'>{res['luc']['total']:,.2f}</div>
                         {sub_text}</div>""", unsafe_allow_html=True)
     with m3:
         diff_eoq = res['eoq']['total'] - biaya_dict[best_method]
-        sub_text = f"<div style='color: #ff4d4d; font-size: 13px; font-weight: bold;'>+{diff_eoq:,.2f} Penalty Variance</div>" if diff_eoq > 0 else "<div style='color: #2a7b4c; font-size: 13px; font-weight: bold;'>🏆 Optimal Minimum Strategy</div>"
+        sub_text = f"<div style='color: #c62828; font-size: 13px; font-weight: bold;'>+{diff_eoq:,.2f} Variance</div>" if diff_eoq > 0 else "<div style='color: #2e7d32; font-size: 13px; font-weight: bold;'>🏆 Optimal Minimum Strategy</div>"
         st.markdown(f"""<div style='background-color: #f4efdc; padding: 16px; border-radius: 8px; border-left: 5px solid #6a0708;'>
                         <div style='color: #333; font-size: 13px; font-weight: 600;'>Total Cost EOQ</div>
                         <div style='font-size: 22px; font-weight: 700; color: #111; margin-top: 4px;'>{res['eoq']['total']:,.2f}</div>
                         {sub_text}</div>""", unsafe_allow_html=True)
     with m4:
         diff_ppb = res['ppb']['total'] - biaya_dict[best_method]
-        sub_text = f"<div style='color: #ff4d4d; font-size: 13px; font-weight: bold;'>+{diff_ppb:,.2f} Penalty Variance</div>" if diff_ppb > 0 else "<div style='color: #2a7b4c; font-size: 13px; font-weight: bold;'>🏆 Optimal Minimum Strategy</div>"
+        sub_text = f"<div style='color: #c62828; font-size: 13px; font-weight: bold;'>+{diff_ppb:,.2f} Variance</div>" if diff_ppb > 0 else "<div style='color: #2e7d32; font-size: 13px; font-weight: bold;'>🏆 Optimal Minimum Strategy</div>"
         st.markdown(f"""<div style='background-color: #f4efdc; padding: 16px; border-radius: 8px; border-left: 5px solid #6a0708;'>
                         <div style='color: #333; font-size: 13px; font-weight: 600;'>Total Cost PPB</div>
                         <div style='font-size: 22px; font-weight: 700; color: #111; margin-top: 4px;'>{res['ppb']['total']:,.2f}</div>
                         {sub_text}</div>""", unsafe_allow_html=True)
 
-    st.success(f"🏆 Recommendation Algorithm Verdict: Deploy **{best_method}** pipeline system configuration rules to minimize resource footprint.")
+    st.success(f"🏆 Recommendation Verdict: Deploy **{best_method}** strategy to minimize structural inventory expenditures.")
+
 
     # ==========================================
-    # 6. SENSITIVITY GRAPHS PANEL (SHIFTED TO BOTTOM)
+    # 7. VISUALIZATION ENGINE - REVISED GRAPHS (LABELS FIXED)
     # ==========================================
     st.markdown("---")
     st.subheader("📉 Advanced Parametric Demand Stress Testing Sensitivity Analysis")
     
     cg1, cg2 = st.columns(2)
     with cg1:
-        st.markdown("##### Strategy Variance Absolute Totals Comparison Profile")
+        st.markdown("##### Strategy Cost Comparison Profile")
         fig, ax = plt.subplots(figsize=(7, 4.2))
         fig.patch.set_facecolor('#faf8f2')
         ax.set_facecolor('#faf8f2')
         
+        # CHANGED: Clean short names, straight text, with clear Axis Labels
         ax.bar(biaya_dict.keys(), biaya_dict.values(), color=['#444444', '#6a0708', '#e65c00', '#2a7b4c'], width=0.45)
-        ax.set_ylabel('Aggregated Cost Base (No Currency Unit Label)', color='#111', fontsize=10, fontweight='bold')
+        ax.set_title("Comparison of Lot Sizing Methods", fontsize=11, fontweight='bold', color='#6a0708', pad=12)
+        ax.set_xlabel('Lot Sizing Strategy', color='#111', fontsize=9, fontweight='bold')
+        ax.set_ylabel('Total Cost', color='#111', fontsize=9, fontweight='bold')
         ax.grid(axis='y', linestyle=':', alpha=0.6)
-        plt.xticks(rotation=12, ha='right', fontsize=9)
         st.pyplot(fig)
         
     with cg2:
-        st.markdown("##### Boundary Sensitivity Shocks Vector Curve (-30% to +30%)")
-        scale_factors = np.arange(0.70, 1.35, 0.05) # Strictly bounded with discrete 5% steps
+        st.markdown("##### Dynamic Boundary Risk Stress Profile")
+        
+        # FIXED CRITICAL BOUNDARY: Scaled exactly from -30% to +30% to stay perfectly inside the designated threshold
+        scale_factors = np.arange(0.70, 1.35, 0.05) 
         s_l4l, s_luc, s_eoq, s_ppb, labels_pct = [], [], [], [], []
         
         for f in scale_factors:
+            pct_val = int(round((f - 1) * 100))
+            if pct_val > 30: # Hard stop constraint filter to remove any leak to +35%
+                continue
             sim_demand = [max(1, int(d * f)) for d in gross_req]
             s_res = calculate_multi_mrp(sim_demand, sched_rec, setup_cost, holding_cost, initial_inv, safety_stock, lead_time)
             s_l4l.append(s_res['l4l']['total'])
             s_luc.append(s_res['luc']['total'])
             s_eoq.append(s_res['eoq']['total'])
             s_ppb.append(s_res['ppb']['total'])
-            labels_pct.append(f"{int(round((f-1)*100)):+}%")
+            labels_pct.append(f"{pct_val:+}%")
         
         fig2, ax2 = plt.subplots(figsize=(7, 4.2))
         fig2.patch.set_facecolor('#faf8f2')
         ax2.set_facecolor('#faf8f2')
         
-        ax2.plot(labels_pct, s_l4l, marker='o', label='L4L Strategy Profile', color='#444444', linewidth=2)
-        ax2.plot(labels_pct, s_luc, marker='s', label='LUC Engine Curve', color='#6a0708', linewidth=2)
-        ax2.plot(labels_pct, s_eoq, marker='^', label='EOQ Constant Baseline', color='#e65c00', linewidth=2)
-        ax2.plot(labels_pct, s_ppb, marker='x', label='PPB Balanced Pathway', color='#2a7b4c', linewidth=2)
+        # CHANGED: Cleaned Legends and translated axes cleanly
+        ax2.plot(labels_pct, s_l4l, marker='o', label='L4L', color='#444444', linewidth=2)
+        ax2.plot(labels_pct, s_luc, marker='s', label='LUC', color='#6a0708', linewidth=2)
+        ax2.plot(labels_pct, s_eoq, marker='^', label='EOQ', color='#e65c00', linewidth=2)
+        ax2.plot(labels_pct, s_ppb, marker='x', label='PPB', color='#2a7b4c', linewidth=2)
         
-        ax2.set_ylabel('Simulated Combined Cost Outflows', color='#111', fontsize=10, fontweight='bold')
-        ax2.set_xlabel('Parametric Demand Variance Vector Shift', color='#111', fontsize=10, fontweight='bold')
+        ax2.set_title("Demand Change Sensitivity Chart", fontsize=11, fontweight='bold', color='#6a0708', pad=12)
+        ax2.set_ylabel('Simulated Total Incurred Cost', color='#111', fontsize=9, fontweight='bold')
+        ax2.set_xlabel('Customer Demand Change Sensitivity', color='#111', fontsize=9, fontweight='bold')
         ax2.grid(True, linestyle=':', alpha=0.6)
-        ax2.legend(facecolor='#faf8f2')
+        ax2.legend(facecolor='#faf8f2', fontsize=9)
         plt.xticks(rotation=30)
         st.pyplot(fig2)
 
     # ==========================================
-    # 7. SEPARATED KNOWLEDGE BASE GLOSSARY (ISOLATED AT THE VERY BOTTOM)
-    # ==========================================
-    st.markdown("---")
-    st.subheader("📚 System Reference Manual & Knowledge Base Glossary")
-    with st.expander("ℹ️ Click to review standard operational logic and formulas for all lot sizing methods", expanded=False):
-        col_h1, col_h2 = st.columns(2)
-        with col_h1:
-            st.markdown("""
-            **1. Lot-for-Lot (L4L)**
-            * **Concept:** Orders exact absolute volume constraints matching discrete net periods instantly.
-            * **Equation Paradigm:** $Lot(t) = Net\\_Requirement(t)$
-            * **Advantage Strategy:** Drives carrying charge factors down to bare absolute minimum zero points.
-            
-            **2. Economic Order Quantity (EOQ)**
-            * **Concept:** Establishes fixed structural sizing boundaries balancing average annualized cycles perfectly.
-            * **Advantage Strategy:** High deployment asset efficiency rules when multi-period gross profiles maintain linear predictability constants.
-            """)
-        with col_h2:
-            st.markdown("""
-            **3. Least Unit Cost (LUC)**
-            * **Concept:** Sequential search algorithm aggregating horizons continuously until individual unit cost optimization points break trends.
-            * **Advantage Strategy:** Eliminates erratic inventory build-up variations dynamically.
-            
-            **4. Part Period Balancing (PPB)**
-            * **Concept:** Equates carrying charges against setup factors looking for optimal look-ahead closest-distance convergence coordinates.
-            * **Advantage Strategy:** Achieves extreme system balancing precision across heavily spiked discrete parameter inputs.
-            """)
-
-    # ==========================================
-    # 8. SECURE DATA EXPORT MANAGEMENT HUB
+    # 8. DATA EXPORT DISPATCH DESK
     # ==========================================
     buffer = io.BytesIO()
     with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-        pd.DataFrame({'Gross Requirements': gross_req, 'Scheduled Receipts': sched_rec, 'Net Requirements': res['net_req']}, index=[f"P{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="Input Baseline Framework")
+        pd.DataFrame({'Gross Requirements': gross_req, 'Scheduled Receipts': sched_rec, 'Net Requirements': res['net_req']}, index=[f"P{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="Baseline Framework")
         pd.DataFrame({'Projected On Hand': res['l4l']['poh'], 'Planned Order Receipts': res['l4l']['rec'], 'Planned Order Releases': res['l4l']['rel']}, index=[f"P{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="L4L Plan")
         pd.DataFrame({'Projected On Hand': res['luc']['poh'], 'Planned Order Receipts': res['luc']['rec'], 'Planned Order Releases': res['luc']['rel']}, index=[f"P{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="LUC Plan")
         pd.DataFrame({'Projected On Hand': res['eoq']['poh'], 'Planned Order Receipts': res['eoq']['rec'], 'Planned Order Releases': res['eoq']['rel']}, index=[f"P{i+1}" for i in range(num_periods)]).T.to_excel(writer, sheet_name="EOQ Plan")
