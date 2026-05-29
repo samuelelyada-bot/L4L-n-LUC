@@ -657,7 +657,7 @@ if df_workbench is not None and not df_workbench.empty:
     """, unsafe_allow_html=True)
 
 
-# ==========================================
+    # ==========================================
     # 7. GRAPH VISUALIZATION
     # ==========================================
     st.markdown("---")
@@ -710,11 +710,11 @@ if df_workbench is not None and not df_workbench.empty:
         st.pyplot(fig2)
 
     # ==========================================
-    # 8. REPORT EXPORT WORKBENCH (PERBAIKAN POSISI)
+    # 8. REPORT EXPORT WORKBENCH
     # ==========================================
     st.markdown("---")
     
-    # Bungkus proses penulisan Excel ke dalam buffer memori
+    # Proses export data ke Excel via buffer memori
     buffer = io.BytesIO()
     with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
         pd.DataFrame({'Gross Requirements': gross_req, 'Scheduled Receipts': sched_rec, 'Net Requirements': res['net_req']}, index=period_labels).T.to_excel(writer, sheet_name="Baseline Framework")
@@ -725,7 +725,17 @@ if df_workbench is not None and not df_workbench.empty:
     
     buffer.seek(0)
     
-    # Gunakan layout kolom untuk memosisikan tombol unduh agar terlihat rapi di halaman utama
+    # Injeksi CSS Custom untuk mengubah teks tombol menjadi TEBAL dan MERAH
+    st.markdown("""
+        <style>
+        div.stDownloadButton > button p {
+            color: #d90429 !important;
+            font-weight: bold !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+    
+    # Layout kolom tengah agar posisi tombol simetris rata tengah di bawah grafik
     btn_col1, btn_col2, btn_col3 = st.columns([1, 2, 1])
     with btn_col2:
         st.download_button(
@@ -733,7 +743,7 @@ if df_workbench is not None and not df_workbench.empty:
             data=buffer, 
             file_name="MRP_Lot_Sizing_Report.xlsx", 
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True # Membuat tombol melebar proporsional mengikuti kolom tengah
+            use_container_width=True 
         )
 else:
     st.info("Please initialize input values or upload transaction vectors to run calculation routines.")
