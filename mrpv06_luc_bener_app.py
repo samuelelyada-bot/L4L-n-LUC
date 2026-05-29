@@ -67,7 +67,7 @@ st.markdown("---")
 
 
 # ==========================================
-# 2. GLOSSARY SECTION
+# 2. GLOSSARY SECTION (EXTENDED TO 8 METHODS)
 # ==========================================
 st.subheader("📚 Glossary")
 g_col1, g_col2, g_col3, g_col4 = st.columns(4)
@@ -78,12 +78,22 @@ with g_col1:
         <b>Concept:</b> Orders inventory sizes matching exact net requirement constraints per discrete period.<br><br>
         <b>Function:</b> Minimizes holding values straight to a zero-point baseline.
         </div>""", unsafe_allow_html=True)
+    with st.expander("🚀 5. Silver-Meal (SM)", expanded=False):
+        st.markdown("""<div class='text-justify'>
+        <b>Concept:</b> Forward-looking heuristic that minimizes average total cost per period by incrementally adding future demands.<br><br>
+        <b>Function:</b> Excellent for highly volatile or variable dynamic demand patterns.
+        </div>""", unsafe_allow_html=True)
 
 with g_col2:
     with st.expander("🎯 2. Economic Order Quantity (EOQ)", expanded=False):
         st.markdown("""<div class='text-justify'>
         <b>Concept:</b> Establishes a fixed structural lot sizing standard to find an equilibrium balance between ordering and holding profiles.<br><br>
         <b>Function:</b> Maximizes cost efficiencies when cross-horizon operational demands remain linear and highly predictable.
+        </div>""", unsafe_allow_html=True)
+    with st.expander("⏱️ 6. Period Order Quantity (POQ)", expanded=False):
+        st.markdown("""<div class='text-justify'>
+        <b>Concept:</b> Converts classical EOQ lot intervals into a time-based coverage integer using average demand rates.<br><br>
+        <b>Function:</b> Reduces multi-period holding spikes by stabilizing batch ordering frequencies.
         </div>""", unsafe_allow_html=True)
 
 with g_col3:
@@ -92,12 +102,22 @@ with g_col3:
         <b>Concept:</b> Iterative search routine that aggregates upcoming period blocks until the calculated total cost per unit starts to climb.<br><br>
         <b>Function:</b> Controls cost variances dynamic to changing horizon shifts.
         </div>""", unsafe_allow_html=True)
+    with st.expander("🔒 7. Fixed Order Quantity (FOQ)", expanded=False):
+        st.markdown("""<div class='text-justify'>
+        <b>Concept:</b> Locks a rigid, predetermined supplier container size that fires multiplier lots whenever net demands break safety lines.<br><br>
+        <b>Function:</b> Fits industrial environments bound by strict box, pallet, or shipping container sizing.
+        </div>""", unsafe_allow_html=True)
 
 with g_col4:
     with st.expander("⚖️ 4. Part Period Balancing (PPB)", expanded=False):
         st.markdown("""<div class='text-justify'>
         <b>Concept:</b> Synchronizes setup costs against cumulative holding components across discrete time horizons by locating closest-fit factors.<br><br>
         <b>Function:</b> Drives balanced material cost optimization across variable parameter landscapes.
+        </div>""", unsafe_allow_html=True)
+    with st.expander("🧱 8. Minimum Order Quantity (MOQ)", expanded=False):
+        st.markdown("""<div class='text-justify'>
+        <b>Concept:</b> Guarantees that every placed order dynamically scales up to at least hit a supplier's critical minimum threshold restriction.<br><br>
+        <b>Function:</b> Satisfies non-negotiable vendor manufacturing limits while accommodating exact requirements beyond the threshold.
         </div>""", unsafe_allow_html=True)
 
 st.markdown("---")
@@ -118,6 +138,12 @@ st.sidebar.subheader("🗂️ Inventory Profiles")
 initial_inv = st.sidebar.number_input("Initial Inventory", min_value=0, value=35, step=5)
 safety_stock = st.sidebar.number_input("Safety Stock", min_value=0, value=0, step=1)
 lead_time = st.sidebar.number_input("Lead Time", min_value=0, value=1, step=1)
+
+st.sidebar.markdown("<br>", unsafe_allow_html=True)
+
+st.sidebar.subheader("🔒 Rigid Supply Constraints")
+fixed_lot_size = st.sidebar.number_input("Fixed Order Size (FOQ Multiplier)", min_value=1, value=50, step=5)
+min_order_qty = st.sidebar.number_input("Minimum Supplier Boundary (MOQ)", min_value=1, value=40, step=5)
 
 st.sidebar.markdown("<br>", unsafe_allow_html=True)
 
@@ -209,7 +235,6 @@ if input_method == "Upload File":
 elif input_method == "Manual Entry":
     num_periods_input = st.number_input("Planning Horizon Length (Periods):", min_value=1, max_value=52, value=10, step=1)
     
-    # Sediakan data default jika horizon = 10, jika bukan 10 maka otomatis isi baseline 0 agar dinamis
     if num_periods_input == 10:
         default_gr = [35, 30, 40, 0, 10, 40, 30, 0, 30, 55]
     else:
@@ -221,13 +246,11 @@ elif input_method == "Manual Entry":
         'Scheduled Receipts': [0] * num_periods_input
     }
     
-    # Perbaikan Bug: Transformasikan tabel input dasar menjadi data_editor interaktif vertikal
     st.markdown("##### ✏️ Edit Demand & Scheduled Receipts Data Below:")
     df_raw_manual = pd.DataFrame(init_data)
     df_workbench = st.data_editor(df_raw_manual, use_container_width=True, hide_index=True)
 
 else:
-    # Modul Load Template Tetap Statis sebagai Data Pembanding Contoh Kuliah
     default_data = {
         'Period': [f"P{i}" for i in range(1, 11)],
         'Gross Requirements': [35, 30, 40, 0, 10, 40, 30, 0, 30, 55],
@@ -247,13 +270,10 @@ if df_workbench is not None and not df_workbench.empty:
         'Scheduled Receipts': sched_rec
     }, index=period_labels).T
     
-    # Proteksi Single Source of Truth agar tidak terjadi konflik data data_editor
     if input_method == "Manual Entry":
-        # Tampilkan sebagai dataframe statis (Read-Only) karena sumber edit utama ada di workbench vertikal
         st.dataframe(df_preview_transposed, use_container_width=True)
         df_edited_preview = df_preview_transposed
     else:
-        # Untuk Upload File & Load Template, tetap biarkan interaktif untuk quick-fix tanpa re-upload
         df_edited_preview = st.data_editor(df_preview_transposed, use_container_width=True)
         
     gross_req = df_edited_preview.loc['Gross Requirements'].astype(int).tolist()
@@ -279,7 +299,6 @@ if df_workbench is not None and not df_workbench.empty:
                 net_req.append(0)
                 prev_inv = available_stock - demands[i]
 
-        # Perbaikan Catatan 4: Menerima ss sebagai parameter untuk validasi visual di grid luar
         def generate_poh_and_release(rec_lot):
             poh = []
             r_inv = init_inv
@@ -314,7 +333,6 @@ if df_workbench is not None and not df_workbench.empty:
             t_log = []
             
             for k in range(idx, n):
-                # Perbaikan Catatan 1: Hapus filter skip continue! Biarkan periode 0 masuk hitungan agar indeks penunjuk tidak loncat.
                 acc_d += net_req[k]
                 acc_h += net_req[k] * hold * (k - idx)
                 t_cost = setup + acc_h
@@ -361,7 +379,6 @@ if df_workbench is not None and not df_workbench.empty:
         eoq_rec = [0] * n
         rem_stok = 0
         
-        # Perbaikan Catatan 3: Hapus total blok else mubazir. Periode net_req=0 tidak perlu diutak-atik.
         for i in range(n):
             if net_req[i] > 0:
                 if rem_stok < net_req[i]:
@@ -409,7 +426,6 @@ if df_workbench is not None and not df_workbench.empty:
                     dist_before = abs(cum_part_period - epp_limit)
                     dist_after = abs(new_cum_part_period - epp_limit)
                     
-                    # Perbaikan Catatan 2: Batasi look-ahead hanya sekali lewat break, hapus resiko over-consolidation
                     if dist_after < dist_before:
                         acc_d += net_req[k]
                         cum_part_period = new_cum_part_period
@@ -445,12 +461,124 @@ if df_workbench is not None and not df_workbench.empty:
         c_ppb_setup = sum(1 for x in ppb_rec if x > 0) * setup
         c_ppb_hold = sum(max(0, x) for x in ppb_poh) * hold
 
+        # 5. SILVER-MEAL (SM)
+        sm_rec = [0] * n
+        sm_trace_logs = []
+        idx = 0
+        while idx < n:
+            if net_req[idx] == 0:
+                idx += 1
+                continue
+            best_k = idx
+            min_avg_cost = float('inf')
+            acc_d, acc_h = 0, 0
+            t_log = []
+            
+            for k in range(idx, n):
+                acc_d += net_req[k]
+                acc_h += net_req[k] * hold * (k - idx)
+                t_cost = setup + acc_h
+                n_periods_covered = k - idx + 1
+                avg_cost = t_cost / n_periods_covered
+                
+                covered_periods_str = ", ".join([period_labels[m] for m in range(idx, k+1)])
+                
+                if avg_cost <= min_avg_cost:
+                    min_avg_cost = avg_cost
+                    best_k = k
+                    t_log.append({
+                        'Periods Covered': covered_periods_str, 'Total Units': acc_d,
+                        'Setup Cost': setup, 'Holding Cost': acc_h, 'Total Cost': t_cost,
+                        'Average Cost/Period': avg_cost, 'Status': 'Feasible'
+                    })
+                else:
+                    t_log.append({
+                        'Periods Covered': covered_periods_str, 'Total Units': acc_d,
+                        'Setup Cost': setup, 'Holding Cost': acc_h, 'Total Cost': t_cost,
+                        'Average Cost/Period': avg_cost, 'Status': 'Stop ⚠️ (Limit Exceeded)'
+                    })
+                    break
+                    
+            df_step = pd.DataFrame(t_log)
+            if not df_step.empty:
+                stop_exists = df_step['Status'].str.contains('Stop').any()
+                if stop_exists:
+                    stop_idx = df_step[df_step['Status'].str.contains('Stop')].index[0]
+                    if stop_idx > 0:
+                        df_step.at[stop_idx - 1, 'Status'] = 'Selected (Optimal)'
+                else:
+                    df_step.at[df_step.index[-1], 'Status'] = 'Horizon End (Optimal)'
+                    
+            sm_trace_logs.append(df_step)
+            sm_rec[idx] = sum(net_req[idx:best_k+1])
+            idx = best_k + 1
+            
+        sm_poh, sm_rel = generate_poh_and_release(sm_rec)
+        c_sm_setup = sum(1 for x in sm_rec if x > 0) * setup
+        c_sm_hold = sum(max(0, x) for x in sm_poh) * hold
+
+        # 6. PERIOD ORDER QUANTITY (POQ)
+        poq_interval = max(1, round(eoq_size / avg_demand_gross)) if avg_demand_gross > 0 and eoq_size > 0 else 1
+        poq_rec = [0] * n
+        idx = 0
+        while idx < n:
+            if net_req[idx] == 0:
+                idx += 1
+                continue
+            end_k = min(idx + poq_interval, n)
+            poq_rec[idx] = sum(net_req[idx:end_k])
+            idx = end_k
+            
+        poq_poh, poq_rel = generate_poh_and_release(poq_rec)
+        c_poq_setup = sum(1 for x in poq_rec if x > 0) * setup
+        c_poq_hold = sum(max(0, x) for x in poq_poh) * hold
+
+        # 7. FIXED ORDER QUANTITY (FOQ)
+        foq_rec = [0] * n
+        rem_foq_stok = 0
+        for i in range(n):
+            if net_req[i] > 0:
+                if rem_foq_stok < net_req[i]:
+                    needed = net_req[i] - rem_foq_stok
+                    multipliers = math.ceil(needed / fixed_lot_size)
+                    foq_rec[i] = multipliers * fixed_lot_size
+                    rem_foq_stok = (foq_rec[i] + rem_foq_stok) - net_req[i]
+                else:
+                    rem_foq_stok -= net_req[i]
+                    
+        foq_poh, foq_rel = generate_poh_and_release(foq_rec)
+        c_foq_setup = sum(1 for x in foq_rec if x > 0) * setup
+        c_foq_hold = sum(max(0, x) for x in foq_poh) * hold
+
+        # 8. MINIMUM ORDER QUANTITY (MOQ)
+        moq_rec = [0] * n
+        rem_moq_stok = 0
+        for i in range(n):
+            if net_req[i] > 0:
+                if rem_moq_stok < net_req[i]:
+                    needed = net_req[i] - rem_moq_stok
+                    if needed < min_order_qty:
+                        moq_rec[i] = min_order_qty
+                    else:
+                        moq_rec[i] = needed
+                    rem_moq_stok = (moq_rec[i] + rem_moq_stok) - net_req[i]
+                else:
+                    rem_moq_stok -= net_req[i]
+                    
+        moq_poh, moq_rel = generate_poh_and_release(moq_rec)
+        c_moq_setup = sum(1 for x in moq_rec if x > 0) * setup
+        c_moq_hold = sum(max(0, x) for x in moq_poh) * hold
+
         return {
             'net_req': net_req,
             'l4l': {'poh': l4l_poh, 'rec': l4l_rec, 'rel': l4l_rel, 'setup': c_l4l_setup, 'hold': c_l4l_hold, 'total': c_l4l_setup + c_l4l_hold},
             'luc': {'poh': luc_poh, 'rec': luc_rec, 'rel': luc_rel, 'setup': c_luc_setup, 'hold': c_luc_hold, 'total': c_luc_setup + c_luc_hold, 'iters': luc_trace_logs},
             'eoq': {'poh': eoq_poh, 'rec': eoq_rec, 'rel': eoq_rel, 'setup': c_eoq_setup, 'hold': c_eoq_hold, 'total': c_eoq_setup + c_eoq_hold, 'size': eoq_size, 'avg_demand_gross': avg_demand_gross},
-            'ppb': {'poh': ppb_poh, 'rec': ppb_rec, 'rel': ppb_rel, 'setup': c_ppb_setup, 'hold': c_ppb_hold, 'total': c_ppb_setup + c_ppb_hold, 'iters': ppb_trace_logs, 'epp': epp_limit}
+            'ppb': {'poh': ppb_poh, 'rec': ppb_rec, 'rel': ppb_rel, 'setup': c_ppb_setup, 'hold': c_ppb_hold, 'total': c_ppb_setup + c_ppb_hold, 'iters': ppb_trace_logs, 'epp': epp_limit},
+            'sm': {'poh': sm_poh, 'rec': sm_rec, 'rel': sm_rel, 'setup': c_sm_setup, 'hold': c_sm_hold, 'total': c_sm_setup + c_sm_hold, 'iters': sm_trace_logs},
+            'poq': {'poh': poq_poh, 'rec': poq_rec, 'rel': poq_rel, 'setup': c_poq_setup, 'hold': c_poq_hold, 'total': c_poq_setup + c_poq_hold, 'interval': poq_interval},
+            'foq': {'poh': foq_poh, 'rec': foq_rec, 'rel': foq_rel, 'setup': c_foq_setup, 'hold': c_foq_hold, 'total': c_foq_setup + c_foq_hold, 'size': fixed_lot_size},
+            'moq': {'poh': moq_poh, 'rec': moq_rec, 'rel': moq_rel, 'setup': c_moq_setup, 'hold': c_moq_hold, 'total': c_moq_setup + c_moq_hold, 'min_limit': min_order_qty}
         }
 
     # Run Process Calculations
@@ -503,28 +631,25 @@ if df_workbench is not None and not df_workbench.empty:
 
 
     # ==========================================
-    # 5. METHODS MODULES EXECUTION WORKBENCH TABS
+    # 5. METHODS MODULES EXECUTION WORKBENCH TABS (EXTENDED TO 8 TABS)
     # ==========================================
     st.markdown("---")
     st.subheader("⚙️ Lot Sizing Operational Performance Strategy Modules")
     
-    t_l4l, t_eoq, t_luc, t_ppb = st.tabs([
-        "📋 Lot-for-Lot (L4L)", 
-        "🎯 Economic Order Quantity (EOQ)", 
-        "🔍 Least Unit Cost (LUC)", 
-        "⚖️ Part Period Balancing (PPB)"
+    tabs_list = st.tabs([
+        "📋 L4L", "🎯 EOQ", "🔍 LUC", "⚖️ PPB",
+        "🚀 Silver-Meal", "⏱️ POQ", "🔒 FOQ", "🧱 MOQ"
     ])
 
     # TAB 1: LOT-FOR-LOT
-    with t_l4l:
+    with tabs_list[0]:
         st.subheader("Lot-for-Lot (L4L) Performance Execution Model")
         render_mrp_grid_view(res['l4l'], max_capacity, safety_stock)
         render_cost_audit_window(res['l4l'], setup_cost, holding_cost, res['l4l']['rec'], res['l4l']['poh'])
 
     # TAB 2: EOQ
-    with t_eoq:
+    with tabs_list[1]:
         st.subheader("Economic Order Quantity (EOQ) Optimization")
-        
         if holding_cost == 0:
             st.warning("⚠️ Holding cost bernilai 0. Formula log matematika EOQ dihentikan untuk mencegah pembagian nol.")
         else:
@@ -554,10 +679,9 @@ if df_workbench is not None and not df_workbench.empty:
         render_cost_audit_window(res['eoq'], setup_cost, holding_cost, res['eoq']['rec'], res['eoq']['poh'])
 
     # TAB 3: LUC
-    with t_luc:
+    with tabs_list[2]:
         st.subheader("Least Unit Cost (LUC) Iterative Consolidation Grid")
         st.markdown("##### Dynamic Lot Search Log Blocks Trace:")
-        
         fmt_luc = {'Setup Cost': '{:.2f}', 'Holding Cost': '{:.2f}', 'Total Cost': '{:.2f}', 'Unit Cost': '{:.4f}'}
         for step_idx, df_step in enumerate(res['luc']['iters']):
             if df_step.empty: continue
@@ -568,23 +692,18 @@ if df_workbench is not None and not df_workbench.empty:
         render_cost_audit_window(res['luc'], setup_cost, holding_cost, res['luc']['rec'], res['luc']['poh'])
 
     # TAB 4: PPB
-    with t_ppb:
+    with tabs_list[3]:
         st.subheader("Part Period Balancing (PPB) Dynamic Policy Grid")
-        
         with st.expander("🔬 CLICK HERE TO VIEW DETAILED FORMULA LOG CALCULATIONS (PPB)", expanded=True):
             st.markdown("#### 📝 Sizing Steps for PPB:")
             st.markdown("**1. Identify Operational Control Parameters:**")
-            st.markdown(f"""
-            * Setup Cost Value = `{setup_cost:,.2f}` | Holding Cost Value = `{holding_cost:,.2f}`
-            """)
-            
+            st.markdown(f"""* Setup Cost Value = `{setup_cost:,.2f}` | Holding Cost Value = `{holding_cost:,.2f}`""")
             st.markdown("**2. Calculate Balanced Economic Part Period (EPP) Target Limit Baseline:**")
             st.markdown(r"$$EPP = \frac{\text{Setup Cost}}{\text{Holding Cost}}$$")
             st.markdown(f"$$EPP = \\frac{{{setup_cost:,.2f}}}{{{holding_cost:,.2f}}}$$")
             st.markdown(f"$$EPP = {res['ppb']['epp']:.4f} \\text{{ part-periods}}$$")
             
         st.info(f"💡 **Part Period Matrix Target Status:** Target batas EPP dikunci pada **{res['ppb']['epp']:.4f}** part-periods.")
-        
         st.markdown("##### Iteration Steps Trace:")
         fmt_ppb = {'Target EPP': '{:.2f}', 'Accumulated Part-Period': '{:.2f}'}
         for step_idx, df_step in enumerate(res['ppb']['iters']):
@@ -595,6 +714,46 @@ if df_workbench is not None and not df_workbench.empty:
         render_mrp_grid_view(res['ppb'], max_capacity, safety_stock)
         render_cost_audit_window(res['ppb'], setup_cost, holding_cost, res['ppb']['rec'], res['ppb']['poh'])
 
+    # TAB 5: SILVER-MEAL
+    with tabs_list[4]:
+        st.subheader("Silver-Meal (SM) Criterion Period Cost Average Heuristic")
+        st.markdown("##### Dynamic Optimization Run Log:")
+        fmt_sm = {'Setup Cost': '{:.2f}', 'Holding Cost': '{:.2f}', 'Total Cost': '{:.2f}', 'Average Cost/Period': '{:.4f}'}
+        for step_idx, df_step in enumerate(res['sm']['iters']):
+            if df_step.empty: continue
+            with st.expander(f"Iteration Block {step_idx + 1}", expanded=True):
+                st.dataframe(df_step.style.apply(style_iteration_rows, axis=None).format(fmt_sm), hide_index=True, use_container_width=True)
+                
+        render_mrp_grid_view(res['sm'], max_capacity, safety_stock)
+        render_cost_audit_window(res['sm'], setup_cost, holding_cost, res['sm']['rec'], res['sm']['poh'])
+
+    # TAB 6: POQ
+    with tabs_list[5]:
+        st.subheader("Period Order Quantity (POQ) Time-Phased Sizing")
+        with st.expander("🔬 CLICK HERE TO VIEW DETAILED FORMULA LOG CALCULATIONS (POQ)"):
+            st.markdown("#### 📝 Sizing Steps for POQ:")
+            st.markdown(f"""
+            * Target Coverage Time Interval = $Round(EOQ / \\text{{Average Demand}})$
+            * Calculation: $Round({res['eoq']['size']} / {res['eoq']['avg_demand_gross']:.4f}) = $ **`{res['poq']['interval']}` periods**.
+            """)
+        st.info(f"💡 **POQ Policy Status:** Setiap siklus pemesanan akan otomatis merangkum data kebutuhan untuk **{res['poq']['interval']} periode** sekaligus.")
+        render_mrp_grid_view(res['poq'], max_capacity, safety_stock)
+        render_cost_audit_window(res['poq'], setup_cost, holding_cost, res['poq']['rec'], res['poq']['poh'])
+
+    # TAB 7: FOQ
+    with tabs_list[6]:
+        st.subheader("Fixed Order Quantity (FOQ) Rigid Sizing Model")
+        st.info(f"🔒 **FOQ Constraint Active:** Ukuran lot dikunci mati pada kelipatan integer dari nilai kontainer: **{res['foq']['size']} unit** per pesanan.")
+        render_mrp_grid_view(res['foq'], max_capacity, safety_stock)
+        render_cost_audit_window(res['foq'], setup_cost, holding_cost, res['foq']['rec'], res['foq']['poh'])
+
+    # TAB 8: MOQ
+    with tabs_list[7]:
+        st.subheader("Minimum Order Quantity (MOQ) Supplier Boundary Model")
+        st.info(f"🧱 **MOQ Constraint Active:** Ambang batas bawah pemesanan vendor diatur sebesar **{res['moq']['min_limit']} unit**.")
+        render_mrp_grid_view(res['moq'], max_capacity, safety_stock)
+        render_cost_audit_window(res['moq'], setup_cost, holding_cost, res['moq']['rec'], res['moq']['poh'])
+
 
     # ==========================================
     # 6. GLOBAL PERFORMANCE MATRIX COMPARISON
@@ -603,47 +762,27 @@ if df_workbench is not None and not df_workbench.empty:
     st.header("🏁 Strategic Portfolio Cost Summary Comparison Matrix")
     
     biaya_dict = {
-        'L4L': res['l4l']['total'], 
-        'LUC': res['luc']['total'], 
-        'EOQ': res['eoq']['total'], 
-        'PPB': res['ppb']['total']
+        'L4L': res['l4l']['total'], 'EOQ': res['eoq']['total'], 'LUC': res['luc']['total'], 'PPB': res['ppb']['total'],
+        'SM': res['sm']['total'], 'POQ': res['poq']['total'], 'FOQ': res['foq']['total'], 'MOQ': res['moq']['total']
     }
     
     min_cost = min(biaya_dict.values())
     best_methods = [k for k, v in biaya_dict.items() if v == min_cost]
     
-    m1, m2, m3, m4 = st.columns(4)
+    # Grid 4x2 metrics cards untuk menyajikan total 8 metode
+    m_row1 = st.columns(4)
+    m_keys = list(biaya_dict.keys())
     
-    with m1:
-        is_best = 'L4L' in best_methods
-        sub_text = "<div style='color: #2e7d32; font-size: 13px; font-weight: bold;'>🏆 Optimal Strategy</div>" if is_best else f"<div style='color: #d90429; font-size: 13px; font-weight: bold;'>⚠️ Inefficient by {res['l4l']['total'] - min_cost:,.2f}</div>"
-        st.markdown(f"""<div style='background-color: #f4efdc; padding: 16px; border-radius: 8px; border-left: 5px solid #6a0708;'>
-                        <div style='color: #333; font-size: 13px; font-weight: 600;'>Total Cost L4L</div>
-                        <div style='font-size: 22px; font-weight: 700; color: #111111; margin-top: 4px;'>{res['l4l']['total']:,.2f}</div>
-                        {sub_text}</div>""", unsafe_allow_html=True)
-    with m2:
-        is_best = 'LUC' in best_methods
-        sub_text = "<div style='color: #2e7d32; font-size: 13px; font-weight: bold;'>🏆 Optimal Strategy</div>" if is_best else f"<div style='color: #d90429; font-size: 13px; font-weight: bold;'>⚠️ Inefficient by {res['luc']['total'] - min_cost:,.2f}</div>"
-        st.markdown(f"""<div style='background-color: #f4efdc; padding: 16px; border-radius: 8px; border-left: 5px solid #6a0708;'>
-                        <div style='color: #333; font-size: 13px; font-weight: 600;'>Total Cost LUC</div>
-                        <div style='font-size: 22px; font-weight: 700; color: #111111; margin-top: 4px;'>{res['luc']['total']:,.2f}</div>
-                        {sub_text}</div>""", unsafe_allow_html=True)
-    with m3:
-        is_best = 'EOQ' in best_methods
-        sub_text = "<div style='color: #2e7d32; font-size: 13px; font-weight: bold;'>🏆 Optimal Strategy</div>" if is_best else f"<div style='color: #d90429; font-size: 13px; font-weight: bold;'>⚠️ Inefficient by {res['eoq']['total'] - min_cost:,.2f}</div>"
-        st.markdown(f"""<div style='background-color: #f4efdc; padding: 16px; border-radius: 8px; border-left: 5px solid #6a0708;'>
-                        <div style='color: #333; font-size: 13px; font-weight: 600;'>Total Cost EOQ</div>
-                        <div style='font-size: 22px; font-weight: 700; color: #111111; margin-top: 4px;'>{res['eoq']['total']:,.2f}</div>
-                        {sub_text}</div>""", unsafe_allow_html=True)
-    with m4:
-        is_best = 'PPB' in best_methods
-        sub_text = "<div style='color: #2e7d32; font-size: 13px; font-weight: bold;'>🏆 Optimal Strategy</div>" if is_best else f"<div style='color: #d90429; font-size: 13px; font-weight: bold;'>⚠️ Inefficient by {res['ppb']['total'] - min_cost:,.2f}</div>"
-        st.markdown(f"""<div style='background-color: #f4efdc; padding: 16px; border-radius: 8px; border-left: 5px solid #6a0708;'>
-                        <div style='color: #333; font-size: 13px; font-weight: 600;'>Total Cost PPB</div>
-                        <div style='font-size: 22px; font-weight: 700; color: #111111; margin-top: 4px;'>{res['ppb']['total']:,.2f}</div>
-                        {sub_text}</div>""", unsafe_allow_html=True)
+    for idx, key in enumerate(m_keys):
+        col_target = m_row1[idx % 4] if idx < 4 else st.columns(4)[idx % 4]
+        with col_target:
+            is_best = key in best_methods
+            sub_text = "<div style='color: #2e7d32; font-size: 13px; font-weight: bold;'>🏆 Optimal Strategy</div>" if is_best else f"<div style='color: #d90429; font-size: 13px; font-weight: bold;'>⚠️ Inefficient by {biaya_dict[key] - min_cost:,.2f}</div>"
+            st.markdown(f"""<div style='background-color: #f4efdc; padding: 16px; border-radius: 8px; border-left: 5px solid #6a0708; margin-bottom: 15px;'>
+                            <div style='color: #333; font-size: 13px; font-weight: 600;'>Total Cost {key}</div>
+                            <div style='font-size: 22px; font-weight: 700; color: #111111; margin-top: 4px;'>{biaya_dict[key]:,.2f}</div>
+                            {sub_text}</div>""", unsafe_allow_html=True)
 
-    # Verdict Banner (Minimalist Center - Text Hijau Tema)
     methods_string = " & ".join(best_methods)
     st.markdown(f"""
     <div style="background-color: #e8f5e9; border: 1px solid #c8e6c9; border-left: 5px solid #2e7d32; padding: 14px; border-radius: 4px; margin-top: 20px; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
@@ -657,7 +796,7 @@ if df_workbench is not None and not df_workbench.empty:
     """, unsafe_allow_html=True)
 
 
-# ==========================================
+    # ==========================================
     # 7. GRAPH VISUALIZATION
     # ==========================================
     st.markdown("---")
@@ -669,7 +808,8 @@ if df_workbench is not None and not df_workbench.empty:
         fig.patch.set_facecolor('#faf8f2')
         ax.set_facecolor('#faf8f2')
         
-        ax.bar(biaya_dict.keys(), biaya_dict.values(), color=['#444444', '#6a0708', '#e65c00', '#2a7b4c'], width=0.45)
+        # Penambahan 8 warna spesifik untuk representasi masing-masing batang metode
+        ax.bar(biaya_dict.keys(), biaya_dict.values(), color=['#444444', '#e65c00', '#6a0708', '#2a7b4c', '#0288d1', '#7b1fa2', '#d32f2f', '#f57c00'], width=0.5)
         ax.set_title("Comparison of Lot Sizing Methods", fontsize=11, fontweight='bold', color='#6a0708', pad=12)
         ax.set_xlabel('Lot Sizing Strategy', color='#111', fontsize=9, fontweight='bold')
         ax.set_ylabel('Total Cost', color='#111', fontsize=9, fontweight='bold')
@@ -678,7 +818,7 @@ if df_workbench is not None and not df_workbench.empty:
         
     with cg2:
         scale_factors = np.arange(0.70, 1.31, 0.05) 
-        s_l4l, s_luc, s_eoq, s_ppb, labels_pct = [], [], [], [], []
+        s_l4l, s_eoq, s_luc, s_ppb, s_sm, s_poq, s_foq, s_moq, labels_pct = [], [], [], [], [], [], [], [], []
         
         for f in scale_factors:
             pct_val = int(round((f - 1) * 100))
@@ -686,46 +826,58 @@ if df_workbench is not None and not df_workbench.empty:
                 continue
             sim_demand = [int(round(d * f)) for d in gross_req]
             s_res = calculate_multi_mrp(sim_demand, sched_rec, setup_cost, holding_cost, initial_inv, safety_stock, lead_time)
+            
             s_l4l.append(s_res['l4l']['total'])
-            s_luc.append(s_res['luc']['total'])
             s_eoq.append(s_res['eoq']['total'])
+            s_luc.append(s_res['luc']['total'])
             s_ppb.append(s_res['ppb']['total'])
+            s_sm.append(s_res['sm']['total'])
+            s_poq.append(s_res['poq']['total'])
+            s_foq.append(s_res['foq']['total'])
+            s_moq.append(s_res['moq']['total'])
             labels_pct.append(f"{pct_val:+}%")
         
         fig2, ax2 = plt.subplots(figsize=(7, 4.2))
         fig2.patch.set_facecolor('#faf8f2')
         ax2.set_facecolor('#faf8f2')
         
-        ax2.plot(labels_pct, s_l4l, marker='o', label='L4L', color='#444444', linewidth=2)
-        ax2.plot(labels_pct, s_luc, marker='s', label='LUC', color='#6a0708', linewidth=2)
-        ax2.plot(labels_pct, s_eoq, marker='^', label='EOQ', color='#e65c00', linewidth=2)
-        ax2.plot(labels_pct, s_ppb, marker='x', label='PPB', color='#2a7b4c', linewidth=2)
+        ax2.plot(labels_pct, s_l4l, marker='o', label='L4L', color='#444444', linewidth=1.5)
+        ax2.plot(labels_pct, s_eoq, marker='^', label='EOQ', color='#e65c00', linewidth=1.5)
+        ax2.plot(labels_pct, s_luc, marker='s', label='LUC', color='#6a0708', linewidth=1.5)
+        ax2.plot(labels_pct, s_ppb, marker='x', label='PPB', color='#2a7b4c', linewidth=1.5)
+        ax2.plot(labels_pct, s_sm, marker='d', label='SM', color='#0288d1', linewidth=1.5)
+        ax2.plot(labels_pct, s_poq, marker='v', label='POQ', color='#7b1fa2', linewidth=1.5)
+        ax2.plot(labels_pct, s_foq, marker='*', label='FOQ', color='#d32f2f', linewidth=1.5)
+        ax2.plot(labels_pct, s_moq, marker='P', label='MOQ', color='#f57c00', linewidth=1.5)
         
         ax2.set_title("Demand Change Sensitivity Chart", fontsize=11, fontweight='bold', color='#6a0708', pad=12)
         ax2.set_ylabel('Simulated Total Incurred Cost', color='#111', fontsize=9, fontweight='bold')
         ax2.set_xlabel('Customer Demand Change Sensitivity', color='#111', fontsize=9, fontweight='bold')
         ax2.grid(True, linestyle=':', alpha=0.6)
-        ax2.legend(facecolor='#faf8f2', fontsize=9)
+        ax2.legend(facecolor='#faf8f2', fontsize=8, loc='upper left')
         plt.xticks(rotation=30)
         st.pyplot(fig2)
 
+
     # ==========================================
-    # 8. REPORT EXPORT WORKBENCH
+    # 8. REPORT EXPORT WORKBENCH (FULL 8 SHEET GENERATOR)
     # ==========================================
     st.markdown("---")
     
-    # Proses export data ke Excel via buffer memori
     buffer = io.BytesIO()
     with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
         pd.DataFrame({'Gross Requirements': gross_req, 'Scheduled Receipts': sched_rec, 'Net Requirements': res['net_req']}, index=period_labels).T.to_excel(writer, sheet_name="Baseline Framework")
         pd.DataFrame({'Projected On Hand': res['l4l']['poh'], 'Planned Order Receipts': res['l4l']['rec'], 'Planned Order Releases': res['l4l']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="L4L Plan")
-        pd.DataFrame({'Projected On Hand': res['luc']['poh'], 'Planned Order Receipts': res['luc']['rec'], 'Planned Order Releases': res['luc']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="LUC Plan")
         pd.DataFrame({'Projected On Hand': res['eoq']['poh'], 'Planned Order Receipts': res['eoq']['rec'], 'Planned Order Releases': res['eoq']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="EOQ Plan")
+        pd.DataFrame({'Projected On Hand': res['luc']['poh'], 'Planned Order Receipts': res['luc']['rec'], 'Planned Order Releases': res['luc']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="LUC Plan")
         pd.DataFrame({'Projected On Hand': res['ppb']['poh'], 'Planned Order Receipts': res['ppb']['rec'], 'Planned Order Releases': res['ppb']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="PPB Plan")
+        pd.DataFrame({'Projected On Hand': res['sm']['poh'], 'Planned Order Receipts': res['sm']['rec'], 'Planned Order Releases': res['sm']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="Silver-Meal Plan")
+        pd.DataFrame({'Projected On Hand': res['poq']['poh'], 'Planned Order Receipts': res['poq']['rec'], 'Planned Order Releases': res['poq']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="POQ Plan")
+        pd.DataFrame({'Projected On Hand': res['foq']['poh'], 'Planned Order Receipts': res['foq']['rec'], 'Planned Order Releases': res['foq']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="FOQ Plan")
+        pd.DataFrame({'Projected On Hand': res['moq']['poh'], 'Planned Order Receipts': res['moq']['rec'], 'Planned Order Releases': res['moq']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="MOQ Plan")
     
     buffer.seek(0)
     
-    # Injeksi CSS Custom untuk mengubah teks tombol menjadi TEBAL dan MERAH MARUN
     st.markdown("""
         <style>
         div.stDownloadButton > button p {
@@ -735,13 +887,12 @@ if df_workbench is not None and not df_workbench.empty:
         </style>
     """, unsafe_allow_html=True)
     
-    # Layout kolom tengah agar posisi tombol simetris rata tengah di bawah grafik
     btn_col1, btn_col2, btn_col3 = st.columns([1, 2, 1])
     with btn_col2:
         st.download_button(
-            label="📥 Download Plan Document Report", 
+            label="📥 Download Plan Document Report (8 Methods)", 
             data=buffer, 
-            file_name="MRP_Lot_Sizing_Report.xlsx", 
+            file_name="MRP_8_Lot_Sizing_Report.xlsx", 
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True 
         )
