@@ -208,13 +208,26 @@ if input_method == "Upload File":
             
 elif input_method == "Manual Entry":
     num_periods_input = st.number_input("Planning Horizon Length (Periods):", min_value=1, max_value=52, value=10, step=1)
+    
+    # Sediakan data default jika horizon = 10, jika bukan 10 maka otomatis isi baseline 0 agar dinamis
+    if num_periods_input == 10:
+        default_gr = [35, 30, 40, 0, 10, 40, 30, 0, 30, 55]
+    else:
+        default_gr = [0] * num_periods_input
+        
     init_data = {
         'Period': [f"P{i+1}" for i in range(num_periods_input)],
-        'Gross Requirements': [35, 30, 40, 0, 10, 40, 30, 0, 30, 55] if num_periods_input == 10 else [0] * num_periods_input,
+        'Gross Requirements': default_gr,
         'Scheduled Receipts': [0] * num_periods_input
     }
-    df_workbench = pd.DataFrame(init_data)
+    
+    # PERBAIKAN BUG NYATA: Transformasikan tabel input dasar menjadi data_editor interaktif
+    st.markdown("##### ✏️ Edit Demand & Scheduled Receipts Data Below:")
+    df_raw_manual = pd.DataFrame(init_data)
+    df_workbench = st.data_editor(df_raw_manual, use_container_width=True, hide_index=True)
+
 else:
+    # Modul Load Template Tetap Statis sebagai Data Pembanding Contoh Kuliah
     default_data = {
         'Period': [f"P{i}" for i in range(1, 11)],
         'Gross Requirements': [35, 30, 40, 0, 10, 40, 30, 0, 30, 55],
@@ -222,17 +235,19 @@ else:
     }
     df_workbench = pd.DataFrame(default_data)
 
+# Sinkronisasi visualisasi matriks preview horizontal di bawah workbench
 if df_workbench is not None and not df_workbench.empty:
     gross_req = df_workbench['Gross Requirements'].fillna(0).astype(int).tolist()
     sched_rec = df_workbench['Scheduled Receipts'].fillna(0).astype(int).tolist()
     period_labels = df_workbench['Period'].astype(str).tolist()
     
-    st.markdown("##### Input Data Matrix Summary View:")
+    st.markdown("##### Input Data Matrix Summary View (Transposed):")
     df_preview_transposed = pd.DataFrame({
         'Gross Requirements': gross_req,
         'Scheduled Receipts': sched_rec
     }, index=period_labels).T
     
+    # Tampilkan preview final secara rapi (read-only atau jika diedit di sini juga ikut sinkron)
     df_edited_preview = st.data_editor(df_preview_transposed, use_container_width=True)
     gross_req = df_edited_preview.loc['Gross Requirements'].astype(int).tolist()
     sched_rec = df_edited_preview.loc['Scheduled Receipts'].astype(int).tolist()
