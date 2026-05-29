@@ -221,7 +221,7 @@ elif input_method == "Manual Entry":
         'Scheduled Receipts': [0] * num_periods_input
     }
     
-    # PERBAIKAN BUG NYATA: Transformasikan tabel input dasar menjadi data_editor interaktif
+    # Perbaikan Bug: Transformasikan tabel input dasar menjadi data_editor interaktif vertikal
     st.markdown("##### ✏️ Edit Demand & Scheduled Receipts Data Below:")
     df_raw_manual = pd.DataFrame(init_data)
     df_workbench = st.data_editor(df_raw_manual, use_container_width=True, hide_index=True)
@@ -247,8 +247,15 @@ if df_workbench is not None and not df_workbench.empty:
         'Scheduled Receipts': sched_rec
     }, index=period_labels).T
     
-    # Tampilkan preview final secara rapi (read-only atau jika diedit di sini juga ikut sinkron)
-    df_edited_preview = st.data_editor(df_preview_transposed, use_container_width=True)
+    # Proteksi Single Source of Truth agar tidak terjadi konflik data data_editor
+    if input_method == "Manual Entry":
+        # Tampilkan sebagai dataframe statis (Read-Only) karena sumber edit utama ada di workbench vertikal
+        st.dataframe(df_preview_transposed, use_container_width=True)
+        df_edited_preview = df_preview_transposed
+    else:
+        # Untuk Upload File & Load Template, tetap biarkan interaktif untuk quick-fix tanpa re-upload
+        df_edited_preview = st.data_editor(df_preview_transposed, use_container_width=True)
+        
     gross_req = df_edited_preview.loc['Gross Requirements'].astype(int).tolist()
     sched_rec = df_edited_preview.loc['Scheduled Receipts'].astype(int).tolist()
 
