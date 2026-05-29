@@ -285,9 +285,9 @@ if df_workbench is not None and not df_workbench.empty:
     ])
 
     with tabs_list[6]:
-        fixed_lot_size = st.number_input("Masukkan Nilai Fixed Order Size (FOQ Multiplier):", min_value=0, value=0, step=5, help="Isi > 0 untuk mengaktifkan perhitungan kalkulasi FOQ.")
+        fixed_lot_size = st.number_input("Enter Fixed Order Size (FOQ Multiplier):", min_value=0, value=0, step=5, help="Set a value > 0 to run FOQ logic calculations.")
     with tabs_list[7]:
-        min_order_qty = st.number_input("Masukkan Batas Minimum Supplier Boundary (MOQ):", min_value=0, value=0, step=5, help="Isi > 0 untuk mengaktifkan perhitungan kalkulasi MOQ.")
+        min_order_qty = st.number_input("Enter Minimum Order Quantity (MOQ):", min_value=0, value=0, step=5, help="Set a value > 0 to run MOQ logic calculations.")
 
 
     # ==========================================
@@ -618,9 +618,9 @@ if df_workbench is not None and not df_workbench.empty:
         
         if min(data_dict['poh']) < ss:
             stockout_periods = [period_labels[i] for i, v in enumerate(data_dict['poh']) if v < ss]
-            st.error(f"🚨 Shortage Warning: Stockout / Pelanggaran Safety Stock terjadi pada periode: {', '.join(stockout_periods)}")
+            st.error(f"🚨 Shortage Warning: Safety stock violation / stockout occurred in periods: {', '.join(stockout_periods)}")
         if max(data_dict['poh']) > max_cap:
-            st.error(f"⚠️ Capacity Boundary Overrun: Projected On Hand melebihi batas kapasitas gudang ({max_cap} unit).")
+            st.error(f"⚠️ Capacity Boundary Overrun: Projected On Hand exceeds the warehouse capacity limit ({max_cap} units).")
 
     def render_cost_audit_window(data_dict, setup_val, hold_val, rec_array, poh_array):
         order_count = sum(1 for x in rec_array if x > 0)
@@ -663,7 +663,7 @@ if df_workbench is not None and not df_workbench.empty:
     with tabs_list[1]:
         st.subheader("Economic Order Quantity (EOQ) Optimization")
         if holding_cost == 0:
-            st.warning("⚠️ Holding cost bernilai 0. Formula log matematika EOQ dihentikan untuk mencegah pembagian nol.")
+            st.warning("⚠️ Holding cost is 0. The EOQ mathematical formula log is halted to prevent division by zero.")
         else:
             with st.expander("🔬 CLICK HERE TO VIEW FORMULA LOG CALCULATIONS (EOQ)"):
                 total_gross_req = sum(gross_req)
@@ -674,7 +674,7 @@ if df_workbench is not None and not df_workbench.empty:
                 st.markdown("**1. Identify Input Gross Requirements Data Matrix:**")
                 st.markdown(f"""
                 * Data per Period: `{gross_req}`
-                * Total Kebutuhan ($\sum$ Gross Req) = `{total_gross_req}` units / Planning Horizon ($n$) = `{n_periode}` periods
+                * Total Demand ($\sum$ Gross Req) = `{total_gross_req}` units / Planning Horizon ($n$) = `{n_periode}` periods
                 * Average Demand ($D$) = `{avg_demand_calc:.4f}` units/period
                 """)
                 
@@ -686,7 +686,7 @@ if df_workbench is not None and not df_workbench.empty:
                 st.markdown("**3. Discrete Upper Integer Ceiling Rounding:**")
                 st.markdown(f"* Rounded up via ceiling constraints: **`{res['eoq']['size']}` units**.")
             
-        st.info(f"💡 **Lot Sizing Matrix Status:** Batas Fixed Order Quantity untuk profil EOQ dikunci pada **{res['eoq']['size']} unit** per pesanan.")
+        st.info(f"💡 **Lot Sizing Matrix Status:** The fixed order quantity baseline for the EOQ profile is locked at **{res['eoq']['size']} units** per order.")
         render_mrp_grid_view(res['eoq'], max_capacity, safety_stock)
         render_cost_audit_window(res['eoq'], setup_cost, holding_cost, res['eoq']['rec'], res['eoq']['poh'])
 
@@ -715,7 +715,7 @@ if df_workbench is not None and not df_workbench.empty:
             st.markdown(f"$$EPP = \\frac{{{setup_cost:,.2f}}}{{{holding_cost:,.2f}}}$$")
             st.markdown(f"$$EPP = {res['ppb']['epp']:.4f} \\text{{ part-periods}}$$")
             
-        st.info(f"💡 **Part Period Matrix Target Status:** Target batas EPP dikunci pada **{res['ppb']['epp']:.4f}** part-periods.")
+        st.info(f"💡 **Part Period Matrix Target Status:** The EPP target limit constraint is locked at **{res['ppb']['epp']:.4f}** part-periods.")
         st.markdown("##### Iteration Steps Trace:")
         fmt_ppb = {'Target EPP': '{:.2f}', 'Accumulated Part-Period': '{:.2f}'}
         for step_idx, df_step in enumerate(res['ppb']['iters']):
@@ -739,53 +739,49 @@ if df_workbench is not None and not df_workbench.empty:
         render_mrp_grid_view(res['sm'], max_capacity, safety_stock)
         render_cost_audit_window(res['sm'], setup_cost, holding_cost, res['sm']['rec'], res['sm']['poh'])
 
-    # TAB 6: POQ — FIXED FORMULA VISUAL WITHOUT IN-LINE ROUND
+    # TAB 6: POQ — FIXED FORMULA VISUAL & CLEAN SHORT WARNING
     with tabs_list[5]:
         st.subheader("Period Order Quantity (POQ) Time-Phased Sizing")
         
-        # FIXED: Poin 3 — Menampilkan warning jika POQ interval sama dengan 1 (L4L Identical)
         if res['poq']['interval'] == 1:
-            st.warning("⚠️ POQ Interval = 1 periode — hasil identik dengan L4L karena ukuran EOQ lebih kecil atau mendekati rata-rata demand.")
+            st.warning("⚠️ POQ Interval is 1 period. The result will be identical to Lot-for-Lot (L4L) because the EOQ size is smaller than the average demand.")
             
         with st.expander("🔬 CLICK HERE TO VIEW DETAILED FORMULA LOG CALCULATIONS (POQ)", expanded=True):
             st.markdown("#### 📝 Sizing Steps for POQ:")
             st.markdown("**1. Calculate Dynamic Ordering Frequency Coverage ($P_{\\text{oq}}$):**")
-            # FIXED: Menghapus teks "Round(...)" di dalam rumus inti visual LaTeX sesuai request gambar
             st.markdown("$$P_{\\text{oq}} = \\frac{\\text{EOQ Size}}{\\text{Average Demand (D)}}$$")
-
-            # Kita keluarkan dulu nilainya ke variabel biasa agar f-string tidak pusing
+            
             eoq_size_val = res['eoq']['size']
             avg_demand_val = res['eoq']['avg_demand_gross']
             raw_interval_val = res['poq']['raw_interval']
-
-            # Sekarang f-string jadi bersih dan aman dari bentrokan kurung kurawal
+            
             st.markdown(f"$$P_{{\\text{{oq}}}} = \\frac{{{eoq_size_val}}}{{{avg_demand_val:.4f}}}$$")
             st.markdown(f"$$P_{{\\text{{oq}}}} = {raw_interval_val:.4f} \\text{{ periods}}$$")
             
             st.markdown("**2. Discrete Standard Integer Rounding Adjustment:**")
             st.markdown(f"* Rounded via standard constraints: **`{res['poq']['interval']}` periods**.")
             
-        st.info(f"💡 **POQ Policy Status:** Setiap siklus pemesanan akan otomatis merangkum data kebutuhan untuk **{res['poq']['interval']} periode** sekaligus.")
+        st.info(f"💡 **POQ Policy Status:** Each order cycle will automatically consolidate demand data for **{res['poq']['interval']} periods**.")
         render_mrp_grid_view(res['poq'], max_capacity, safety_stock)
         render_cost_audit_window(res['poq'], setup_cost, holding_cost, res['poq']['rec'], res['poq']['poh'])
 
-    # TAB 7: FOQ
+    # TAB 7: FOQ — CLEAN SHORT WARNING
     with tabs_list[6]:
         st.subheader("Fixed Order Quantity (FOQ) Rigid Sizing Model")
         if fixed_lot_size <= 0:
-            st.warning("⚠️ Perhitungan dinonaktifkan. Silakan masukkan nilai ukuran Fixed Order Size (> 0) pada kolom input di atas untuk memicu kalkulasi matriks FOQ.")
+            st.warning("⚠️ FOQ calculation is disabled. Please enter a Fixed Order Size (> 0) in the input block above to activate this module.")
         else:
-            st.info(f"🔒 **FOQ Constraint Active:** Ukuran lot dikunci mati pada kelipatan integer dari nilai kontainer: **{res['foq']['size']} unit** per pesanan.")
+            st.info(f"🔒 **FOQ Constraint Active:** Lot sizing is locked to multiples of **{res['foq']['size']} units** per order.")
             render_mrp_grid_view(res['foq'], max_capacity, safety_stock)
             render_cost_audit_window(res['foq'], setup_cost, holding_cost, res['foq']['rec'], res['foq']['poh'])
 
-    # TAB 8: MOQ
+    # TAB 8: MOQ — CLEAN SHORT WARNING
     with tabs_list[7]:
         st.subheader("Minimum Order Quantity (MOQ) Supplier Boundary Model")
         if min_order_qty <= 0:
-            st.warning("⚠️ Perhitungan dinonaktifkan. Silakan masukkan nilai batas minimum Supplier Boundary (> 0) pada kolom input di atas untuk memicu kalkulasi matriks MOQ.")
+            st.warning("⚠️ MOQ calculation is disabled. Please enter a Minimum Order Quantity (> 0) in the input block above to activate this module.")
         else:
-            st.info(f"🧱 **MOQ Constraint Active:** Ambang batas bawah pemesanan vendor diatur sebesar **{res['moq']['min_limit']} unit**.")
+            st.info(f"🧱 **MOQ Constraint Active:** The minimum supplier threshold is enforced at **{res['moq']['min_limit']} units** per order.")
             render_mrp_grid_view(res['moq'], max_capacity, safety_stock)
             render_cost_audit_window(res['moq'], setup_cost, holding_cost, res['moq']['rec'], res['moq']['poh'])
 
