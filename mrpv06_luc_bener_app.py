@@ -1,749 +1,554 @@
-import streamlit as st
+import streamlit as pd
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 import math
 import io
+import matplotlib.pyplot as plt
 
 # ==========================================
 # 1. PAGE CONFIGURATION & CLEAN CSS OVERRIDE
 # ==========================================
-st.set_page_config(page_title="MRP Lot Sizing Calculator", layout="wide")
+st.set_page_config(page_title="Advanced MRP Lot Sizing Workbench", layout="wide")
 
+# Inject CSS Custom untuk layout dan mempertegas warna tombol download menjadi TEBAL & MERAH MARUN
 st.markdown("""
     <style>
-    html, body, .stApp {
-        background-color: #faf8f2;
-        color: #111111;
-    }
-    
-    h1, h2, h3 {
+    .reportview-container { background-color: #faf8f2; }
+    div.stDownloadButton > button p {
         color: #6a0708 !important;
-    }
-    
-    [data-testid="stSidebar"] {
-        background-color: #6a0708 !important;
-    }
-    
-    [data-testid="stSidebar"] h1,
-    [data-testid="stSidebar"] h2,
-    [data-testid="stSidebar"] h3,
-    [data-testid="stSidebar"] h4,
-    [data-testid="stSidebar"] h5,
-    [data-testid="stSidebar"] h6,
-    [data-testid="stSidebar"] label,
-    [data-testid="stSidebar"] p,
-    [data-testid="stSidebar"] span {
-        color: #f4efdc !important;
-        font-weight: 600 !important;
-    }
-    
-    [data-testid="stSidebar"] input {
-        color: #111111 !important;
-        font-weight: normal !important;
-        background-color: #ffffff !important;
-    }
-    
-    .stButton>button {
-        background-color: #6a0708 !important;
-        color: #faf8f2 !important;
-        border-radius: 4px !important;
-        border: none !important;
-    }
-    .stButton>button:hover {
-        background-color: #d90429 !important;
-    }
-    
-    .text-justify {
-        text-align: justify !important;
-        line-height: 1.5 !important;
-        font-size: 14px !important;
+        font-weight: bold !important;
     }
     </style>
 """, unsafe_allow_html=True)
 
-st.title("📦 MRP Lot Sizing Calculator")
-st.markdown("---")
-
-
 # ==========================================
-# 2. GLOSSARY SECTION
+# 2. CORE TOP-LEVEL FUNCTIONS (FASE 1 & 2)
 # ==========================================
-st.subheader("📚 Glossary")
-g_col1, g_col2, g_col3, g_col4 = st.columns(4)
+def generate_poh_and_release(rec_lot, demands, s_receipts, init_inv, lt, n):
+    """Menghitung matriks POH (Projected On Hand) dan PORel (Planned Order Release) secara independen."""
+    poh = []
+    r_inv = init_inv
+    for i in range(n):
+        r_inv += s_receipts[i] + rec_lot[i] - demands[i]
+        poh.append(r_inv)
+        
+    rel_lot = [0] * n
+    for i in range(n):
+        if rec_lot[i] > 0:
+            target = i - lt
+            rel_lot[max(0, target)] += rec_lot[i]
+            
+    return poh, rel_lot
 
-with g_col1:
-    with st.expander("📋 1. Lot-for-Lot (L4L)", expanded=False):
-        st.markdown("""<div class='text-justify'>
-        <b>Concept:</b> Orders inventory sizes matching exact net requirement constraints per discrete period.<br><br>
-        <b>Function:</b> Minimizes holding values straight to a zero-point baseline.
-        </div>""", unsafe_allow_html=True)
+def calculate_cost_metrics(rec, poh, setup_cost, holding_cost):
+    """Audit pengeluaran finansial operasional untuk setup dan holding cost."""
+    s_c = sum(1 for x in rec if x > 0) * setup_cost
+    h_c = sum(x * holding_cost for x in poh)
+    return s_c, h_c, s_c + h_c
 
-with g_col2:
-    with st.expander("🎯 2. Economic Order Quantity (EOQ)", expanded=False):
-        st.markdown("""<div class='text-justify'>
-        <b>Concept:</b> Establishes a fixed structural lot sizing standard to find an equilibrium balance between ordering and holding profiles.<br><br>
-        <b>Function:</b> Maximizes cost efficiencies when cross-horizon operational demands remain linear and highly predictable.
-        </div>""", unsafe_allow_html=True)
+# --- ALGORITMA LOT SIZING MANDIRI ---
 
-with g_col3:
-    with st.expander("🔍 3. Least Unit Cost (LUC)", expanded=False):
-        st.markdown("""<div class='text-justify'>
-        <b>Concept:</b> Iterative search routine that aggregates upcoming period blocks until the calculated total cost per unit starts to climb.<br><br>
-        <b>Function:</b> Controls cost variances dynamic to changing horizon shifts.
-        </div>""", unsafe_allow_html=True)
+def algo_l4l(net_req, n):
+    rec = [0] * n
+    for i in range(n):
+        if net_req[i] > 0:
+            rec[i] = net_req[i]
+    return rec
 
-with g_col4:
-    with st.expander("⚖️ 4. Part Period Balancing (PPB)", expanded=False):
-        st.markdown("""<div class='text-justify'>
-        <b>Concept:</b> Synchronizes setup costs against cumulative holding components across discrete time horizons by locating closest-fit factors.<br><br>
-        <b>Function:</b> Drives balanced material cost optimization across variable parameter landscapes.
-        </div>""", unsafe_allow_html=True)
+def algo_eoq(net_req, n, eoq_size):
+    rec = [0] * n
+    rem = 0
+    for i in range(n):
+        if net_req[i] > 0:
+            if rem < net_req[i]:
+                needed = net_req[i] - rem
+                lots = math.ceil(needed / eoq_size) if eoq_size > 0 else 1
+                rec[i] = lots * eoq_size
+                rem = rec[i] + rem - net_req[i]
+            else:
+                rem -= net_req[i]
+    return rec
 
-st.markdown("---")
+def algo_luc(net_req, n, setup_cost, holding_cost, period_labels):
+    rec = [0] * n
+    trace_logs = []
+    idx = 0
+    while idx < n:
+        if net_req[idx] == 0:
+            idx += 1
+            continue
+        best_k = idx
+        min_uc = float('inf')
+        acc_d = 0
+        acc_h = 0
+        t_log = []
+        for k in range(idx, n):
+            acc_d += net_req[k]
+            acc_h += net_req[k] * holding_cost * (k - idx)
+            t_cost = setup_cost + acc_h
+            uc = t_cost / acc_d if acc_d > 0 else float('inf')
+            if uc < min_uc:
+                min_uc = uc
+                best_k = k
+                t_log.append({
+                    'Iteration': f"Start from {period_labels[idx]}", 'Period Evaluated': period_labels[k],
+                    'Accumulated Demand': acc_d, 'Accumulated Holding': acc_h,
+                    'Total Cost (S+H)': t_cost, 'Unit Cost': round(uc, 4), 'Status': 'Feasible (Closer)'
+                })
+            else:
+                t_log.append({
+                    'Iteration': f"Start from {period_labels[idx]}", 'Period Evaluated': period_labels[k],
+                    'Accumulated Demand': acc_d, 'Accumulated Holding': acc_h,
+                    'Total Cost (S+H)': t_cost, 'Unit Cost': round(uc, 4), 'Status': 'Stop ⚠️ (Cost Increased)'
+                })
+                break
+        for item in t_log:
+            if item['Period Evaluated'] == period_labels[best_k]:
+                item['Status'] = 'Horizon End (Optimal)' if (best_k == n - 1 and item['Status'] != 'Stop ⚠️ (Cost Increased)') else 'Selected 🎯'
+        trace_logs.extend(t_log)
+        rec[idx] = sum(net_req[idx:best_k+1])
+        idx = best_k + 1
+    return rec, trace_logs
 
+def algo_ppb(net_req, n, setup_cost, holding_cost, epp_target, period_labels):
+    rec = [0] * n
+    trace_logs = []
+    idx = 0
+    while idx < n:
+        if net_req[idx] == 0:
+            idx += 1
+            continue
+        best_k = idx
+        acc_pp = 0
+        t_log = []
+        for k in range(idx, n):
+            current_pp = net_req[k] * (k - idx)
+            acc_pp += current_pp
+            t_log.append({
+                'Iteration': f"Start from {period_labels[idx]}", 'Period Evaluated': period_labels[k],
+                'Net Req': net_req[k], 'Multiplier': f"({k}-{idx})", 'Part-Period Contribution': current_pp,
+                'Accumulated Part-Period': round(acc_pp, 2), 'Target EPP': round(epp_target, 2), 'Status': 'Feasible'
+            })
+            if acc_pp > epp_target:
+                dist_before = abs((acc_pp - current_pp) - epp_target)
+                dist_after = abs(acc_pp - epp_target)
+                if dist_after < dist_before:
+                    best_k = k
+                    t_log[-1]['Status'] = 'Feasible (Closer Beyond Limit)'
+                else:
+                    best_k = k - 1
+                    t_log[-1]['Status'] = 'Stop ⚠️ (Limit Exceeded)'
+                break
+            else:
+                best_k = k
+        for item in t_log:
+            if item['Period Evaluated'] == period_labels[best_k]:
+                if item['Status'] not in ['Stop ⚠️ (Limit Exceeded)', 'Feasible (Closer Beyond Limit)']:
+                    item['Status'] = 'Horizon End (Optimal)' if best_k == n - 1 else 'Selected 🎯'
+        trace_logs.extend(t_log)
+        rec[idx] = sum(net_req[idx:best_k+1])
+        idx = best_k + 1
+    return rec, trace_logs
 
-# ==========================================
-# 3. SIDEBAR PARAMETER INPUTS
-# ==========================================
-st.sidebar.header("⚙️ Control Dashboard")
+def algo_silver_meal(net_req, n, setup_cost, holding_cost, period_labels):
+    rec = [0] * n
+    trace_logs = []
+    idx = 0
+    while idx < n:
+        if net_req[idx] == 0:
+            idx += 1
+            continue
+        best_k = idx
+        min_avg = float('inf')
+        acc_h = 0
+        periods_covered = 0
+        t_log = []
+        for k in range(idx, n):
+            acc_h += net_req[k] * holding_cost * (k - idx)
+            periods_covered += 1
+            t_cost = setup_cost + acc_h
+            avg_cost = t_cost / periods_covered if periods_covered > 0 else float('inf')
+            total_units_covered = sum(net_req[idx:k+1])
+            
+            if avg_cost < min_avg:
+                min_avg = avg_cost
+                best_k = k
+                t_log.append({
+                    'Iteration': f"Start from {period_labels[idx]}", 'Period Evaluated': period_labels[k],
+                    'Periods Covered': periods_covered, 'Total Units': total_units_covered,
+                    'Setup Cost': setup_cost, 'Holding Cost': acc_h, 'Total Cost (S+H)': t_cost,
+                    'Avg Cost/Period': round(avg_cost, 4), 'Status': 'Feasible'
+                })
+            else:
+                t_log.append({
+                    'Iteration': f"Start from {period_labels[idx]}", 'Period Evaluated': period_labels[k],
+                    'Periods Covered': periods_covered, 'Total Units': total_units_covered,
+                    'Setup Cost': setup_cost, 'Holding Cost': acc_h, 'Total Cost (S+H)': t_cost,
+                    'Avg Cost/Period': round(avg_cost, 4), 'Status': 'Stop ⚠️ (Cost Increased)'
+                })
+                break
+        for item in t_log:
+            if item['Period Evaluated'] == period_labels[best_k]:
+                item['Status'] = 'Horizon End (Optimal)' if (best_k == n - 1 and item['Status'] != 'Stop ⚠️ (Cost Increased)') else 'Selected 🎯'
+        trace_logs.extend(t_log)
+        rec[idx] = sum(net_req[idx:best_k+1])
+        idx = best_k + 1
+    return rec, trace_logs
 
-st.sidebar.subheader("💰 Financial Factors")  
-setup_cost = st.sidebar.number_input("Setup Cost", min_value=0.0, value=100.0, step=5.0)
-holding_cost = st.sidebar.number_input("Holding Cost (per unit/period)", min_value=0.0, value=2.0, step=0.5)
+def algo_poq(net_req, n, poq_interval):
+    rec = [0] * n
+    i = 0
+    while i < n:
+        if net_req[i] == 0:
+            i += 1
+            continue
+        window_end = min(i + poq_interval, n)
+        total_demand_in_window = sum(net_req[i:window_end])
+        if total_demand_in_window > 0:
+            rec[i] = total_demand_in_window
+        i = window_end
+    return rec
 
-st.sidebar.markdown("<br>", unsafe_allow_html=True)
+def algo_foq(net_req, n, foq_size):
+    rec = [0] * n
+    rem = 0
+    for i in range(n):
+        if net_req[i] > 0:
+            if rem < net_req[i]:
+                needed = net_req[i] - rem
+                lots = math.ceil(needed / foq_size) if foq_size > 0 else 1
+                rec[i] = lots * foq_size
+                rem = rec[i] + rem - net_req[i]
+            else:
+                rem -= net_req[i]
+    return rec
 
-st.sidebar.subheader("🗂️ Inventory Profiles")  
-initial_inv = st.sidebar.number_input("Initial Inventory", min_value=0, value=35, step=5)
-safety_stock = st.sidebar.number_input("Safety Stock", min_value=0, value=0, step=1)
-lead_time = st.sidebar.number_input("Lead Time", min_value=0, value=1, step=1)
+def apply_moq_constraint(rec_lot, moq_size):
+    return [max(x, moq_size) if x > 0 else 0 for x in rec_lot]
 
-st.sidebar.markdown("<br>", unsafe_allow_html=True)
-
-st.sidebar.subheader("🏭 Operational Boundaries")
-max_capacity = st.sidebar.number_input("Maximum Warehouse Capacity (Units)", min_value=1, value=100, step=10)
-
-
-# ==========================================
-# UTILITY CORE HELPERS
-# ==========================================
-def find_matching_column(columns, targets):
-    for col in columns:
-        col_clean = str(col).strip().lower().replace("_", "").replace(" ", "")
-        if col_clean in targets:
-            return col
+def find_matching_column(columns, candidates):
+    for c in columns:
+        if c.lower().replace(" ", "").replace("_", "") in candidates:
+            return c
     return None
 
-def style_mrp_grid(df_transposed, max_cap, ss):
-    def check_capacity(row):
-        styles = []
-        if row.name == 'Projected On Hand':
-            for val in row:
-                if val > max_cap:
-                    styles.append('background-color: #ffe0b2; color: #6a0708; font-weight: bold;')
-                elif val < ss:
-                    styles.append('background-color: #ffcdd2; color: #b71c1c; font-weight: bold;')
-                else:
-                    styles.append('')
-            return styles
-        return [''] * len(row)
-    return df_transposed.style.apply(check_capacity, axis=1)
+# ==========================================
+# 3. GLOBAL CONTROLS SIDEBAR FRAMEWORK
+# ==========================================
+st.sidebar.title("🛠️ MRP Global Parameters")
+setup_cost = st.sidebar.number_input("Setup/Ordering Cost (S):", min_value=1.0, value=100.0, step=10.0)
+holding_cost = st.sidebar.number_input("Holding Cost/Unit/Period (h):", min_value=0.01, value=2.0, step=0.5)
+initial_inv = st.sidebar.number_input("Initial Inventory On-Hand:", min_value=0, value=20)
+safety_stock = st.sidebar.number_input("Safety Stock Threshold:", min_value=0, value=5)
+lead_time = st.sidebar.number_input("Lead Time Offsetting (Periods):", min_value=0, value=1, step=1)
 
-def style_iteration_rows(df_step):
-    style_matrix = pd.DataFrame('', index=df_step.index, columns=df_step.columns)
-    for idx, row in df_step.iterrows():
-        status_str = str(row['Status'])
-        if "Stop" in status_str:
-            style_matrix.loc[idx] = 'background-color: #ffebee; color: #c62828; font-weight: bold;'
-        elif "Selected" in status_str or "Horizon End" in status_str:
-            style_matrix.loc[idx] = 'background-color: #e8f5e9; color: #2e7d32; font-weight: bold;'
-    return style_matrix
-
+# Global Toggle untuk Mengaktifkan Aturan MOQ di Penjuru Sistem
+apply_moq_global = st.sidebar.checkbox("Apply MOQ Constraint Globally")
 
 # ==========================================
-# 4. DATA ACQUISITION WORKBENCH
+# 4. DATA ACQUISITION WORKBENCH (FIXED M.ENTRY & S.S.T)
 # ==========================================
 st.subheader("📊 Data Input workbench")
-
-input_method = st.radio(
-    "Select Input Configuration Method:", 
-    ["Upload File", "Manual Entry", "Load Template"]
-)
-
+input_method = st.radio("Select Input Configuration Method:", ["Upload File", "Manual Entry", "Load Template"])
 df_workbench = None
 
 if input_method == "Upload File":
     uploaded_file = st.file_uploader("Upload demand documents (.csv, .xlsx)", type=["csv", "xlsx"])
     if uploaded_file is not None:
         try:
-            if uploaded_file.name.endswith('.csv'):
-                df_raw = pd.read_csv(uploaded_file)
-            else:
-                df_raw = pd.read_excel(uploaded_file)
-                
+            df_raw = pd.read_csv(uploaded_file) if uploaded_file.name.endswith('.csv') else pd.read_excel(uploaded_file)
             col_p = find_matching_column(df_raw.columns, ['periode', 'mingguke', 'p', 'minggu', 'period', 'week'])
             col_gr = find_matching_column(df_raw.columns, ['gr', 'grossrequirement', 'grossrequirements', 'kebutuhankotor'])
             col_sr = find_matching_column(df_raw.columns, ['sr', 'scheduledreceipt', 'scheduledreceipts', 'penerimaanterjadwal'])
             
             df_workbench = pd.DataFrame()
-            if col_p and col_p in df_raw.columns:
-                df_workbench['Period'] = df_raw[col_p].astype(str)
-            else:
-                df_workbench['Period'] = [f"P{i+1}" for i in range(len(df_raw))]
-                
-            if col_gr and col_gr in df_raw.columns:
+            df_workbench['Period'] = df_raw[col_p].astype(str) if col_p else [f"P{i+1}" for i in range(len(df_raw))]
+            if col_gr:
                 df_workbench['Gross Requirements'] = df_raw[col_gr].fillna(0).astype(int)
             else:
                 st.error("Failed to map Gross Requirements attribute automatically.")
-                st.stop() 
-                
-            if col_sr and col_sr in df_raw.columns:
-                df_workbench['Scheduled Receipts'] = df_raw[col_sr].fillna(0).astype(int)
-            else:
-                df_workbench['Scheduled Receipts'] = 0
+                st.stop()
+            df_workbench['Scheduled Receipts'] = df_raw[col_sr].fillna(0).astype(int) if col_sr else 0
         except Exception as e:
-            st.error(f"Engine parsing failure: {e}")
-            st.stop()
+            st.error(f"Engine parsing failure: {e}"); st.stop()
             
 elif input_method == "Manual Entry":
     num_periods_input = st.number_input("Planning Horizon Length (Periods):", min_value=1, max_value=52, value=10, step=1)
-    
-    # Sediakan data default jika horizon = 10, jika bukan 10 maka otomatis isi baseline 0 agar dinamis
-    if num_periods_input == 10:
-        default_gr = [35, 30, 40, 0, 10, 40, 30, 0, 30, 55]
-    else:
-        default_gr = [0] * num_periods_input
-        
-    init_data = {
-        'Period': [f"P{i+1}" for i in range(num_periods_input)],
-        'Gross Requirements': default_gr,
-        'Scheduled Receipts': [0] * num_periods_input
-    }
-    
-    # Perbaikan Bug: Transformasikan tabel input dasar menjadi data_editor interaktif vertikal
+    default_gr = [35, 30, 40, 0, 10, 40, 30, 0, 30, 55] if num_periods_input == 10 else [0] * num_periods_input
+    init_data = {'Period': [f"P{i+1}" for i in range(num_periods_input)], 'Gross Requirements': default_gr, 'Scheduled Receipts': [0] * num_periods_input}
     st.markdown("##### ✏️ Edit Demand & Scheduled Receipts Data Below:")
-    df_raw_manual = pd.DataFrame(init_data)
-    df_workbench = st.data_editor(df_raw_manual, use_container_width=True, hide_index=True)
-
+    df_workbench = st.data_editor(pd.DataFrame(init_data), use_container_width=True, hide_index=True)
 else:
-    # Modul Load Template Tetap Statis sebagai Data Pembanding Contoh Kuliah
-    default_data = {
-        'Period': [f"P{i}" for i in range(1, 11)],
-        'Gross Requirements': [35, 30, 40, 0, 10, 40, 30, 0, 30, 55],
-        'Scheduled Receipts': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    }
+    default_data = {'Period': [f"P{i}" for i in range(1, 11)], 'Gross Requirements': [35, 30, 40, 0, 10, 40, 30, 0, 30, 55], 'Scheduled Receipts': [0]*10}
     df_workbench = pd.DataFrame(default_data)
 
-# Sinkronisasi visualisasi matriks preview horizontal di bawah workbench
+# Sinkronisasi Data S.S.T (Single Source of Truth)
 if df_workbench is not None and not df_workbench.empty:
     gross_req = df_workbench['Gross Requirements'].fillna(0).astype(int).tolist()
     sched_rec = df_workbench['Scheduled Receipts'].fillna(0).astype(int).tolist()
     period_labels = df_workbench['Period'].astype(str).tolist()
     
     st.markdown("##### Input Data Matrix Summary View (Transposed):")
-    df_preview_transposed = pd.DataFrame({
-        'Gross Requirements': gross_req,
-        'Scheduled Receipts': sched_rec
-    }, index=period_labels).T
+    df_preview_transposed = pd.DataFrame({'Gross Requirements': gross_req, 'Scheduled Receipts': sched_rec}, index=period_labels).T
     
-    # Proteksi Single Source of Truth agar tidak terjadi konflik data data_editor
     if input_method == "Manual Entry":
-        # Tampilkan sebagai dataframe statis (Read-Only) karena sumber edit utama ada di workbench vertikal
         st.dataframe(df_preview_transposed, use_container_width=True)
         df_edited_preview = df_preview_transposed
     else:
-        # Untuk Upload File & Load Template, tetap biarkan interaktif untuk quick-fix tanpa re-upload
         df_edited_preview = st.data_editor(df_preview_transposed, use_container_width=True)
         
     gross_req = df_edited_preview.loc['Gross Requirements'].astype(int).tolist()
     sched_rec = df_edited_preview.loc['Scheduled Receipts'].astype(int).tolist()
 
-
     # ==========================================
-    # CORE PROCESSING MATHEMATICAL ALGORITHMS
+    # 5. DATA COMPILATION & STAGE ENGINE
     # ==========================================
-    def calculate_multi_mrp(demands, s_receipts, setup, hold, init_inv, ss, lt):
-        n = len(demands)
-        
-        # Calculate Net Requirements Matrix
-        net_req = []
-        prev_inv = init_inv
-        for i in range(n):
-            available_stock = prev_inv + s_receipts[i]
-            net_val = demands[i] + ss - available_stock
-            if net_val > 0:
-                net_req.append(net_val)
-                prev_inv = ss
-            else:
-                net_req.append(0)
-                prev_inv = available_stock - demands[i]
-
-        # Perbaikan Catatan 4: Menerima ss sebagai parameter untuk validasi visual di grid luar
-        def generate_poh_and_release(rec_lot):
-            poh = []
-            r_inv = init_inv
-            for i in range(n):
-                r_inv += s_receipts[i] + rec_lot[i] - demands[i]
-                poh.append(r_inv)
-            
-            rel_lot = [0] * n
-            for i in range(n):
-                if rec_lot[i] > 0:
-                    target = i - lt
-                    rel_lot[max(0, target)] += rec_lot[i]
-            return poh, rel_lot
-
-        # 1. LOT-FOR-LOT (L4L)
-        l4l_rec = list(net_req)
-        l4l_poh, l4l_rel = generate_poh_and_release(l4l_rec)
-        c_l4l_setup = sum(1 for x in l4l_rec if x > 0) * setup
-        c_l4l_hold = sum(max(0, x) for x in l4l_poh) * hold
-
-        # 2. LEAST UNIT COST (LUC)
-        luc_rec = [0] * n
-        luc_trace_logs = []
-        idx = 0
-        while idx < n:
-            if net_req[idx] == 0:
-                idx += 1
-                continue
-            best_k = idx
-            min_uc = float('inf')
-            acc_d, acc_h = 0, 0
-            t_log = []
-            
-            for k in range(idx, n):
-                # Perbaikan Catatan 1: Hapus filter skip continue! Biarkan periode 0 masuk hitungan agar indeks penunjuk tidak loncat.
-                acc_d += net_req[k]
-                acc_h += net_req[k] * hold * (k - idx)
-                t_cost = setup + acc_h
-                uc = t_cost / acc_d if acc_d > 0 else float('inf')
-                
-                covered_periods_str = ", ".join([period_labels[m] for m in range(idx, k+1)])
-                
-                if uc < min_uc:  
-                    min_uc, best_k = uc, k
-                    t_log.append({
-                        'Periods Covered': covered_periods_str, 'Total Units': acc_d, 
-                        'Setup Cost': setup, 'Holding Cost': acc_h, 'Total Cost': t_cost, 
-                        'Unit Cost': uc, 'Status': 'Feasible'
-                    })
-                else:
-                    t_log.append({
-                        'Periods Covered': covered_periods_str, 'Total Units': acc_d, 
-                        'Setup Cost': setup, 'Holding Cost': acc_h, 'Total Cost': t_cost, 
-                        'Unit Cost': uc, 'Status': 'Stop ⚠️ (Limit Exceeded)'
-                    })
-                    break
-            
-            df_step = pd.DataFrame(t_log)
-            if not df_step.empty:
-                stop_exists = df_step['Status'].str.contains('Stop').any()
-                if stop_exists:
-                    stop_idx = df_step[df_step['Status'].str.contains('Stop')].index[0]
-                    if stop_idx > 0:
-                        df_step.at[stop_idx - 1, 'Status'] = 'Selected (Optimal)'
-                else:
-                    df_step.at[df_step.index[-1], 'Status'] = 'Horizon End (Optimal)'
-                    
-            luc_trace_logs.append(df_step)
-            luc_rec[idx] = sum(net_req[idx:best_k+1])
-            idx = best_k + 1
-            
-        luc_poh, luc_rel = generate_poh_and_release(luc_rec)
-        c_luc_setup = sum(1 for x in luc_rec if x > 0) * setup
-        c_luc_hold = sum(max(0, x) for x in luc_poh) * hold
-
-        # 3. ECONOMIC ORDER QUANTITY (EOQ)
-        avg_demand_gross = np.mean(demands)
-        eoq_size = math.ceil(math.sqrt((2 * avg_demand_gross * setup) / hold)) if hold > 0 else 0
-        eoq_rec = [0] * n
-        rem_stok = 0
-        
-        # Perbaikan Catatan 3: Hapus total blok else mubazir. Periode net_req=0 tidak perlu diutak-atik.
-        for i in range(n):
-            if net_req[i] > 0:
-                if rem_stok < net_req[i]:
-                    needed = net_req[i] - rem_stok
-                    lots_to_order = math.ceil(needed / eoq_size) if eoq_size > 0 else 1
-                    eoq_rec[i] = lots_to_order * eoq_size
-                    rem_stok = (eoq_rec[i] + rem_stok) - net_req[i]
-                else:
-                    rem_stok -= net_req[i]
-                    
-        eoq_poh, eoq_rel = generate_poh_and_release(eoq_rec)
-        c_eoq_setup = sum(1 for x in eoq_rec if x > 0) * setup
-        c_eoq_hold = sum(max(0, x) for x in eoq_poh) * hold
-
-        # 4. PART PERIOD BALANCING (PPB)
-        ppb_rec = [0] * n
-        ppb_trace_logs = []
-        epp_limit = setup / hold if hold > 0 else float('inf')
-        
-        idx = 0
-        while idx < n:
-            if net_req[idx] == 0:
-                idx += 1
-                continue
-            best_k = idx
-            cum_part_period = 0
-            acc_d = 0
-            t_log = []
-            
-            for k in range(idx, n):
-                part_period_k = net_req[k] * (k - idx)
-                new_cum_part_period = cum_part_period + part_period_k
-                covered_periods_str = ", ".join([period_labels[m] for m in range(idx, k+1)])
-                
-                if new_cum_part_period <= epp_limit:
-                    acc_d += net_req[k]
-                    cum_part_period = new_cum_part_period
-                    best_k = k
-                    t_log.append({
-                        'Periods Covered': covered_periods_str, 'Total Units': acc_d,
-                        'Target EPP': epp_limit, 'Accumulated Part-Period': cum_part_period,
-                        'Status': 'Feasible'
-                    })
-                else:
-                    dist_before = abs(cum_part_period - epp_limit)
-                    dist_after = abs(new_cum_part_period - epp_limit)
-                    
-                    # Perbaikan Catatan 2: Batasi look-ahead hanya sekali lewat break, hapus resiko over-consolidation
-                    if dist_after < dist_before:
-                        acc_d += net_req[k]
-                        cum_part_period = new_cum_part_period
-                        best_k = k
-                        t_log.append({
-                            'Periods Covered': covered_periods_str, 'Total Units': acc_d,
-                            'Target EPP': epp_limit, 'Accumulated Part-Period': cum_part_period,
-                            'Status': 'Feasible (Closer Beyond Limit)'
-                        })
-                    else:
-                        t_log.append({
-                            'Periods Covered': covered_periods_str, 'Total Units': acc_d + net_req[k],
-                            'Target EPP': epp_limit, 'Accumulated Part-Period': new_cum_part_period,
-                            'Status': 'Stop ⚠️ (Limit Exceeded)'
-                        })
-                    break
-                    
-            df_step = pd.DataFrame(t_log)
-            if not df_step.empty:
-                stop_exists = df_step['Status'].str.contains('Stop').any()
-                if stop_exists:
-                    stop_idx = df_step[df_step['Status'].str.contains('Stop')].index[0]
-                    if stop_idx > 0:
-                        df_step.at[stop_idx - 1, 'Status'] = 'Selected (Optimal)'
-                else:
-                    df_step.at[df_step.index[-1], 'Status'] = 'Horizon End (Optimal)'
-                    
-            ppb_trace_logs.append(df_step)
-            ppb_rec[idx] = sum(net_req[idx:best_k+1])
-            idx = best_k + 1
-            
-        ppb_poh, ppb_rel = generate_poh_and_release(ppb_rec)
-        c_ppb_setup = sum(1 for x in ppb_rec if x > 0) * setup
-        c_ppb_hold = sum(max(0, x) for x in ppb_poh) * hold
-
-        return {
-            'net_req': net_req,
-            'l4l': {'poh': l4l_poh, 'rec': l4l_rec, 'rel': l4l_rel, 'setup': c_l4l_setup, 'hold': c_l4l_hold, 'total': c_l4l_setup + c_l4l_hold},
-            'luc': {'poh': luc_poh, 'rec': luc_rec, 'rel': luc_rel, 'setup': c_luc_setup, 'hold': c_luc_hold, 'total': c_luc_setup + c_luc_hold, 'iters': luc_trace_logs},
-            'eoq': {'poh': eoq_poh, 'rec': eoq_rec, 'rel': eoq_rel, 'setup': c_eoq_setup, 'hold': c_eoq_hold, 'total': c_eoq_setup + c_eoq_hold, 'size': eoq_size, 'avg_demand_gross': avg_demand_gross},
-            'ppb': {'poh': ppb_poh, 'rec': ppb_rec, 'rel': ppb_rel, 'setup': c_ppb_setup, 'hold': c_ppb_hold, 'total': c_ppb_setup + c_ppb_hold, 'iters': ppb_trace_logs, 'epp': epp_limit}
-        }
-
-    # Run Process Calculations
-    res = calculate_multi_mrp(gross_req, sched_rec, setup_cost, holding_cost, initial_inv, safety_stock, lead_time)
-    num_periods = len(gross_req)
-
-    def render_mrp_grid_view(data_dict, max_cap, ss):
-        df = pd.DataFrame({
-            'Gross Requirements': gross_req,
-            'Scheduled Receipts': sched_rec,
-            'Projected On Hand': data_dict['poh'],
-            'Net Requirements': res['net_req'],
-            'Planned Order Receipts': data_dict['rec'],
-            'Planned Order Releases': data_dict['rel']
-        }, index=period_labels).T
-        st.dataframe(style_mrp_grid(df, max_cap, ss), use_container_width=True)
-        
-        if min(data_dict['poh']) < ss:
-            stockout_periods = [period_labels[i] for i, v in enumerate(data_dict['poh']) if v < ss]
-            st.error(f"🚨 Shortage Warning: Stockout / Pelanggaran Safety Stock terjadi pada periode: {', '.join(stockout_periods)}")
-        if max(data_dict['poh']) > max_cap:
-            st.error(f"⚠️ Capacity Boundary Overrun: Projected On Hand melebihi batas kapasitas gudang ({max_cap} unit).")
-
-    def render_cost_audit_window(data_dict, setup_val, hold_val, rec_array, poh_array):
-        order_count = sum(1 for x in rec_array if x > 0)
-        sum_poh = sum(max(0, x) for x in poh_array)
-        
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            with st.expander("🛠️ Setup Cost Detail"):
-                st.markdown(f"""<div class='text-justify'>
-                <b>Formula:</b><br>Orders Count &times; Unit Setup Cost<br><br>
-                <b>Calculation:</b><br>{order_count} &times; {setup_val:,.2f}<br><br>
-                <b>Total:</b> {data_dict['setup']:,.2f}
-                </div>""", unsafe_allow_html=True)
-        with c2:
-            with st.expander("📦 Holding Cost Detail"):
-                st.markdown(f"""<div class='text-justify'>
-                <b>Formula:</b><br>(&sum; Projected On Hand) &times; Holding Rate<br><br>
-                <b>Calculation:</b><br>{sum_poh} &times; {hold_val:,.2f}<br><br>
-                <b>Total:</b> {data_dict['hold']:,.2f}
-                </div>""", unsafe_allow_html=True)
-        with c3:
-            with st.expander("💰 Total Operational Cost"):
-                st.markdown(f"""<div class='text-justify'>
-                <b>Formula:</b><br>Setup Cost + Holding Cost<br><br>
-                <b>Calculation:</b><br>{data_dict['setup']:,.2f} + {data_dict['hold']:,.2f}<br><br>
-                <b>Total:</b> <b>{data_dict['total']:,.2f}</b>
-                </div>""", unsafe_allow_html=True)
-
-
-    # ==========================================
-    # 5. METHODS MODULES EXECUTION WORKBENCH TABS
-    # ==========================================
-    st.markdown("---")
-    st.subheader("⚙️ Lot Sizing Operational Performance Strategy Modules")
+    n = len(gross_req)
     
-    t_l4l, t_eoq, t_luc, t_ppb = st.tabs([
-        "📋 Lot-for-Lot (L4L)", 
-        "🎯 Economic Order Quantity (EOQ)", 
-        "🔍 Least Unit Cost (LUC)", 
-        "⚖️ Part Period Balancing (PPB)"
+    # Perhitungan Baseline Net Requirements Global
+    net_req = []
+    curr_inv = initial_inv
+    for i in range(n):
+        avail = curr_inv + sched_rec[i]
+        if avail >= gross_req[i] + safety_stock:
+            net_req.append(0); curr_inv = avail - gross_req[i]
+        else:
+            needed = (gross_req[i] + safety_stock) - avail
+            net_req.append(needed); curr_inv = safety_stock
+
+    # Baseline Parametrik Teoretis
+    avg_d = np.mean(gross_req) if n > 0 else 0
+    eoq_calc_val = math.ceil(math.sqrt((2 * setup_cost * avg_d) / holding_cost)) if holding_cost > 0 and avg_d > 0 else 1
+    epp_target_val = setup_cost / holding_cost if holding_cost > 0 else float('inf')
+
+    # Struktur Dictionary Session State Penampung Biaya Final untuk Komparasi Global
+    if 'biaya_global' not in st.session_state:
+        st.session_state.biaya_global = {}
+        
+    moq_size = st.session_state.get('moq_size_state', 0)
+
+    # Helper untuk memproses visualisasi standardisasi grid tabel MRP
+    def display_mrp_grid(p_labels, gr, sr, nr, rec, poh, rel):
+        mrp_df = pd.DataFrame({
+            'Gross Requirements': gr, 'Scheduled Receipts': sr, 'Net Requirements': nr,
+            'Planned Order Receipts': rec, 'Projected On Hand': poh, 'Planned Order Releases': rel
+        }, index=p_labels).T
+        st.dataframe(mrp_df, use_container_width=True)
+
+    st.markdown("---")
+    st.subheader("⚙️ Tactical Execution per Sizing Method")
+
+    # Penyusunan 8 Tab Sesuai Visi Desain UI Terbaru
+    t_l4l, t_eoq, t_luc, t_ppb, t_sm, t_poq, t_foq, t_moq = st.tabs([
+        "📋 L4L", "📦 EOQ", "💰 LUC", "⚖️ PPB", "📊 Silver-Meal", "⏱️ POQ", "🎯 FOQ", "🛡️ MOQ Config"
     ])
 
-    # TAB 1: LOT-FOR-LOT
+    # --- TAB 1: LOT-FOR-LOT ---
     with t_l4l:
-        st.subheader("Lot-for-Lot (L4L) Performance Execution Model")
-        render_mrp_grid_view(res['l4l'], max_capacity, safety_stock)
-        render_cost_audit_window(res['l4l'], setup_cost, holding_cost, res['l4l']['rec'], res['l4l']['poh'])
+        st.markdown("#### Lot-for-Lot Execution Framework")
+        rec_arr = algo_l4l(net_req, n)
+        if apply_moq_global and moq_size > 0:
+            rec_arr = apply_moq_constraint(rec_arr, moq_size)
+        poh_arr, rel_arr = generate_poh_and_release(rec_arr, gross_req, sched_rec, initial_inv, lead_time, n)
+        s, h, t = calculate_cost_metrics(rec_arr, poh_arr, setup_cost, holding_cost)
+        st.session_state.biaya_global['L4L'] = t
+        display_mrp_grid(period_labels, gross_req, sched_rec, net_req, rec_arr, poh_arr, rel_arr)
+        st.metric("Total Incurred Cost (L4L)", f"${t:,.2f}", f"Setup: ${s} | Hold: ${h}")
 
-    # TAB 2: EOQ
+    # --- TAB 2: EOQ ---
     with t_eoq:
-        st.subheader("Economic Order Quantity (EOQ) Optimization")
-        
-        if holding_cost == 0:
-            st.warning("⚠️ Holding cost bernilai 0. Formula log matematika EOQ dihentikan untuk mencegah pembagian nol.")
-        else:
-            with st.expander("🔬 CLICK HERE TO VIEW FORMULA LOG CALCULATIONS (EOQ)"):
-                total_gross_req = sum(gross_req)
-                n_periode = len(gross_req)
-                avg_demand_calc = res['eoq']['avg_demand_gross']
-                
-                st.markdown("#### 📝 Sizing Steps for EOQ:")
-                st.markdown("**1. Identify Input Gross Requirements Data Matrix:**")
-                st.markdown(f"""
-                * Data per Period: `{gross_req}`
-                * Total Kebutuhan ($\sum$ Gross Req) = `{total_gross_req}` units / Planning Horizon ($n$) = `{n_periode}` periods
-                * Average Demand ($D$) = `{avg_demand_calc:.4f}` units/period
-                """)
-                
-                st.markdown("**2. Standard Square-Root Mathematical Equation Substitution:**")
-                st.markdown(f"$$EOQ = \\sqrt{{\\frac{{2 \\times D \\times \\text{{Setup Cost}}}}{{\\text{{Holding Cost}}}}}}$$")
-                st.markdown(f"$$EOQ = \\sqrt{{\\frac{{2 \\times {avg_demand_calc:.4f} \\times {setup_cost:,.2f}}}{{{holding_cost:,.2f}}}}}$$")
-                st.markdown(f"$$EOQ = {math.sqrt((2 * avg_demand_calc * setup_cost) / holding_cost):.4f} \\text{{ units}}$$")
-                
-                st.markdown("**3. Discrete Upper Integer Ceiling Rounding:**")
-                st.markdown(f"* Rounded up via ceiling constraints: **`{res['eoq']['size']}` units**.")
-            
-        st.info(f"💡 **Lot Sizing Matrix Status:** Batas Fixed Order Quantity untuk profil EOQ dikunci pada **{res['eoq']['size']} unit** per pesanan.")
-        render_mrp_grid_view(res['eoq'], max_capacity, safety_stock)
-        render_cost_audit_window(res['eoq'], setup_cost, holding_cost, res['eoq']['rec'], res['eoq']['poh'])
+        st.markdown(f"#### Economic Order Quantity (Calculated Size: {eoq_calc_val} Units)")
+        rec_arr = algo_eoq(net_req, n, eoq_calc_val)
+        if apply_moq_global and moq_size > 0:
+            rec_arr = apply_moq_constraint(rec_arr, moq_size)
+        poh_arr, rel_arr = generate_poh_and_release(rec_arr, gross_req, sched_rec, initial_inv, lead_time, n)
+        s, h, t = calculate_cost_metrics(rec_arr, poh_arr, setup_cost, holding_cost)
+        st.session_state.biaya_global['EOQ'] = t
+        display_mrp_grid(period_labels, gross_req, sched_rec, net_req, rec_arr, poh_arr, rel_arr)
+        st.metric("Total Incurred Cost (EOQ)", f"${t:,.2f}", f"Setup: ${s} | Hold: ${h}")
 
-    # TAB 3: LUC
+    # --- TAB 3: LUC ---
     with t_luc:
-        st.subheader("Least Unit Cost (LUC) Iterative Consolidation Grid")
-        st.markdown("##### Dynamic Lot Search Log Blocks Trace:")
-        
-        fmt_luc = {'Setup Cost': '{:.2f}', 'Holding Cost': '{:.2f}', 'Total Cost': '{:.2f}', 'Unit Cost': '{:.4f}'}
-        for step_idx, df_step in enumerate(res['luc']['iters']):
-            if df_step.empty: continue
-            with st.expander(f"Iteration Block {step_idx + 1}", expanded=True):
-                st.dataframe(df_step.style.apply(style_iteration_rows, axis=None).format(fmt_luc), hide_index=True, use_container_width=True)
-                
-        render_mrp_grid_view(res['luc'], max_capacity, safety_stock)
-        render_cost_audit_window(res['luc'], setup_cost, holding_cost, res['luc']['rec'], res['luc']['poh'])
+        st.markdown("#### Least Unit Cost Optimization Engine")
+        rec_arr, logs_luc = algo_luc(net_req, n, setup_cost, holding_cost, period_labels)
+        if apply_moq_global and moq_size > 0:
+            rec_arr = apply_moq_constraint(rec_arr, moq_size)
+        poh_arr, rel_arr = generate_poh_and_release(rec_arr, gross_req, sched_rec, initial_inv, lead_time, n)
+        s, h, t = calculate_cost_metrics(rec_arr, poh_arr, setup_cost, holding_cost)
+        st.session_state.biaya_global['LUC'] = t
+        display_mrp_grid(period_labels, gross_req, sched_rec, net_req, rec_arr, poh_arr, rel_arr)
+        st.metric("Total Incurred Cost (LUC)", f"${t:,.2f}", f"Setup: ${s} | Hold: ${h}")
+        st.markdown("##### 🔍 Least Unit Cost Trace Log Database")
+        st.dataframe(pd.DataFrame(logs_luc), use_container_width=True, hide_index=True)
 
-    # TAB 4: PPB
+    # --- TAB 4: PPB ---
     with t_ppb:
-        st.subheader("Part Period Balancing (PPB) Dynamic Policy Grid")
+        st.markdown(f"#### Part Period Balancing Optimization (Target EPP: {epp_target_val:.2f})")
+        rec_arr, logs_ppb = algo_ppb(net_req, n, setup_cost, holding_cost, epp_target_val, period_labels)
+        if apply_moq_global and moq_size > 0:
+            rec_arr = apply_moq_constraint(rec_arr, moq_size)
+        poh_arr, rel_arr = generate_poh_and_release(rec_arr, gross_req, sched_rec, initial_inv, lead_time, n)
+        s, h, t = calculate_cost_metrics(rec_arr, poh_arr, setup_cost, holding_cost)
+        st.session_state.biaya_global['PPB'] = t
+        display_mrp_grid(period_labels, gross_req, sched_rec, net_req, rec_arr, poh_arr, rel_arr)
+        st.metric("Total Incurred Cost (PPB)", f"${t:,.2f}", f"Setup: ${s} | Hold: ${h}")
+        st.markdown("##### 🔍 Part Period Balancing Trace Log Database")
+        st.dataframe(pd.DataFrame(logs_ppb), use_container_width=True, hide_index=True)
+
+    # --- TAB 5: SILVER MEAL ---
+    with t_sm:
+        st.markdown("#### Silver-Meal Optimization Engine")
+        rec_arr, logs_sm = algo_silver_meal(net_req, n, setup_cost, holding_cost, period_labels)
+        if apply_moq_global and moq_size > 0:
+            rec_arr = apply_moq_constraint(rec_arr, moq_size)
+        poh_arr, rel_arr = generate_poh_and_release(rec_arr, gross_req, sched_rec, initial_inv, lead_time, n)
+        s, h, t = calculate_cost_metrics(rec_arr, poh_arr, setup_cost, holding_cost)
+        st.session_state.biaya_global['Silver-Meal'] = t
+        display_mrp_grid(period_labels, gross_req, sched_rec, net_req, rec_arr, poh_arr, rel_arr)
+        st.metric("Total Incurred Cost (Silver-Meal)", f"${t:,.2f}", f"Setup: ${s} | Hold: ${h}")
+        st.markdown("##### 🔍 Silver-Meal Heuristic Trace Log Database")
+        st.dataframe(pd.DataFrame(logs_sm), use_container_width=True, hide_index=True)
+
+    # --- TAB 6: POQ ---
+    with t_poq:
+        st.markdown("#### Periodic Order Quantity Horizon Framework")
+        poq_interval = st.number_input("Set Order Cycle Window Interval (Periods):", min_value=1, max_value=n if n > 0 else 12, value=3, step=1)
+        rec_arr = algo_poq(net_req, n, poq_interval)
+        if apply_moq_global and moq_size > 0:
+            rec_arr = apply_moq_constraint(rec_arr, moq_size)
+        poh_arr, rel_arr = generate_poh_and_release(rec_arr, gross_req, sched_rec, initial_inv, lead_time, n)
+        s, h, t = calculate_cost_metrics(rec_arr, poh_arr, setup_cost, holding_cost)
+        st.session_state.biaya_global['POQ'] = t
+        display_mrp_grid(period_labels, gross_req, sched_rec, net_req, rec_arr, poh_arr, rel_arr)
+        st.metric("Total Incurred Cost (POQ)", f"${t:,.2f}", f"Setup: ${s} | Hold: ${h}")
+
+    # --- TAB 7: FOQ ---
+    with t_foq:
+        st.markdown("#### Fixed Order Quantity Paradigm Control")
+        foq_size = st.number_input("Set Fixed Lot Size Quantity Configuration:", min_value=0, max_value=2000, value=0, step=10)
         
-        with st.expander("🔬 CLICK HERE TO VIEW DETAILED FORMULA LOG CALCULATIONS (PPB)", expanded=True):
-            st.markdown("#### 📝 Sizing Steps for PPB:")
-            st.markdown("**1. Identify Operational Control Parameters:**")
-            st.markdown(f"""
-            * Setup Cost Value = `{setup_cost:,.2f}` | Holding Cost Value = `{holding_cost:,.2f}`
-            """)
-            
-            st.markdown("**2. Calculate Balanced Economic Part Period (EPP) Target Limit Baseline:**")
-            st.markdown(r"$$EPP = \frac{\text{Setup Cost}}{\text{Holding Cost}}$$")
-            st.markdown(f"$$EPP = \\frac{{{setup_cost:,.2f}}}{{{holding_cost:,.2f}}}$$")
-            st.markdown(f"$$EPP = {res['ppb']['epp']:.4f} \\text{{ part-periods}}$$")
-            
-        st.info(f"💡 **Part Period Matrix Target Status:** Target batas EPP dikunci pada **{res['ppb']['epp']:.4f}** part-periods.")
+        # LOCK MECHANISM (Kunci Kalkulasi jika Input masih 0)
+        if foq_size == 0:
+            st.warning("⚠️ Silakan masukkan kuantitas FOQ terlebih dahulu pada kotak input di atas untuk menjalankan kalkulasi.")
+            if 'FOQ' in st.session_state.biaya_global:
+                del st.session_state.biaya_global['FOQ']
+        else:
+            rec_arr = algo_foq(net_req, n, foq_size)
+            if apply_moq_global and moq_size > 0:
+                rec_arr = apply_moq_constraint(rec_arr, moq_size)
+            poh_arr, rel_arr = generate_poh_and_release(rec_arr, gross_req, sched_rec, initial_inv, lead_time, n)
+            s, h, t = calculate_cost_metrics(rec_arr, poh_arr, setup_cost, holding_cost)
+            st.session_state.biaya_global['FOQ'] = t
+            display_mrp_grid(period_labels, gross_req, sched_rec, net_req, rec_arr, poh_arr, rel_arr)
+            st.metric("Total Incurred Cost (FOQ)", f"${t:,.2f}", f"Setup: ${s} | Hold: ${h}")
+
+    # --- TAB 8: MOQ CONFIGURATION ---
+    with t_moq:
+        st.markdown("#### 🛡️ Supplier MOQ Constraint Configuration")
+        moq_input = st.number_input("Set Minimum Order Quantity (MOQ Threshold Size):", min_value=0, max_value=2000, value=0, step=5, key="moq_size_state")
         
-        st.markdown("##### Iteration Steps Trace:")
-        fmt_ppb = {'Target EPP': '{:.2f}', 'Accumulated Part-Period': '{:.2f}'}
-        for step_idx, df_step in enumerate(res['ppb']['iters']):
-            if df_step.empty: continue
-            with st.expander(f"Iteration Block {step_idx + 1}", expanded=True):
-                st.dataframe(df_step.style.apply(style_iteration_rows, axis=None).format(fmt_ppb), hide_index=True, use_container_width=True)
-                
-        render_mrp_grid_view(res['ppb'], max_capacity, safety_stock)
-        render_cost_audit_window(res['ppb'], setup_cost, holding_cost, res['ppb']['rec'], res['ppb']['poh'])
-
+        if moq_input > 0:
+            if apply_moq_global:
+                st.success(f"🛡️ Status MOQ: AKTIF ({moq_input} units) dan diaplikasikan ke seluruh penjuru metode.")
+            else:
+                st.info(f"💡 Batas MOQ tersimpan ({moq_input} units). Untuk menerapkannya, silakan centang 'Apply MOQ Constraint Globally' di Sidebar.")
+        else:
+            st.info("Status MOQ: Terbuka (0). Seluruh eksekusi metode berjalan murni tanpa restriksi batas minimal supplier.")
 
     # ==========================================
-    # 6. GLOBAL PERFORMANCE MATRIX COMPARISON
-    # ==========================================
-    st.markdown("---")
-    st.header("🏁 Strategic Portfolio Cost Summary Comparison Matrix")
-    
-    biaya_dict = {
-        'L4L': res['l4l']['total'], 
-        'LUC': res['luc']['total'], 
-        'EOQ': res['eoq']['total'], 
-        'PPB': res['ppb']['total']
-    }
-    
-    min_cost = min(biaya_dict.values())
-    best_methods = [k for k, v in biaya_dict.items() if v == min_cost]
-    
-    m1, m2, m3, m4 = st.columns(4)
-    
-    with m1:
-        is_best = 'L4L' in best_methods
-        sub_text = "<div style='color: #2e7d32; font-size: 13px; font-weight: bold;'>🏆 Optimal Strategy</div>" if is_best else f"<div style='color: #d90429; font-size: 13px; font-weight: bold;'>⚠️ Inefficient by {res['l4l']['total'] - min_cost:,.2f}</div>"
-        st.markdown(f"""<div style='background-color: #f4efdc; padding: 16px; border-radius: 8px; border-left: 5px solid #6a0708;'>
-                        <div style='color: #333; font-size: 13px; font-weight: 600;'>Total Cost L4L</div>
-                        <div style='font-size: 22px; font-weight: 700; color: #111111; margin-top: 4px;'>{res['l4l']['total']:,.2f}</div>
-                        {sub_text}</div>""", unsafe_allow_html=True)
-    with m2:
-        is_best = 'LUC' in best_methods
-        sub_text = "<div style='color: #2e7d32; font-size: 13px; font-weight: bold;'>🏆 Optimal Strategy</div>" if is_best else f"<div style='color: #d90429; font-size: 13px; font-weight: bold;'>⚠️ Inefficient by {res['luc']['total'] - min_cost:,.2f}</div>"
-        st.markdown(f"""<div style='background-color: #f4efdc; padding: 16px; border-radius: 8px; border-left: 5px solid #6a0708;'>
-                        <div style='color: #333; font-size: 13px; font-weight: 600;'>Total Cost LUC</div>
-                        <div style='font-size: 22px; font-weight: 700; color: #111111; margin-top: 4px;'>{res['luc']['total']:,.2f}</div>
-                        {sub_text}</div>""", unsafe_allow_html=True)
-    with m3:
-        is_best = 'EOQ' in best_methods
-        sub_text = "<div style='color: #2e7d32; font-size: 13px; font-weight: bold;'>🏆 Optimal Strategy</div>" if is_best else f"<div style='color: #d90429; font-size: 13px; font-weight: bold;'>⚠️ Inefficient by {res['eoq']['total'] - min_cost:,.2f}</div>"
-        st.markdown(f"""<div style='background-color: #f4efdc; padding: 16px; border-radius: 8px; border-left: 5px solid #6a0708;'>
-                        <div style='color: #333; font-size: 13px; font-weight: 600;'>Total Cost EOQ</div>
-                        <div style='font-size: 22px; font-weight: 700; color: #111111; margin-top: 4px;'>{res['eoq']['total']:,.2f}</div>
-                        {sub_text}</div>""", unsafe_allow_html=True)
-    with m4:
-        is_best = 'PPB' in best_methods
-        sub_text = "<div style='color: #2e7d32; font-size: 13px; font-weight: bold;'>🏆 Optimal Strategy</div>" if is_best else f"<div style='color: #d90429; font-size: 13px; font-weight: bold;'>⚠️ Inefficient by {res['ppb']['total'] - min_cost:,.2f}</div>"
-        st.markdown(f"""<div style='background-color: #f4efdc; padding: 16px; border-radius: 8px; border-left: 5px solid #6a0708;'>
-                        <div style='color: #333; font-size: 13px; font-weight: 600;'>Total Cost PPB</div>
-                        <div style='font-size: 22px; font-weight: 700; color: #111111; margin-top: 4px;'>{res['ppb']['total']:,.2f}</div>
-                        {sub_text}</div>""", unsafe_allow_html=True)
-
-    # Verdict Banner (Minimalist Center - Text Hijau Tema)
-    methods_string = " & ".join(best_methods)
-    st.markdown(f"""
-    <div style="background-color: #e8f5e9; border: 1px solid #c8e6c9; border-left: 5px solid #2e7d32; padding: 14px; border-radius: 4px; margin-top: 20px; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-        <span style="color: #2e7d32; font-size: 15px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-right: 4px;">
-            🎯 Strategy Recommendation:
-        </span>
-        <span style="color: #111111; font-size: 15px; font-weight: 500;">
-            It is highly recommended to <span style="color: #2e7d32; font-weight: 700;">Apply {methods_string} Model</span> to maximize your overall operational efficiency.
-        </span>
-    </div>
-    """, unsafe_allow_html=True)
-
-
-    # ==========================================
-    # 7. GRAPH VISUALIZATION
+    # 6. SENSITIVITY CHARTS & EXPORT INTERFACE
     # ==========================================
     st.markdown("---")
     st.subheader("📉 Parametric Sensitivity Analysis Charts")
     
-    cg1, cg2 = st.columns(2)
-    with cg1:
+    c_graph1, c_graph2 = st.columns(2)
+    
+    with c_graph1:
         fig, ax = plt.subplots(figsize=(7, 4.2))
-        fig.patch.set_facecolor('#faf8f2')
-        ax.set_facecolor('#faf8f2')
+        fig.patch.set_facecolor('#faf8f2'); ax.set_facecolor('#faf8f2')
         
-        ax.bar(biaya_dict.keys(), biaya_dict.values(), color=['#444444', '#6a0708', '#e65c00', '#2a7b4c'], width=0.45)
-        ax.set_title("Comparison of Lot Sizing Methods", fontsize=11, fontweight='bold', color='#6a0708', pad=12)
-        ax.set_xlabel('Lot Sizing Strategy', color='#111', fontsize=9, fontweight='bold')
-        ax.set_ylabel('Total Cost', color='#111', fontsize=9, fontweight='bold')
-        ax.grid(axis='y', linestyle=':', alpha=0.6)
-        st.pyplot(fig)
+        # Grafik Komparatif Dinamis (Hanya merender metode yang ada di session state)
+        k_methods = list(st.session_state.biaya_global.keys())
+        v_costs = list(st.session_state.biaya_global.values())
         
-    with cg2:
-        scale_factors = np.arange(0.70, 1.31, 0.05) 
-        s_l4l, s_luc, s_eoq, s_ppb, labels_pct = [], [], [], [], []
+        if v_costs:
+            ax.bar(k_methods, v_costs, color=['#444444', '#6a0708', '#e65c00', '#2a7b4c', '#5a189a', '#0077b6', '#f72585'], width=0.45)
+            ax.set_title("Comparison of Lot Sizing Active Methods", fontsize=11, fontweight='bold', color='#6a0708', pad=12)
+            ax.set_ylabel('Total Cost', fontsize=9, fontweight='bold')
+            ax.grid(axis='y', linestyle=':', alpha=0.6)
+            st.pyplot(fig)
+        else:
+            st.info("No calculated cost data infrastructure found.")
+
+    with c_graph2:
+        scale_factors = np.arange(0.70, 1.31, 0.05)
+        s_l4l, s_eoq, s_luc, s_ppb, s_sm, labels_pct = [], [], [], [], [], []
         
+        # Jalankan simulasi stress test dinamis untuk metode stabil
         for f in scale_factors:
             pct_val = int(round((f - 1) * 100))
-            if pct_val > 30: 
-                continue
-            sim_demand = [int(round(d * f)) for d in gross_req]
-            s_res = calculate_multi_mrp(sim_demand, sched_rec, setup_cost, holding_cost, initial_inv, safety_stock, lead_time)
-            s_l4l.append(s_res['l4l']['total'])
-            s_luc.append(s_res['luc']['total'])
-            s_eoq.append(s_res['eoq']['total'])
-            s_ppb.append(s_res['ppb']['total'])
+            if pct_val > 30: continue
+            s_dem = [int(round(d * f)) for d in gross_req]
+            
+            # Simulasi Parsial Internal Stress Test
+            s_nr = []
+            c_inv = initial_inv
+            for i in range(n):
+                av = c_inv + sched_rec[i]
+                if av >= s_dem[i] + safety_stock:
+                    s_nr.append(0); c_inv = av - s_dem[i]
+                else:
+                    s_nr.append((s_dem[i] + safety_stock) - av); c_inv = safety_stock
+            
             labels_pct.append(f"{pct_val:+}%")
-        
+            
+            r_l4l = algo_l4l(s_nr, n); p_l4l, _ = generate_poh_and_release(r_l4l, s_dem, sched_rec, initial_inv, lead_time, n); _, _, t_l4l = calculate_cost_metrics(r_l4l, p_l4l, setup_cost, holding_cost); s_l4l.append(t_l4l)
+            r_eoq = algo_eoq(s_nr, n, eoq_calc_val); p_eoq, _ = generate_poh_and_release(r_eoq, s_dem, sched_rec, initial_inv, lead_time, n); _, _, t_eoq = calculate_cost_metrics(r_eoq, p_eoq, setup_cost, holding_cost); s_eoq.append(t_eoq)
+            r_luc, _ = algo_luc(s_nr, n, setup_cost, holding_cost, period_labels); p_luc, _ = generate_poh_and_release(r_luc, s_dem, sched_rec, initial_inv, lead_time, n); _, _, t_luc = calculate_cost_metrics(r_luc, p_luc, setup_cost, holding_cost); s_luc.append(t_luc)
+            r_ppb, _ = algo_ppb(s_nr, n, setup_cost, holding_cost, epp_target_val, period_labels); p_ppb, _ = generate_poh_and_release(r_ppb, s_dem, sched_rec, initial_inv, lead_time, n); _, _, t_ppb = calculate_cost_metrics(r_ppb, p_ppb, setup_cost, holding_cost); s_ppb.append(t_ppb)
+            r_sm, _ = algo_silver_meal(s_nr, n, setup_cost, holding_cost, period_labels); p_sm, _ = generate_poh_and_release(r_sm, s_dem, sched_rec, initial_inv, lead_time, n); _, _, t_sm = calculate_cost_metrics(r_sm, p_sm, setup_cost, holding_cost); s_sm.append(t_sm)
+
         fig2, ax2 = plt.subplots(figsize=(7, 4.2))
-        fig2.patch.set_facecolor('#faf8f2')
-        ax2.set_facecolor('#faf8f2')
-        
-        ax2.plot(labels_pct, s_l4l, marker='o', label='L4L', color='#444444', linewidth=2)
-        ax2.plot(labels_pct, s_luc, marker='s', label='LUC', color='#6a0708', linewidth=2)
-        ax2.plot(labels_pct, s_eoq, marker='^', label='EOQ', color='#e65c00', linewidth=2)
-        ax2.plot(labels_pct, s_ppb, marker='x', label='PPB', color='#2a7b4c', linewidth=2)
-        
-        ax2.set_title("Demand Change Sensitivity Chart", fontsize=11, fontweight='bold', color='#6a0708', pad=12)
-        ax2.set_ylabel('Simulated Total Incurred Cost', color='#111', fontsize=9, fontweight='bold')
-        ax2.set_xlabel('Customer Demand Change Sensitivity', color='#111', fontsize=9, fontweight='bold')
-        ax2.grid(True, linestyle=':', alpha=0.6)
-        ax2.legend(facecolor='#faf8f2', fontsize=9)
+        fig2.patch.set_facecolor('#faf8f2'); ax2.set_facecolor('#faf8f2')
+        ax2.plot(labels_pct, s_l4l, marker='o', label='L4L', color='#444444')
+        ax2.plot(labels_pct, s_eoq, marker='^', label='EOQ', color='#e65c00')
+        ax2.plot(labels_pct, s_luc, marker='s', label='LUC', color='#6a0708')
+        ax2.plot(labels_pct, s_ppb, marker='x', label='PPB', color='#2a7b4c')
+        ax2.plot(labels_pct, s_sm, marker='d', label='SM', color='#5a189a')
+        ax2.set_title("Heuristics Demand Change Sensitivity Chart", fontsize=11, fontweight='bold', color='#6a0708', pad=12)
+        ax2.grid(True, linestyle=':', alpha=0.6); ax2.legend(facecolor='#faf8f2', fontsize=9)
         plt.xticks(rotation=30)
         st.pyplot(fig2)
 
-    # ==========================================
-    # 8. REPORT EXPORT WORKBENCH
-    # ==========================================
+    # --- REPORT EXPORT SYSTEM ---
     st.markdown("---")
-    
-    # Proses export data ke Excel via buffer memori
     buffer = io.BytesIO()
     with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-        pd.DataFrame({'Gross Requirements': gross_req, 'Scheduled Receipts': sched_rec, 'Net Requirements': res['net_req']}, index=period_labels).T.to_excel(writer, sheet_name="Baseline Framework")
-        pd.DataFrame({'Projected On Hand': res['l4l']['poh'], 'Planned Order Receipts': res['l4l']['rec'], 'Planned Order Releases': res['l4l']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="L4L Plan")
-        pd.DataFrame({'Projected On Hand': res['luc']['poh'], 'Planned Order Receipts': res['luc']['rec'], 'Planned Order Releases': res['luc']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="LUC Plan")
-        pd.DataFrame({'Projected On Hand': res['eoq']['poh'], 'Planned Order Receipts': res['eoq']['rec'], 'Planned Order Releases': res['eoq']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="EOQ Plan")
-        pd.DataFrame({'Projected On Hand': res['ppb']['poh'], 'Planned Order Receipts': res['ppb']['rec'], 'Planned Order Releases': res['ppb']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="PPB Plan")
-    
+        pd.DataFrame({'Gross Requirements': gross_req, 'Scheduled Receipts': sched_rec, 'Net Requirements': net_req}, index=period_labels).T.to_excel(writer, sheet_name="Baseline Strategy")
+        # Generator lembar kerja taktis hasil kalkulasi
+        for m in k_methods:
+            if m == 'L4L': r = algo_l4l(net_req, n)
+            elif m == 'EOQ': r = algo_eoq(net_req, n, eoq_calc_val)
+            elif m == 'LUC': r, _ = algo_luc(net_req, n, setup_cost, holding_cost, period_labels)
+            elif m == 'PPB': r, _ = algo_ppb(net_req, n, setup_cost, holding_cost, epp_target_val, period_labels)
+            elif m == 'Silver-Meal': r, _ = algo_silver_meal(net_req, n, setup_cost, holding_cost, period_labels)
+            elif m == 'POQ': r = algo_poq(net_req, n, poq_interval)
+            elif m == 'FOQ': r = algo_foq(net_req, n, foq_size)
+            
+            if apply_moq_global and moq_size > 0:
+                r = apply_moq_constraint(r, moq_size)
+            p, rl = generate_poh_and_release(r, gross_req, sched_rec, initial_inv, lead_time, n)
+            pd.DataFrame({'Projected On Hand': p, 'Planned Order Receipts': r, 'Planned Order Releases': rl}, index=period_labels).T.to_excel(writer, sheet_name=f"{m} Plan")
+            
     buffer.seek(0)
     
-    # Injeksi CSS Custom untuk mengubah teks tombol menjadi TEBAL dan MERAH
-    st.markdown("""
-        <style>
-        div.stDownloadButton > button p {
-            color: #6a0708 !important;
-            font-weight: bold !important;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-    
-    # Layout kolom tengah agar posisi tombol simetris rata tengah di bawah grafik
-    btn_col1, btn_col2, btn_col3 = st.columns([1, 2, 1])
-    with btn_col2:
+    c_btn1, c_btn2, c_btn3 = st.columns([1, 2, 1])
+    with c_btn2:
         st.download_button(
-            label="📥 Download Plan Document Report", 
-            data=buffer, 
-            file_name="MRP_Lot_Sizing_Report.xlsx", 
+            label="📥 Download Plan Document Report", data=buffer,
+            file_name="MRP_Comprehensive_Lot_Sizing_Report.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True 
+            use_container_width=True
         )
 else:
     st.info("Please initialize input values or upload transaction vectors to run calculation routines.")
