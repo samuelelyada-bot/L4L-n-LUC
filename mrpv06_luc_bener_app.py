@@ -141,12 +141,6 @@ lead_time = st.sidebar.number_input("Lead Time", min_value=0, value=1, step=1)
 
 st.sidebar.markdown("<br>", unsafe_allow_html=True)
 
-st.sidebar.subheader("🔒 Rigid Supply Constraints")
-fixed_lot_size = st.sidebar.number_input("Fixed Order Size (FOQ Multiplier)", min_value=1, value=50, step=5)
-min_order_qty = st.sidebar.number_input("Minimum Supplier Boundary (MOQ)", min_value=1, value=40, step=5)
-
-st.sidebar.markdown("<br>", unsafe_allow_html=True)
-
 st.sidebar.subheader("🏭 Operational Boundaries")
 max_capacity = st.sidebar.number_input("Maximum Warehouse Capacity (Units)", min_value=1, value=100, step=10)
 
@@ -258,7 +252,7 @@ else:
     }
     df_workbench = pd.DataFrame(default_data)
 
-# Sinkronisasi visualisasi matriks preview horizontal di bawah workbench
+# Preview horizontal data awal
 if df_workbench is not None and not df_workbench.empty:
     gross_req = df_workbench['Gross Requirements'].fillna(0).astype(int).tolist()
     sched_rec = df_workbench['Scheduled Receipts'].fillna(0).astype(int).tolist()
@@ -281,9 +275,27 @@ if df_workbench is not None and not df_workbench.empty:
 
 
     # ==========================================
+    # INITIAL STRATEGY MODULES (TABS INITIALIZATION TO EXTRACT IN-TAB VALUE)
+    # ==========================================
+    st.markdown("---")
+    st.subheader("⚙️ Lot Sizing Operational Performance Strategy Modules")
+    
+    tabs_list = st.tabs([
+        "📋 L4L", "🎯 EOQ", "🔍 LUC", "⚖️ PPB",
+        "🚀 Silver-Meal", "⏱️ POQ", "🔒 FOQ", "🧱 MOQ"
+    ])
+
+    # Ambil nilai input langsung dari Tab FOQ dan Tab MOQ sebelum proses core mathematical loop dijalankan
+    with tabs_list[6]:
+        fixed_lot_size = st.number_input("Masukkan Nilai Fixed Order Size (FOQ Multiplier):", min_value=0, value=0, step=5, help="Isi > 0 untuk mengaktifkan perhitungan kalkulasi FOQ.")
+    with tabs_list[7]:
+        min_order_qty = st.number_input("Masukkan Batas Minimum Supplier Boundary (MOQ):", min_value=0, value=0, step=5, help="Isi > 0 untuk mengaktifkan perhitungan kalkulasi MOQ.")
+
+
+    # ==========================================
     # CORE PROCESSING MATHEMATICAL ALGORITHMS
     # ==========================================
-    def calculate_multi_mrp(demands, s_receipts, setup, hold, init_inv, ss, lt):
+    def calculate_multi_mrp(demands, s_receipts, setup, hold, init_inv, ss, lt, f_lot, m_qty):
         n = len(demands)
         
         # Calculate Net Requirements Matrix
@@ -533,41 +545,47 @@ if df_workbench is not None and not df_workbench.empty:
         c_poq_setup = sum(1 for x in poq_rec if x > 0) * setup
         c_poq_hold = sum(max(0, x) for x in poq_poh) * hold
 
-        # 7. FIXED ORDER QUANTITY (FOQ)
+        # 7. FIXED ORDER QUANTITY (FOQ) - Conditional on user input
         foq_rec = [0] * n
-        rem_foq_stok = 0
-        for i in range(n):
-            if net_req[i] > 0:
-                if rem_foq_stok < net_req[i]:
-                    needed = net_req[i] - rem_foq_stok
-                    multipliers = math.ceil(needed / fixed_lot_size)
-                    foq_rec[i] = multipliers * fixed_lot_size
-                    rem_foq_stok = (foq_rec[i] + rem_foq_stok) - net_req[i]
-                else:
-                    rem_foq_stok -= net_req[i]
-                    
-        foq_poh, foq_rel = generate_poh_and_release(foq_rec)
-        c_foq_setup = sum(1 for x in foq_rec if x > 0) * setup
-        c_foq_hold = sum(max(0, x) for x in foq_poh) * hold
-
-        # 8. MINIMUM ORDER QUANTITY (MOQ)
-        moq_rec = [0] * n
-        rem_moq_stok = 0
-        for i in range(n):
-            if net_req[i] > 0:
-                if rem_moq_stok < net_req[i]:
-                    needed = net_req[i] - rem_moq_stok
-                    if needed < min_order_qty:
-                        moq_rec[i] = min_order_qty
+        c_foq_setup, c_foq_hold = 0.0, 0.0
+        if f_lot > 0:
+            rem_foq_stok = 0
+            for i in range(n):
+                if net_req[i] > 0:
+                    if rem_foq_stok < net_req[i]:
+                        needed = net_req[i] - rem_foq_stok
+                        multipliers = math.ceil(needed / f_lot)
+                        foq_rec[i] = multipliers * f_lot
+                        rem_foq_stok = (foq_rec[i] + rem_foq_stok) - net_req[i]
                     else:
-                        moq_rec[i] = needed
-                    rem_moq_stok = (moq_rec[i] + rem_moq_stok) - net_req[i]
-                else:
-                    rem_moq_stok -= net_req[i]
-                    
+                        rem_foq_stok -= net_req[i]
+                        
+        foq_poh, foq_rel = generate_poh_and_release(foq_rec)
+        if f_lot > 0:
+            c_foq_setup = sum(1 for x in foq_rec if x > 0) * setup
+            c_foq_hold = sum(max(0, x) for x in foq_poh) * hold
+
+        # 8. MINIMUM ORDER QUANTITY (MOQ) - Conditional on user input
+        moq_rec = [0] * n
+        c_moq_setup, c_moq_hold = 0.0, 0.0
+        if m_qty > 0:
+            rem_moq_stok = 0
+            for i in range(n):
+                if net_req[i] > 0:
+                    if rem_moq_stok < net_req[i]:
+                        needed = net_req[i] - rem_moq_stok
+                        if needed < m_qty:
+                            moq_rec[i] = m_qty
+                        else:
+                            moq_rec[i] = needed
+                        rem_moq_stok = (moq_rec[i] + rem_moq_stok) - net_req[i]
+                    else:
+                        rem_moq_stok -= net_req[i]
+                        
         moq_poh, moq_rel = generate_poh_and_release(moq_rec)
-        c_moq_setup = sum(1 for x in moq_rec if x > 0) * setup
-        c_moq_hold = sum(max(0, x) for x in moq_poh) * hold
+        if m_qty > 0:
+            c_moq_setup = sum(1 for x in moq_rec if x > 0) * setup
+            c_moq_hold = sum(max(0, x) for x in moq_poh) * hold
 
         return {
             'net_req': net_req,
@@ -577,12 +595,12 @@ if df_workbench is not None and not df_workbench.empty:
             'ppb': {'poh': ppb_poh, 'rec': ppb_rec, 'rel': ppb_rel, 'setup': c_ppb_setup, 'hold': c_ppb_hold, 'total': c_ppb_setup + c_ppb_hold, 'iters': ppb_trace_logs, 'epp': epp_limit},
             'sm': {'poh': sm_poh, 'rec': sm_rec, 'rel': sm_rel, 'setup': c_sm_setup, 'hold': c_sm_hold, 'total': c_sm_setup + c_sm_hold, 'iters': sm_trace_logs},
             'poq': {'poh': poq_poh, 'rec': poq_rec, 'rel': poq_rel, 'setup': c_poq_setup, 'hold': c_poq_hold, 'total': c_poq_setup + c_poq_hold, 'interval': poq_interval},
-            'foq': {'poh': foq_poh, 'rec': foq_rec, 'rel': foq_rel, 'setup': c_foq_setup, 'hold': c_foq_hold, 'total': c_foq_setup + c_foq_hold, 'size': fixed_lot_size},
-            'moq': {'poh': moq_poh, 'rec': moq_rec, 'rel': moq_rel, 'setup': c_moq_setup, 'hold': c_moq_hold, 'total': c_moq_setup + c_moq_hold, 'min_limit': min_order_qty}
+            'foq': {'poh': foq_poh, 'rec': foq_rec, 'rel': foq_rel, 'setup': c_foq_setup, 'hold': c_foq_hold, 'total': c_foq_setup + c_foq_hold, 'size': f_lot},
+            'moq': {'poh': moq_poh, 'rec': moq_rec, 'rel': moq_rel, 'setup': c_moq_setup, 'hold': c_moq_hold, 'total': c_moq_setup + c_moq_hold, 'min_limit': m_qty}
         }
 
     # Run Process Calculations
-    res = calculate_multi_mrp(gross_req, sched_rec, setup_cost, holding_cost, initial_inv, safety_stock, lead_time)
+    res = calculate_multi_mrp(gross_req, sched_rec, setup_cost, holding_cost, initial_inv, safety_stock, lead_time, fixed_lot_size, min_order_qty)
     num_periods = len(gross_req)
 
     def render_mrp_grid_view(data_dict, max_cap, ss):
@@ -631,16 +649,8 @@ if df_workbench is not None and not df_workbench.empty:
 
 
     # ==========================================
-    # 5. METHODS MODULES EXECUTION WORKBENCH TABS (EXTENDED TO 8 TABS)
+    # 5. METHODS MODULES EXECUTION WORKBENCH TABS CONTENT
     # ==========================================
-    st.markdown("---")
-    st.subheader("⚙️ Lot Sizing Operational Performance Strategy Modules")
-    
-    tabs_list = st.tabs([
-        "📋 L4L", "🎯 EOQ", "🔍 LUC", "⚖️ PPB",
-        "🚀 Silver-Meal", "⏱️ POQ", "🔒 FOQ", "🧱 MOQ"
-    ])
-
     # TAB 1: LOT-FOR-LOT
     with tabs_list[0]:
         st.subheader("Lot-for-Lot (L4L) Performance Execution Model")
@@ -730,55 +740,66 @@ if df_workbench is not None and not df_workbench.empty:
     # TAB 6: POQ
     with tabs_list[5]:
         st.subheader("Period Order Quantity (POQ) Time-Phased Sizing")
-        with st.expander("🔬 CLICK HERE TO VIEW DETAILED FORMULA LOG CALCULATIONS (POQ)"):
+        with st.expander("🔬 CLICK HERE TO VIEW DETAILED FORMULA LOG CALCULATIONS (POQ)", expanded=True):
             st.markdown("#### 📝 Sizing Steps for POQ:")
-            st.markdown(f"""
-            * Target Coverage Time Interval = $Round(EOQ / \\text{{Average Demand}})$
-            * Calculation: $Round({res['eoq']['size']} / {res['eoq']['avg_demand_gross']:.4f}) = $ **`{res['poq']['interval']}` periods**.
-            """)
+            st.markdown("**1. Calculate Dynamic Ordering Frequency Coverage ($P_{\\text{oq}}$):**")
+            st.markdown("$$P_{\\text{oq}} = \\text{Round}\\left( \\frac{\\text{EOQ Size}}{\\text{Average Demand (D)}} \\right)$$")
+            st.markdown(f"$$P_{{\\text{{oq}}}} = \\text{{Round}}\\left( \\frac{{{res['eoq']['size']}}}{{{res['eoq']['avg_demand_gross']:.4f}}} \\right)$$")
+            st.markdown(f"$$P_{{\\text{{oq}}}} = {res['poq']['interval']} \\text{{ periods}}$$")
         st.info(f"💡 **POQ Policy Status:** Setiap siklus pemesanan akan otomatis merangkum data kebutuhan untuk **{res['poq']['interval']} periode** sekaligus.")
         render_mrp_grid_view(res['poq'], max_capacity, safety_stock)
         render_cost_audit_window(res['poq'], setup_cost, holding_cost, res['poq']['rec'], res['poq']['poh'])
 
-    # TAB 7: FOQ
+    # TAB 7: FOQ CONTENT
     with tabs_list[6]:
         st.subheader("Fixed Order Quantity (FOQ) Rigid Sizing Model")
-        st.info(f"🔒 **FOQ Constraint Active:** Ukuran lot dikunci mati pada kelipatan integer dari nilai kontainer: **{res['foq']['size']} unit** per pesanan.")
-        render_mrp_grid_view(res['foq'], max_capacity, safety_stock)
-        render_cost_audit_window(res['foq'], setup_cost, holding_cost, res['foq']['rec'], res['foq']['poh'])
+        if fixed_lot_size <= 0:
+            st.warning("⚠️ Perhitungan dinonaktifkan. Silakan masukkan nilai ukuran Fixed Order Size (> 0) pada kolom input di atas untuk memicu kalkulasi matriks FOQ.")
+        else:
+            st.info(f"🔒 **FOQ Constraint Active:** Ukuran lot dikunci mati pada kelipatan integer dari nilai kontainer: **{res['foq']['size']} unit** per pesanan.")
+            render_mrp_grid_view(res['foq'], max_capacity, safety_stock)
+            render_cost_audit_window(res['foq'], setup_cost, holding_cost, res['foq']['rec'], res['foq']['poh'])
 
-    # TAB 8: MOQ
+    # TAB 8: MOQ CONTENT
     with tabs_list[7]:
         st.subheader("Minimum Order Quantity (MOQ) Supplier Boundary Model")
-        st.info(f"🧱 **MOQ Constraint Active:** Ambang batas bawah pemesanan vendor diatur sebesar **{res['moq']['min_limit']} unit**.")
-        render_mrp_grid_view(res['moq'], max_capacity, safety_stock)
-        render_cost_audit_window(res['moq'], setup_cost, holding_cost, res['moq']['rec'], res['moq']['poh'])
+        if min_order_qty <= 0:
+            st.warning("⚠️ Perhitungan dinonaktifkan. Silakan masukkan nilai batas minimum Supplier Boundary (> 0) pada kolom input di atas untuk memicu kalkulasi matriks MOQ.")
+        else:
+            st.info(f"🧱 **MOQ Constraint Active:** Ambang batas bawah pemesanan vendor diatur sebesar **{res['moq']['min_limit']} unit**.")
+            render_mrp_grid_view(res['moq'], max_capacity, safety_stock)
+            render_cost_audit_window(res['moq'], setup_cost, holding_cost, res['moq']['rec'], res['moq']['poh'])
 
 
     # ==========================================
-    # 6. GLOBAL PERFORMANCE MATRIX COMPARISON
+    # 6. GLOBAL PERFORMANCE MATRIX COMPARISON (FIXED SYMMETRY GRID)
     # ==========================================
     st.markdown("---")
     st.header("🏁 Strategic Portfolio Cost Summary Comparison Matrix")
     
     biaya_dict = {
         'L4L': res['l4l']['total'], 'EOQ': res['eoq']['total'], 'LUC': res['luc']['total'], 'PPB': res['ppb']['total'],
-        'SM': res['sm']['total'], 'POQ': res['poq']['total'], 'FOQ': res['foq']['total'], 'MOQ': res['moq']['total']
+        'SM': res['sm']['total'], 'POQ': res['poq']['total']
     }
+    if fixed_lot_size > 0:
+        biaya_dict['FOQ'] = res['foq']['total']
+    if min_order_qty > 0:
+        biaya_dict['MOQ'] = res['moq']['total']
     
     min_cost = min(biaya_dict.values())
     best_methods = [k for k, v in biaya_dict.items() if v == min_cost]
     
-    # Grid 4x2 metrics cards untuk menyajikan total 8 metode
-    m_row1 = st.columns(4)
+    # FIX REVISI 1: Penskalaan deklarasi baris kolom global tunggal untuk mencegah undak tangga
+    grid_cards = st.columns(4)
     m_keys = list(biaya_dict.keys())
     
     for idx, key in enumerate(m_keys):
-        col_target = m_row1[idx % 4] if idx < 4 else st.columns(4)[idx % 4]
+        # Memetakan target sel index kolom secara matematis simetris (maksimal 4 kolom per baris lurus)
+        col_target = grid_cards[idx % 4]
         with col_target:
             is_best = key in best_methods
             sub_text = "<div style='color: #2e7d32; font-size: 13px; font-weight: bold;'>🏆 Optimal Strategy</div>" if is_best else f"<div style='color: #d90429; font-size: 13px; font-weight: bold;'>⚠️ Inefficient by {biaya_dict[key] - min_cost:,.2f}</div>"
-            st.markdown(f"""<div style='background-color: #f4efdc; padding: 16px; border-radius: 8px; border-left: 5px solid #6a0708; margin-bottom: 15px;'>
+            st.markdown(f"""<div style='background-color: #f4efdc; padding: 16px; border-radius: 8px; border-left: 5px solid #6a0708; margin-bottom: 15px; min-height: 120px;'>
                             <div style='color: #333; font-size: 13px; font-weight: 600;'>Total Cost {key}</div>
                             <div style='font-size: 22px; font-weight: 700; color: #111111; margin-top: 4px;'>{biaya_dict[key]:,.2f}</div>
                             {sub_text}</div>""", unsafe_allow_html=True)
@@ -797,7 +818,7 @@ if df_workbench is not None and not df_workbench.empty:
 
 
     # ==========================================
-    # 7. GRAPH VISUALIZATION
+    # 7. GRAPH VISUALIZATION (DYNAMIC SENSITIVITY RUN)
     # ==========================================
     st.markdown("---")
     st.subheader("📉 Parametric Sensitivity Analysis Charts")
@@ -808,8 +829,11 @@ if df_workbench is not None and not df_workbench.empty:
         fig.patch.set_facecolor('#faf8f2')
         ax.set_facecolor('#faf8f2')
         
-        # Penambahan 8 warna spesifik untuk representasi masing-masing batang metode
-        ax.bar(biaya_dict.keys(), biaya_dict.values(), color=['#444444', '#e65c00', '#6a0708', '#2a7b4c', '#0288d1', '#7b1fa2', '#d32f2f', '#f57c00'], width=0.5)
+        # Mapping warna batang grafik dinamis menyesuaikan jumlah metode aktif
+        color_palette = ['#444444', '#e65c00', '#6a0708', '#2a7b4c', '#0288d1', '#7b1fa2', '#d32f2f', '#f57c00']
+        active_colors = color_palette[:len(biaya_dict)]
+        
+        ax.bar(biaya_dict.keys(), biaya_dict.values(), color=active_colors, width=0.5)
         ax.set_title("Comparison of Lot Sizing Methods", fontsize=11, fontweight='bold', color='#6a0708', pad=12)
         ax.set_xlabel('Lot Sizing Strategy', color='#111', fontsize=9, fontweight='bold')
         ax.set_ylabel('Total Cost', color='#111', fontsize=9, fontweight='bold')
@@ -825,7 +849,7 @@ if df_workbench is not None and not df_workbench.empty:
             if pct_val > 30: 
                 continue
             sim_demand = [int(round(d * f)) for d in gross_req]
-            s_res = calculate_multi_mrp(sim_demand, sched_rec, setup_cost, holding_cost, initial_inv, safety_stock, lead_time)
+            s_res = calculate_multi_mrp(sim_demand, sched_rec, setup_cost, holding_cost, initial_inv, safety_stock, lead_time, fixed_lot_size, min_order_qty)
             
             s_l4l.append(s_res['l4l']['total'])
             s_eoq.append(s_res['eoq']['total'])
@@ -833,8 +857,10 @@ if df_workbench is not None and not df_workbench.empty:
             s_ppb.append(s_res['ppb']['total'])
             s_sm.append(s_res['sm']['total'])
             s_poq.append(s_res['poq']['total'])
-            s_foq.append(s_res['foq']['total'])
-            s_moq.append(s_res['moq']['total'])
+            if fixed_lot_size > 0:
+                s_foq.append(s_res['foq']['total'])
+            if min_order_qty > 0:
+                s_moq.append(s_res['moq']['total'])
             labels_pct.append(f"{pct_val:+}%")
         
         fig2, ax2 = plt.subplots(figsize=(7, 4.2))
@@ -847,8 +873,10 @@ if df_workbench is not None and not df_workbench.empty:
         ax2.plot(labels_pct, s_ppb, marker='x', label='PPB', color='#2a7b4c', linewidth=1.5)
         ax2.plot(labels_pct, s_sm, marker='d', label='SM', color='#0288d1', linewidth=1.5)
         ax2.plot(labels_pct, s_poq, marker='v', label='POQ', color='#7b1fa2', linewidth=1.5)
-        ax2.plot(labels_pct, s_foq, marker='*', label='FOQ', color='#d32f2f', linewidth=1.5)
-        ax2.plot(labels_pct, s_moq, marker='P', label='MOQ', color='#f57c00', linewidth=1.5)
+        if fixed_lot_size > 0:
+            ax2.plot(labels_pct, s_foq, marker='*', label='FOQ', color='#d32f2f', linewidth=1.5)
+        if min_order_qty > 0:
+            ax2.plot(labels_pct, s_moq, marker='P', label='MOQ', color='#f57c00', linewidth=1.5)
         
         ax2.set_title("Demand Change Sensitivity Chart", fontsize=11, fontweight='bold', color='#6a0708', pad=12)
         ax2.set_ylabel('Simulated Total Incurred Cost', color='#111', fontsize=9, fontweight='bold')
@@ -860,7 +888,7 @@ if df_workbench is not None and not df_workbench.empty:
 
 
     # ==========================================
-    # 8. REPORT EXPORT WORKBENCH (FULL 8 SHEET GENERATOR)
+    # 8. REPORT EXPORT WORKBENCH (DYNAMIC REVENUE SHEETS)
     # ==========================================
     st.markdown("---")
     
@@ -873,8 +901,10 @@ if df_workbench is not None and not df_workbench.empty:
         pd.DataFrame({'Projected On Hand': res['ppb']['poh'], 'Planned Order Receipts': res['ppb']['rec'], 'Planned Order Releases': res['ppb']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="PPB Plan")
         pd.DataFrame({'Projected On Hand': res['sm']['poh'], 'Planned Order Receipts': res['sm']['rec'], 'Planned Order Releases': res['sm']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="Silver-Meal Plan")
         pd.DataFrame({'Projected On Hand': res['poq']['poh'], 'Planned Order Receipts': res['poq']['rec'], 'Planned Order Releases': res['poq']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="POQ Plan")
-        pd.DataFrame({'Projected On Hand': res['foq']['poh'], 'Planned Order Receipts': res['foq']['rec'], 'Planned Order Releases': res['foq']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="FOQ Plan")
-        pd.DataFrame({'Projected On Hand': res['moq']['poh'], 'Planned Order Receipts': res['moq']['rec'], 'Planned Order Releases': res['moq']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="MOQ Plan")
+        if fixed_lot_size > 0:
+            pd.DataFrame({'Projected On Hand': res['foq']['poh'], 'Planned Order Receipts': res['foq']['rec'], 'Planned Order Releases': res['foq']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="FOQ Plan")
+        if min_order_qty > 0:
+            pd.DataFrame({'Projected On Hand': res['moq']['poh'], 'Planned Order Receipts': res['moq']['rec'], 'Planned Order Releases': res['moq']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="MOQ Plan")
     
     buffer.seek(0)
     
@@ -890,9 +920,9 @@ if df_workbench is not None and not df_workbench.empty:
     btn_col1, btn_col2, btn_col3 = st.columns([1, 2, 1])
     with btn_col2:
         st.download_button(
-            label="📥 Download Plan Document Report (8 Methods)", 
+            label="📥 Download Plan Document Report (Active Methods)", 
             data=buffer, 
-            file_name="MRP_8_Lot_Sizing_Report.xlsx", 
+            file_name="MRP_Lot_Sizing_Report_Final.xlsx", 
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True 
         )
