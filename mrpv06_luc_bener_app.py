@@ -389,15 +389,16 @@ if df_workbench is not None and not df_workbench.empty:
         eoq_rec = [0] * n
         rem_stok = 0
         
-        for i in range(n):
-            if net_req[i] > 0:
-                if rem_stok < net_req[i]:
-                    needed = net_req[i] - rem_stok
-                    lots_to_order = math.ceil(needed / eoq_size) if eoq_size > 0 else 1
-                    eoq_rec[i] = lots_to_order * eoq_size
-                    rem_stok = (eoq_rec[i] + rem_stok) - net_req[i]
-                else:
-                    rem_stok -= net_req[i]
+        if hold > 0:
+            for i in range(n):
+                if net_req[i] > 0:
+                    if rem_stok < net_req[i]:
+                        needed = net_req[i] - rem_stok
+                        lots_to_order = math.ceil(needed / eoq_size) if eoq_size > 0 else 1
+                        eoq_rec[i] = lots_to_order * eoq_size
+                        rem_stok = (eoq_rec[i] + rem_stok) - net_req[i]
+                    else:
+                        rem_stok -= net_req[i]
                     
         eoq_poh, eoq_rel = generate_poh_and_release(eoq_rec)
         c_eoq_setup = sum(1 for x in eoq_rec if x > 0) * setup
@@ -616,7 +617,7 @@ if df_workbench is not None and not df_workbench.empty:
                             'Periods Covered': covered_periods_str, 'Total Units': acc_d,
                             'Setup Cost': setup, 'Holding Cost': acc_h, 'Status': 'Feasible'
                         })
-                    if hold == 0:  # Prevent infinite lock if holding cost is zero
+                    if hold == 0:  
                         break
                 else:
                     if build_trace:
@@ -645,7 +646,7 @@ if df_workbench is not None and not df_workbench.empty:
         c_ltc_setup = sum(1 for x in ltc_rec if x > 0) * setup
         c_ltc_hold = sum(max(0, x) for x in ltc_poh) * hold
 
-        # 10. WAGNER-WHITIN (WW) — Sempurna & Kebal Zero-Demand Bug
+        # 10. WAGNER-WHITIN (WW) — Exact DP Path Engine
         INF = float('inf')
         f = [INF] * (n + 1)
         order_at = [0] * (n + 1)
@@ -671,7 +672,7 @@ if df_workbench is not None and not df_workbench.empty:
                 j -= 1
                 continue
             i = order_at[j]
-            if i == 0:  # Fallback safety handler
+            if i == 0:  
                 j -= 1
                 continue
             ww_rec[i-1] = sum(net_req[i-1:j])
@@ -689,7 +690,7 @@ if df_workbench is not None and not df_workbench.empty:
                 for j_val in range(w_start, w_end + 1):
                     if net_req[j_val-1] == 0: continue
                     for i_val in range(w_start, j_val + 1):
-                        holding = sum(net_req[k-1] * hold * (k - i_val) for k in range(i_val, j_val + 1))
+                        holding = sum(net_req[k-1] * hold * (k - i_val) for range_i_val, k in enumerate(range(i_val, j_val + 1)))
                         cost = f[i_val-1] + setup + holding
                         is_optimal = (order_at[j_val] == i_val and cost == f[j_val])
                         window_rows.append({
@@ -768,43 +769,46 @@ if df_workbench is not None and not df_workbench.empty:
         render_mrp_grid_view(res['l4l'], max_capacity, safety_stock)
         render_cost_audit_window(res['l4l'], setup_cost, holding_cost, res['l4l']['rec'], res['l4l']['poh'])
 
-    # TAB 2: EOQ
+    # TAB 2: EOQ (RE-IMPLEMENTED FIXED LOGIC GUARD)
     with tabs_list[1]:
         st.subheader("Economic Order Quantity (EOQ) Optimization")
-        with st.expander("🔬 CLICK HERE TO VIEW FORMULA LOG CALCULATIONS (EOQ)", expanded=True):
-            avg_demand_fmt = f"{res['avg_demand_gross']:.4f}"
-            setup_fmt = f"{setup_cost:,.2f}"
-            hold_fmt = f"{holding_cost:,.2f}"
-            eoq_raw_fmt = f"{res['eoq']['raw_size']:.4f}"
-            
-            st.markdown('<div class="text-justify">', unsafe_allow_html=True)
-            st.markdown("### 📝 Sizing Steps for EOQ:")
-            st.markdown("##### 1. Identify Input Gross Requirements Data Matrix:")
-            st.write(f"- Data per Period: `{gross_req}`")
-            st.write(f"- Total Demand ($\sum \\text{{Gross Req}}$) = `{res['total_demand_gross']}` units")
-            st.write(f"- Planning Horizon ($n$) = `{num_periods}` periods")
-            st.markdown('</div>', unsafe_allow_html=True)
-            
-            st.markdown('<div class="math-justify">', unsafe_allow_html=True)
-            st.markdown(f"$$\\text{{Calculate Average Demand (D):}}$$")
-            st.markdown(f"$$D = \\frac{{\\sum \\text{{Gross Req}}}}{{n}}$$")
-            st.markdown(f"$$D = \\frac{{{res['total_demand_gross']}}}{{{num_periods}}}$$")
-            st.markdown(f"$$D = {avg_demand_fmt}\\text{{ units/period}}$$")
-            
-            st.markdown("##### 2. Standard Square-Root Mathematical Equation Substitution:")
-            st.markdown(f"$$EOQ = \\sqrt{{\\frac{{2 \\times D \\times \\text{{Setup Cost}}}}{{\\text{{Holding Cost}}}}}}$$")
-            st.markdown(f"$$EOQ = \\sqrt{{\\frac{{2 \\times {avg_demand_fmt} \\times {setup_fmt}}}{{{hold_fmt}}}}}$$")
-            st.markdown(f"$$EOQ = {eoq_raw_fmt}\\text{{ units}}$$")
-            st.markdown('</div>', unsafe_allow_html=True)
-            
-            st.markdown('<div class="text-justify">', unsafe_allow_html=True)
-            st.markdown("##### 3. Discrete Upper Integer Ceiling Rounding:")
-            st.markdown(f"- Rounded up via ceiling constraints: **`{res['eoq']['size']}` units**.")
-            st.markdown('</div>', unsafe_allow_html=True)
-            
-        st.info(f"💡 **Lot Sizing Matrix Status:** Fixed EOQ profile is locked at **{res['eoq']['size']} units** per order.")
-        render_mrp_grid_view(res['eoq'], max_capacity, safety_stock)
-        render_cost_audit_window(res['eoq'], setup_cost, holding_cost, res['eoq']['rec'], res['eoq']['poh'])
+        if holding_cost == 0:
+            st.error("⚠️ **Mathematical Error:** Holding cost = 0. Rumus EOQ membutuhkan nilai $H > 0$ agar tidak terjadi pembagian dengan angka nol (Division by Zero).")
+        else:
+            with st.expander("🔬 CLICK HERE TO VIEW FORMULA LOG CALCULATIONS (EOQ)", expanded=True):
+                avg_demand_fmt = f"{res['avg_demand_gross']:.4f}"
+                setup_fmt = f"{setup_cost:,.2f}"
+                hold_fmt = f"{holding_cost:,.2f}"
+                eoq_raw_fmt = f"{res['eoq']['raw_size']:.4f}"
+                
+                st.markdown('<div class="text-justify">', unsafe_allow_html=True)
+                st.markdown("### 📝 Sizing Steps for EOQ:")
+                st.markdown("##### 1. Identify Input Gross Requirements Data Matrix:")
+                st.write(f"- Data per Period: `{gross_req}`")
+                st.write(f"- Total Demand ($\sum \\text{{Gross Req}}$) = `{res['total_demand_gross']}` units")
+                st.write(f"- Planning Horizon ($n$) = `{num_periods}` periods")
+                st.markdown('</div>', unsafe_allow_html=True)
+                
+                st.markdown('<div class="math-justify">', unsafe_allow_html=True)
+                st.markdown(f"$$\\text{{Calculate Average Demand (D):}}$$")
+                st.markdown(f"$$D = \\frac{{\\sum \\text{{Gross Req}}}}{{n}}$$")
+                st.markdown(f"$$D = \\frac{{{res['total_demand_gross']}}}{{{num_periods}}}$$")
+                st.markdown(f"$$D = {avg_demand_fmt}\\text{{ units/period}}$$")
+                
+                st.markdown("##### 2. Standard Square-Root Mathematical Equation Substitution:")
+                st.markdown(f"$$EOQ = \\sqrt{{\\frac{{2 \\times D \\times \\text{{Setup Cost}}}}{{\\text{{Holding Cost}}}}}}$$")
+                st.markdown(f"$$EOQ = \\sqrt{{\\frac{{2 \\times {avg_demand_fmt} \\times {setup_fmt}}}{{{hold_fmt}}}}}$$")
+                st.markdown(f"$$EOQ = {eoq_raw_fmt}\\text{{ units}}$$")
+                st.markdown('</div>', unsafe_allow_html=True)
+                
+                st.markdown('<div class="text-justify">', unsafe_allow_html=True)
+                st.markdown("##### 3. Discrete Upper Integer Ceiling Rounding:")
+                st.markdown(f"- Rounded up via ceiling constraints: **`{res['eoq']['size']}` units**.")
+                st.markdown('</div>', unsafe_allow_html=True)
+                
+            st.info(f"💡 **Lot Sizing Matrix Status:** Fixed EOQ profile is locked at **{res['eoq']['size']} units** per order.")
+            render_mrp_grid_view(res['eoq'], max_capacity, safety_stock)
+            render_cost_audit_window(res['eoq'], setup_cost, holding_cost, res['eoq']['rec'], res['eoq']['poh'])
 
     # TAB 3: LUC
     with tabs_list[2]:
@@ -823,7 +827,7 @@ if df_workbench is not None and not df_workbench.empty:
         with st.expander("🔬 CLICK HERE TO VIEW DETAILED FORMULA LOG CALCULATIONS (PPB)", expanded=True):
             setup_fmt = f"{setup_cost:,.2f}"
             hold_fmt = f"{holding_cost:,.2f}"
-            epp_fmt = f"{res['ppb']['epp']:.4f}"
+            epp_fmt = f"{res['ppb']['epp']:.4f}" if holding_cost > 0 else "INF"
             
             st.markdown('<div class="text-justify">', unsafe_allow_html=True)
             st.markdown("### 📝 Sizing Steps for PPB:")
@@ -864,30 +868,33 @@ if df_workbench is not None and not df_workbench.empty:
     # TAB 6: POQ
     with tabs_list[5]:
         st.subheader("Period Order Quantity (POQ) Time-Phased Sizing")
-        with st.expander("🔬 CLICK HERE TO VIEW DETAILED FORMULA LOG CALCULATIONS (POQ)", expanded=True):
-            eoq_size_fmt = f"{res['eoq']['size']}"
-            avg_demand_fmt = f"{res['avg_demand_gross']:.4f}"
-            poq_raw_fmt = f"{res['poq']['raw_interval']:.4f}"
-            
-            st.markdown('<div class="text-justify">', unsafe_allow_html=True)
-            st.markdown("### 📝 Sizing Steps for POQ:")
-            st.markdown("##### 1. Calculate Dynamic Ordering Frequency Coverage ($P_{oq}$):")
-            st.markdown('</div>', unsafe_allow_html=True)
-            
-            st.markdown('<div class="math-justify">', unsafe_allow_html=True)
-            st.markdown(f"$$P_{{oq}} = \\frac{{\\text{{EOQ Size}}}}{{D}}$$")
-            st.markdown(f"$$P_{{oq}} = \\frac{{{eoq_size_fmt}}}{{{avg_demand_fmt}}}$$")
-            st.markdown(f"$$P_{{oq}} = {poq_raw_fmt}\\text{{ periods}}$$")
-            st.markdown('</div>', unsafe_allow_html=True)
-            
-            st.markdown('<div class="text-justify">', unsafe_allow_html=True)
-            st.markdown("##### 2. Discrete Standard Integer Rounding Adjustment:")
-            st.markdown(f"- Rounded via standard constraints: **`{res['poq']['interval']}` periods**.")
-            st.markdown('</div>', unsafe_allow_html=True)
-            
-        st.info(f"💡 **POQ Policy Status:** Each order cycle covers **{res['poq']['interval']} periods**.")
-        render_mrp_grid_view(res['poq'], max_capacity, safety_stock)
-        render_cost_audit_window(res['poq'], setup_cost, holding_cost, res['poq']['rec'], res['poq']['poh'])
+        if holding_cost == 0:
+            st.error("⚠️ EOQ tidak valid karena Holding Cost = 0. Otomatis POQ tidak dapat dievaluasi.")
+        else:
+            with st.expander("🔬 CLICK HERE TO VIEW DETAILED FORMULA LOG CALCULATIONS (POQ)", expanded=True):
+                eoq_size_fmt = f"{res['eoq']['size']}"
+                avg_demand_fmt = f"{res['avg_demand_gross']:.4f}"
+                poq_raw_fmt = f"{res['poq']['raw_interval']:.4f}"
+                
+                st.markdown('<div class="text-justify">', unsafe_allow_html=True)
+                st.markdown("### 📝 Sizing Steps for POQ:")
+                st.markdown("##### 1. Calculate Dynamic Ordering Frequency Coverage ($P_{oq}$):")
+                st.markdown('</div>', unsafe_allow_html=True)
+                
+                st.markdown('<div class="math-justify">', unsafe_allow_html=True)
+                st.markdown(f"$$P_{{oq}} = \\frac{{\\text{{EOQ Size}}}}{{D}}$$")
+                st.markdown(f"$$P_{{oq}} = \\frac{{{eoq_size_fmt}}}{{{avg_demand_fmt}}}$$")
+                st.markdown(f"$$P_{{oq}} = {poq_raw_fmt}\\text{{ periods}}$$")
+                st.markdown('</div>', unsafe_allow_html=True)
+                
+                st.markdown('<div class="text-justify">', unsafe_allow_html=True)
+                st.markdown("##### 2. Discrete Standard Integer Rounding Adjustment:")
+                st.markdown(f"- Rounded via standard constraints: **`{res['poq']['interval']}` periods**.")
+                st.markdown('</div>', unsafe_allow_html=True)
+                
+            st.info(f"💡 **POQ Policy Status:** Each order cycle covers **{res['poq']['interval']} periods**.")
+            render_mrp_grid_view(res['poq'], max_capacity, safety_stock)
+            render_cost_audit_window(res['poq'], setup_cost, holding_cost, res['poq']['rec'], res['poq']['poh'])
 
     # TAB 7: FOQ
     with tabs_list[6]:
@@ -945,9 +952,12 @@ if df_workbench is not None and not df_workbench.empty:
     st.header("🏁 Strategic Portfolio Cost Summary Comparison Matrix")
     
     biaya_dict = {
-        'L4L': res['l4l']['total'], 'EOQ': res['eoq']['total'], 'LUC': res['luc']['total'], 'PPB': res['ppb']['total'],
-        'SM': res['sm']['total'], 'POQ': res['poq']['total'], 'LTC': res['ltc']['total'], 'WW': res['ww']['total']
+        'L4L': res['l4l']['total'], 'LUC': res['luc']['total'], 'PPB': res['ppb']['total'],
+        'SM': res['sm']['total'], 'LTC': res['ltc']['total'], 'WW': res['ww']['total']
     }
+    if holding_cost > 0:
+        biaya_dict['EOQ'] = res['eoq']['total']
+        biaya_dict['POQ'] = res['poq']['total']
     if fixed_lot_size > 0:
         biaya_dict['FOQ'] = res['foq']['total']
     if min_order_qty > 0:
@@ -989,7 +999,7 @@ if df_workbench is not None and not df_workbench.empty:
 
 
     # ==========================================
-    # 7. GRAPH VISUALIZATION (FAST CALCULATE SENSITIVITY)
+    # 7. GRAPH VISUALIZATION (SHADOWING RESOLVED)
     # ==========================================
     st.markdown("---")
     st.subheader("📉 Parametric Sensitivity Analysis Charts")
@@ -1015,20 +1025,21 @@ if df_workbench is not None and not df_workbench.empty:
         s_l4l, s_eoq, s_luc, s_ppb, s_sm, s_poq, s_foq, s_moq, s_ltc, s_ww, labels_pct = [], [], [], [], [], [], [], [], [], [], []
         
         for p_val in pct_integers:
-            f = 1.0 + (p_val / 100.0)
-            sim_demand = [int(round(d * f)) for d in gross_req]
+            # VARIABLE SHADOWING BUG RESOLVED BY DEWA CODING AUDIT
+            scale_factor = 1.0 + (p_val / 100.0)
+            sim_demand = [int(round(d * scale_factor)) for d in gross_req]
             
-            # RUN SENSITIVITY WITH build_trace=False (SUPER FAST RUN SPEED AS RECOMMENDED)
             s_res = calculate_multi_mrp(sim_demand, sched_rec, setup_cost, holding_cost, initial_inv, safety_stock, lead_time, fixed_lot_size, min_order_qty, build_trace=False)
             
             s_l4l.append(s_res['l4l']['total'])
-            s_eoq.append(s_res['eoq']['total'])
             s_luc.append(s_res['luc']['total'])
             s_ppb.append(s_res['ppb']['total'])
             s_sm.append(s_res['sm']['total'])
-            s_poq.append(s_res['poq']['total'])
             s_ltc.append(s_res['ltc']['total'])
             s_ww.append(s_res['ww']['total'])
+            if holding_cost > 0:
+                s_eoq.append(s_res['eoq']['total'])
+                s_poq.append(s_res['poq']['total'])
             if fixed_lot_size > 0:
                 s_foq.append(s_res['foq']['total'])
             if min_order_qty > 0:
@@ -1041,13 +1052,14 @@ if df_workbench is not None and not df_workbench.empty:
         ax2.set_facecolor('#faf8f2')
         
         ax2.plot(labels_pct, s_l4l, marker='o', label='L4L', color='#444444', linewidth=1.5)
-        ax2.plot(labels_pct, s_eoq, marker='^', label='EOQ', color='#e65c00', linewidth=1.5)
         ax2.plot(labels_pct, s_luc, marker='s', label='LUC', color='#6a0708', linewidth=1.5)
         ax2.plot(labels_pct, s_ppb, marker='x', label='PPB', color='#2a7b4c', linewidth=1.5)
         ax2.plot(labels_pct, s_sm, marker='d', label='SM', color='#0288d1', linewidth=1.5)
-        ax2.plot(labels_pct, s_poq, marker='v', label='POQ', color='#7b1fa2', linewidth=1.5)
         ax2.plot(labels_pct, s_ltc, marker='P', label='LTC', color='#1565c0', linewidth=1.5)
         ax2.plot(labels_pct, s_ww, marker='H', label='WW', color='#2e7d32', linewidth=2.0, linestyle='--')
+        if holding_cost > 0:
+            ax2.plot(labels_pct, s_eoq, marker='^', label='EOQ', color='#e65c00', linewidth=1.5)
+            ax2.plot(labels_pct, s_poq, marker='v', label='POQ', color='#7b1fa2', linewidth=1.5)
         if fixed_lot_size > 0:
             ax2.plot(labels_pct, s_foq, marker='*', label='FOQ', color='#d32f2f', linewidth=1.5)
         if min_order_qty > 0:
@@ -1071,13 +1083,14 @@ if df_workbench is not None and not df_workbench.empty:
     with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
         pd.DataFrame({'Gross Requirements': gross_req, 'Scheduled Receipts': sched_rec, 'Net Requirements': res['net_req']}, index=period_labels).T.to_excel(writer, sheet_name="Baseline Framework")
         pd.DataFrame({'Projected On Hand': res['l4l']['poh'], 'Planned Order Receipts': res['l4l']['rec'], 'Planned Order Releases': res['l4l']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="L4L Plan")
-        pd.DataFrame({'Projected On Hand': res['eoq']['poh'], 'Planned Order Receipts': res['eoq']['rec'], 'Planned Order Releases': res['eoq']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="EOQ Plan")
         pd.DataFrame({'Projected On Hand': res['luc']['poh'], 'Planned Order Receipts': res['luc']['rec'], 'Planned Order Releases': res['luc']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="LUC Plan")
         pd.DataFrame({'Projected On Hand': res['ppb']['poh'], 'Planned Order Receipts': res['ppb']['rec'], 'Planned Order Releases': res['ppb']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="PPB Plan")
         pd.DataFrame({'Projected On Hand': res['sm']['poh'], 'Planned Order Receipts': res['sm']['rec'], 'Planned Order Releases': res['sm']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="Silver-Meal Plan")
-        pd.DataFrame({'Projected On Hand': res['poq']['poh'], 'Planned Order Receipts': res['poq']['rec'], 'Planned Order Releases': res['poq']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="POQ Plan")
         pd.DataFrame({'Projected On Hand': res['ltc']['poh'], 'Planned Order Receipts': res['ltc']['rec'], 'Planned Order Releases': res['ltc']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="LTC Plan")
         pd.DataFrame({'Projected On Hand': res['ww']['poh'], 'Planned Order Receipts': res['ww']['rec'], 'Planned Order Releases': res['ww']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="WW Plan")
+        if holding_cost > 0:
+            pd.DataFrame({'Projected On Hand': res['eoq']['poh'], 'Planned Order Receipts': res['eoq']['rec'], 'Planned Order Releases': res['eoq']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="EOQ Plan")
+            pd.DataFrame({'Projected On Hand': res['poq']['poh'], 'Planned Order Receipts': res['poq']['rec'], 'Planned Order Releases': res['poq']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="POQ Plan")
         if fixed_lot_size > 0:
             pd.DataFrame({'Projected On Hand': res['foq']['poh'], 'Planned Order Receipts': res['foq']['rec'], 'Planned Order Releases': res['foq']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="FOQ Plan")
         if min_order_qty > 0:
