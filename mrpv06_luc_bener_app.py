@@ -690,7 +690,8 @@ if df_workbench is not None and not df_workbench.empty:
                 for j_val in range(w_start, w_end + 1):
                     if net_req[j_val-1] == 0: continue
                     for i_val in range(w_start, j_val + 1):
-                        holding = sum(net_req[k-1] * hold * (k - i_val) for range_i_val, k in enumerate(range(i_val, j_val + 1)))
+                        # CRASH BUG RESOLVED BY DEWA CODING AUDIT (Murni menggunakan list comprehension standar tanpa enumerate)
+                        holding = sum(net_req[k-1] * hold * (k - i_val) for k in range(i_val, j_val + 1))
                         cost = f[i_val-1] + setup + holding
                         is_optimal = (order_at[j_val] == i_val and cost == f[j_val])
                         window_rows.append({
@@ -769,7 +770,7 @@ if df_workbench is not None and not df_workbench.empty:
         render_mrp_grid_view(res['l4l'], max_capacity, safety_stock)
         render_cost_audit_window(res['l4l'], setup_cost, holding_cost, res['l4l']['rec'], res['l4l']['poh'])
 
-    # TAB 2: EOQ (RE-IMPLEMENTED FIXED LOGIC GUARD)
+    # TAB 2: EOQ
     with tabs_list[1]:
         st.subheader("Economic Order Quantity (EOQ) Optimization")
         if holding_cost == 0:
@@ -1025,7 +1026,6 @@ if df_workbench is not None and not df_workbench.empty:
         s_l4l, s_eoq, s_luc, s_ppb, s_sm, s_poq, s_foq, s_moq, s_ltc, s_ww, labels_pct = [], [], [], [], [], [], [], [], [], [], []
         
         for p_val in pct_integers:
-            # VARIABLE SHADOWING BUG RESOLVED BY DEWA CODING AUDIT
             scale_factor = 1.0 + (p_val / 100.0)
             sim_demand = [int(round(d * scale_factor)) for d in gross_req]
             
