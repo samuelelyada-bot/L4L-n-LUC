@@ -67,7 +67,7 @@ st.markdown("---")
 
 
 # ==========================================
-# 2. GLOSSARY SECTION (EXTENDED TO 8 METHODS)
+# 2. GLOSSARY SECTION
 # ==========================================
 st.subheader("📚 Glossary")
 g_col1, g_col2, g_col3, g_col4 = st.columns(4)
@@ -252,7 +252,6 @@ else:
     }
     df_workbench = pd.DataFrame(default_data)
 
-# Preview horizontal data awal
 if df_workbench is not None and not df_workbench.empty:
     gross_req = df_workbench['Gross Requirements'].fillna(0).astype(int).tolist()
     sched_rec = df_workbench['Scheduled Receipts'].fillna(0).astype(int).tolist()
@@ -275,7 +274,7 @@ if df_workbench is not None and not df_workbench.empty:
 
 
     # ==========================================
-    # INITIAL STRATEGY MODULES (TABS INITIALIZATION TO EXTRACT IN-TAB VALUE)
+    # INITIAL STRATEGY MODULES (TABS INITIALIZATION)
     # ==========================================
     st.markdown("---")
     st.subheader("⚙️ Lot Sizing Operational Performance Strategy Modules")
@@ -285,7 +284,6 @@ if df_workbench is not None and not df_workbench.empty:
         "🚀 Silver-Meal", "⏱️ POQ", "🔒 FOQ", "🧱 MOQ"
     ])
 
-    # Ambil nilai input langsung dari Tab FOQ dan Tab MOQ sebelum proses core mathematical loop dijalankan
     with tabs_list[6]:
         fixed_lot_size = st.number_input("Masukkan Nilai Fixed Order Size (FOQ Multiplier):", min_value=0, value=0, step=5, help="Isi > 0 untuk mengaktifkan perhitungan kalkulasi FOQ.")
     with tabs_list[7]:
@@ -387,7 +385,8 @@ if df_workbench is not None and not df_workbench.empty:
 
         # 3. ECONOMIC ORDER QUANTITY (EOQ)
         avg_demand_gross = np.mean(demands)
-        eoq_size = math.ceil(math.sqrt((2 * avg_demand_gross * setup) / hold)) if hold > 0 else 0
+        eoq_raw_size = math.sqrt((2 * avg_demand_gross * setup) / hold) if hold > 0 else 0
+        eoq_size = math.ceil(eoq_raw_size)
         eoq_rec = [0] * n
         rem_stok = 0
         
@@ -473,7 +472,7 @@ if df_workbench is not None and not df_workbench.empty:
         c_ppb_setup = sum(1 for x in ppb_rec if x > 0) * setup
         c_ppb_hold = sum(max(0, x) for x in ppb_poh) * hold
 
-        # 5. SILVER-MEAL (SM)
+        # 5. SILVER-MEAL (SM) — FIXED BUG LOGIC L < MIN_AVG_COST
         sm_rec = [0] * n
         sm_trace_logs = []
         idx = 0
@@ -495,7 +494,8 @@ if df_workbench is not None and not df_workbench.empty:
                 
                 covered_periods_str = ", ".join([period_labels[m] for m in range(idx, k+1)])
                 
-                if avg_cost <= min_avg_cost:
+                # FIXED: Menggunakan operator < (bukan <=) untuk mencegah salah henti akibat zero demand
+                if avg_cost < min_avg_cost:
                     min_avg_cost = avg_cost
                     best_k = k
                     t_log.append({
@@ -529,23 +529,25 @@ if df_workbench is not None and not df_workbench.empty:
         c_sm_setup = sum(1 for x in sm_rec if x > 0) * setup
         c_sm_hold = sum(max(0, x) for x in sm_poh) * hold
 
-        # 6. PERIOD ORDER QUANTITY (POQ)
-        poq_interval = max(1, round(eoq_size / avg_demand_gross)) if avg_demand_gross > 0 and eoq_size > 0 else 1
+        # 6. PERIOD ORDER QUANTITY (POQ) — FIXED TIME COHORT WINDOW
+        poq_raw_interval = eoq_size / avg_demand_gross if avg_demand_gross > 0 and eoq_size > 0 else 1
+        poq_interval = max(1, round(poq_raw_interval))
+        
         poq_rec = [0] * n
-        idx = 0
-        while idx < n:
-            if net_req[idx] == 0:
-                idx += 1
-                continue
-            end_k = min(idx + poq_interval, n)
-            poq_rec[idx] = sum(net_req[idx:end_k])
-            idx = end_k
+        i = 0
+        # FIXED: Menjalankan pemisahan interval kaku (Fixed Window Shift) sesuai teori murni POQ
+        while i < n:
+            window_end = min(i + poq_interval, n)
+            total_window_net = sum(net_req[i:window_end])
+            if total_window_net > 0:
+                poq_rec[i] = total_window_net  # Akumulasi order diletakkan tepat di awal window interval
+            i = window_end                 # Selalu melompat sejauh kapasitas penuh panjang window
             
         poq_poh, poq_rel = generate_poh_and_release(poq_rec)
         c_poq_setup = sum(1 for x in poq_rec if x > 0) * setup
         c_poq_hold = sum(max(0, x) for x in poq_poh) * hold
 
-        # 7. FIXED ORDER QUANTITY (FOQ) - Conditional on user input
+        # 7. FIXED ORDER QUANTITY (FOQ)
         foq_rec = [0] * n
         c_foq_setup, c_foq_hold = 0.0, 0.0
         if f_lot > 0:
@@ -565,7 +567,7 @@ if df_workbench is not None and not df_workbench.empty:
             c_foq_setup = sum(1 for x in foq_rec if x > 0) * setup
             c_foq_hold = sum(max(0, x) for x in foq_poh) * hold
 
-        # 8. MINIMUM ORDER QUANTITY (MOQ) - Conditional on user input
+        # 8. MINIMUM ORDER QUANTITY (MOQ)
         moq_rec = [0] * n
         c_moq_setup, c_moq_hold = 0.0, 0.0
         if m_qty > 0:
@@ -591,10 +593,10 @@ if df_workbench is not None and not df_workbench.empty:
             'net_req': net_req,
             'l4l': {'poh': l4l_poh, 'rec': l4l_rec, 'rel': l4l_rel, 'setup': c_l4l_setup, 'hold': c_l4l_hold, 'total': c_l4l_setup + c_l4l_hold},
             'luc': {'poh': luc_poh, 'rec': luc_rec, 'rel': luc_rel, 'setup': c_luc_setup, 'hold': c_luc_hold, 'total': c_luc_setup + c_luc_hold, 'iters': luc_trace_logs},
-            'eoq': {'poh': eoq_poh, 'rec': eoq_rec, 'rel': eoq_rel, 'setup': c_eoq_setup, 'hold': c_eoq_hold, 'total': c_eoq_setup + c_eoq_hold, 'size': eoq_size, 'avg_demand_gross': avg_demand_gross},
+            'eoq': {'poh': eoq_poh, 'rec': eoq_rec, 'rel': eoq_rel, 'setup': c_eoq_setup, 'hold': c_eoq_hold, 'total': c_eoq_setup + c_eoq_hold, 'raw_size': eoq_raw_size, 'size': eoq_size, 'avg_demand_gross': avg_demand_gross},
             'ppb': {'poh': ppb_poh, 'rec': ppb_rec, 'rel': ppb_rel, 'setup': c_ppb_setup, 'hold': c_ppb_hold, 'total': c_ppb_setup + c_ppb_hold, 'iters': ppb_trace_logs, 'epp': epp_limit},
             'sm': {'poh': sm_poh, 'rec': sm_rec, 'rel': sm_rel, 'setup': c_sm_setup, 'hold': c_sm_hold, 'total': c_sm_setup + c_sm_hold, 'iters': sm_trace_logs},
-            'poq': {'poh': poq_poh, 'rec': poq_rec, 'rel': poq_rel, 'setup': c_poq_setup, 'hold': c_poq_hold, 'total': c_poq_setup + c_poq_hold, 'interval': poq_interval},
+            'poq': {'poh': poq_poh, 'rec': poq_rec, 'rel': poq_rel, 'setup': c_poq_setup, 'hold': c_poq_hold, 'total': c_poq_setup + c_poq_hold, 'raw_interval': poq_raw_interval, 'interval': poq_interval},
             'foq': {'poh': foq_poh, 'rec': foq_rec, 'rel': foq_rel, 'setup': c_foq_setup, 'hold': c_foq_hold, 'total': c_foq_setup + c_foq_hold, 'size': f_lot},
             'moq': {'poh': moq_poh, 'rec': moq_rec, 'rel': moq_rel, 'setup': c_moq_setup, 'hold': c_moq_hold, 'total': c_moq_setup + c_moq_hold, 'min_limit': m_qty}
         }
@@ -679,7 +681,7 @@ if df_workbench is not None and not df_workbench.empty:
                 st.markdown("**2. Standard Square-Root Mathematical Equation Substitution:**")
                 st.markdown(f"$$EOQ = \\sqrt{{\\frac{{2 \\times D \\times \\text{{Setup Cost}}}}{{\\text{{Holding Cost}}}}}}$$")
                 st.markdown(f"$$EOQ = \\sqrt{{\\frac{{2 \\times {avg_demand_calc:.4f} \\times {setup_cost:,.2f}}}{{{holding_cost:,.2f}}}}}$$")
-                st.markdown(f"$$EOQ = {math.sqrt((2 * avg_demand_calc * setup_cost) / holding_cost):.4f} \\text{{ units}}$$")
+                st.markdown(f"$$EOQ = {res['eoq']['raw_size']:.4f} \\text{{ units}}$$")
                 
                 st.markdown("**3. Discrete Upper Integer Ceiling Rounding:**")
                 st.markdown(f"* Rounded up via ceiling constraints: **`{res['eoq']['size']}` units**.")
@@ -737,20 +739,30 @@ if df_workbench is not None and not df_workbench.empty:
         render_mrp_grid_view(res['sm'], max_capacity, safety_stock)
         render_cost_audit_window(res['sm'], setup_cost, holding_cost, res['sm']['rec'], res['sm']['poh'])
 
-    # TAB 6: POQ
+    # TAB 6: POQ — FIXED FORMULA VISUAL WITHOUT IN-LINE ROUND
     with tabs_list[5]:
         st.subheader("Period Order Quantity (POQ) Time-Phased Sizing")
+        
+        # FIXED: Poin 3 — Menampilkan warning jika POQ interval sama dengan 1 (L4L Identical)
+        if res['poq']['interval'] == 1:
+            st.warning("⚠️ POQ Interval = 1 periode — hasil identik dengan L4L karena ukuran EOQ lebih kecil atau mendekati rata-rata demand.")
+            
         with st.expander("🔬 CLICK HERE TO VIEW DETAILED FORMULA LOG CALCULATIONS (POQ)", expanded=True):
             st.markdown("#### 📝 Sizing Steps for POQ:")
             st.markdown("**1. Calculate Dynamic Ordering Frequency Coverage ($P_{\\text{oq}}$):**")
-            st.markdown("$$P_{\\text{oq}} = \\text{Round}\\left( \\frac{\\text{EOQ Size}}{\\text{Average Demand (D)}} \\right)$$")
-            st.markdown(f"$$P_{{\\text{{oq}}}} = \\text{{Round}}\\left( \\frac{{{res['eoq']['size']}}}{{{res['eoq']['avg_demand_gross']:.4f}}} \\right)$$")
-            st.markdown(f"$$P_{{\\text{{oq}}}} = {res['poq']['interval']} \\text{{ periods}}$$")
+            # FIXED: Menghapus teks "Round(...)" di dalam rumus inti visual LaTeX sesuai request gambar
+            st.markdown("$$P_{\\text{oq}} = \\frac{\\text{EOQ Size}}{\\text{Average Demand (D)}}$$")
+            st.markdown(f"$$P_{{{\\text{{oq}}}}} = \\frac{{{res['eoq']['size']}}}{{{res['eoq']['avg_demand_gross']:.4f}}}$$")
+            st.markdown(f"$$P_{{{\\text{{oq}}}}} = {res['poq']['raw_interval']:.4f} \\text{{ periods}}$$")
+            
+            st.markdown("**2. Discrete Standard Integer Rounding Adjustment:**")
+            st.markdown(f"* Rounded via standard constraints: **`{res['poq']['interval']}` periods**.")
+            
         st.info(f"💡 **POQ Policy Status:** Setiap siklus pemesanan akan otomatis merangkum data kebutuhan untuk **{res['poq']['interval']} periode** sekaligus.")
         render_mrp_grid_view(res['poq'], max_capacity, safety_stock)
         render_cost_audit_window(res['poq'], setup_cost, holding_cost, res['poq']['rec'], res['poq']['poh'])
 
-    # TAB 7: FOQ CONTENT
+    # TAB 7: FOQ
     with tabs_list[6]:
         st.subheader("Fixed Order Quantity (FOQ) Rigid Sizing Model")
         if fixed_lot_size <= 0:
@@ -760,7 +772,7 @@ if df_workbench is not None and not df_workbench.empty:
             render_mrp_grid_view(res['foq'], max_capacity, safety_stock)
             render_cost_audit_window(res['foq'], setup_cost, holding_cost, res['foq']['rec'], res['foq']['poh'])
 
-    # TAB 8: MOQ CONTENT
+    # TAB 8: MOQ
     with tabs_list[7]:
         st.subheader("Minimum Order Quantity (MOQ) Supplier Boundary Model")
         if min_order_qty <= 0:
@@ -772,7 +784,7 @@ if df_workbench is not None and not df_workbench.empty:
 
 
     # ==========================================
-    # 6. GLOBAL PERFORMANCE MATRIX COMPARISON (FIXED SYMMETRY GRID)
+    # 6. GLOBAL PERFORMANCE MATRIX COMPARISON
     # ==========================================
     st.markdown("---")
     st.header("🏁 Strategic Portfolio Cost Summary Comparison Matrix")
@@ -789,12 +801,10 @@ if df_workbench is not None and not df_workbench.empty:
     min_cost = min(biaya_dict.values())
     best_methods = [k for k, v in biaya_dict.items() if v == min_cost]
     
-    # FIX REVISI 1: Penskalaan deklarasi baris kolom global tunggal untuk mencegah undak tangga
     grid_cards = st.columns(4)
     m_keys = list(biaya_dict.keys())
     
     for idx, key in enumerate(m_keys):
-        # Memetakan target sel index kolom secara matematis simetris (maksimal 4 kolom per baris lurus)
         col_target = grid_cards[idx % 4]
         with col_target:
             is_best = key in best_methods
@@ -818,7 +828,7 @@ if df_workbench is not None and not df_workbench.empty:
 
 
     # ==========================================
-    # 7. GRAPH VISUALIZATION (DYNAMIC SENSITIVITY RUN)
+    # 7. GRAPH VISUALIZATION
     # ==========================================
     st.markdown("---")
     st.subheader("📉 Parametric Sensitivity Analysis Charts")
@@ -829,7 +839,6 @@ if df_workbench is not None and not df_workbench.empty:
         fig.patch.set_facecolor('#faf8f2')
         ax.set_facecolor('#faf8f2')
         
-        # Mapping warna batang grafik dinamis menyesuaikan jumlah metode aktif
         color_palette = ['#444444', '#e65c00', '#6a0708', '#2a7b4c', '#0288d1', '#7b1fa2', '#d32f2f', '#f57c00']
         active_colors = color_palette[:len(biaya_dict)]
         
@@ -888,7 +897,7 @@ if df_workbench is not None and not df_workbench.empty:
 
 
     # ==========================================
-    # 8. REPORT EXPORT WORKBENCH (DYNAMIC REVENUE SHEETS)
+    # 8. REPORT EXPORT WORKBENCH
     # ==========================================
     st.markdown("---")
     
