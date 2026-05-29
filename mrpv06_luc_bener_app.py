@@ -752,8 +752,15 @@ if df_workbench is not None and not df_workbench.empty:
             st.markdown("**1. Calculate Dynamic Ordering Frequency Coverage ($P_{\\text{oq}}$):**")
             # FIXED: Menghapus teks "Round(...)" di dalam rumus inti visual LaTeX sesuai request gambar
             st.markdown("$$P_{\\text{oq}} = \\frac{\\text{EOQ Size}}{\\text{Average Demand (D)}}$$")
-            st.markdown(f"$$P_{{{\\text{{oq}}}}} = \\frac{{{res['eoq']['size']}}}{{{res['eoq']['avg_demand_gross']:.4f}}}$$")
-            st.markdown(f"$$P_{{{\\text{{oq}}}}} = {res['poq']['raw_interval']:.4f} \\text{{ periods}}$$")
+
+            # Kita keluarkan dulu nilainya ke variabel biasa agar f-string tidak pusing
+            eoq_size_val = res['eoq']['size']
+            avg_demand_val = res['eoq']['avg_demand_gross']
+            raw_interval_val = res['poq']['raw_interval']
+
+            # Sekarang f-string jadi bersih dan aman dari bentrokan kurung kurawal
+            st.markdown(f"$$P_{{\\text{{oq}}}} = \\frac{{{eoq_size_val}}}{{{avg_demand_val:.4f}}}$$")
+            st.markdown(f"$$P_{{\\text{{oq}}}} = {raw_interval_val:.4f} \\text{{ periods}}$$")
             
             st.markdown("**2. Discrete Standard Integer Rounding Adjustment:**")
             st.markdown(f"* Rounded via standard constraints: **`{res['poq']['interval']}` periods**.")
