@@ -645,7 +645,7 @@ if df_workbench is not None and not df_workbench.empty:
                     
         ww_rec = [0] * n
         j = n
-        ww_windows = [] # For Window Tracking Backtracking Logs
+        ww_windows = [] 
         while j > 0:
             i = order_at[j]
             ww_rec[i-1] = sum(net_req[i-1:j])
@@ -656,7 +656,6 @@ if df_workbench is not None and not df_workbench.empty:
         c_ww_setup = sum(1 for x in ww_rec if x > 0) * setup
         c_ww_hold = sum(max(0, x) for x in ww_poh) * hold
         
-        # Segmented DP Cost Table Evaluation per Window Blocks
         ww_trace_logs = []
         for (w_start, w_end) in ww_windows:
             window_rows = []
@@ -690,7 +689,6 @@ if df_workbench is not None and not df_workbench.empty:
             'ww': {'poh': ww_poh, 'rec': ww_rec, 'rel': ww_rel, 'setup': c_ww_setup, 'hold': c_ww_hold, 'total': c_ww_setup + c_ww_hold, 'iters': ww_trace_logs}
         }
 
-    # Run Process Calculations
     res = calculate_multi_mrp(gross_req, sched_rec, setup_cost, holding_cost, initial_inv, safety_stock, lead_time, fixed_lot_size, min_order_qty)
     num_periods = len(gross_req)
 
@@ -743,13 +741,17 @@ if df_workbench is not None and not df_workbench.empty:
             st.markdown("### 📝 Sizing Steps for EOQ:")
             st.markdown("##### 1. Identify Input Gross Requirements Data Matrix:")
             st.write(f"- Data per Period: `{gross_req}`")
-            st.write(f"- Total Demand ($\sum \text{{Gross Req}}$) = `{res['total_demand_gross']}` units")
+            st.write(f"- Total Demand ($\sum \\text{{Gross Req}}$) = `{res['total_demand_gross']}` units")
             st.write(f"- Planning Horizon ($n$) = `{num_periods}` periods")
-            st.markdown(f"$$D = \\frac{{\\sum \\text{{Gross Req}}}}{{n}} = \\frac{{{res['total_demand_gross']}}}{{{num_periods}}} = {res['avg_demand_gross']:.4f}\\text{{ units/period}}$$")
+            
+            st.markdown("$$\\text{Calculate Average Demand (D):}$$")
+            st.markdown("$$D = \\frac{\\sum \\text{Gross Req}}{n}$$")
+            st.markdown(f"$$D = \\frac{{{res['total_demand_gross']}}}{{{num_periods}}}$$")
+            st.markdown(f"$$D = {res['avg_demand_gross']:.4f}\\text{{ units/period}}$$")
             
             st.markdown("##### 2. Standard Square-Root Mathematical Equation Substitution:")
-            st.markdown(f"$$EOQ = \\sqrt{{\\frac{{2 \\times D \\times \\text{{Setup Cost}}}}{{\\text{{Holding Cost}}}}}}$$")
-            st.markdown(f"$$EOQ = \\sqrt{{\\frac{{2 \\times {res['avg_demand_gross']:.4f} \\times {setup_cost:,.2f}}}{{{holding_cost:,.2f}}}}}$$")
+            st.markdown("$$EOQ = \\sqrt{\\frac{2 \\times D \\times \\text{Setup Cost}}{\\text{Holding Cost}}}$$")
+            st.markdown(f"$$EOQ = \\sqrt{\\frac{{2 \\times {res['avg_demand_gross']:.4f} \\times {setup_cost:,.2f}}}{{{holding_cost:,.2f}}}}$$")
             st.markdown(f"$$EOQ = {res['eoq']['raw_size']:.4f}\\text{{ units}}$$")
             
             st.markdown("##### 3. Discrete Upper Integer Ceiling Rounding:")
@@ -778,8 +780,9 @@ if df_workbench is not None and not df_workbench.empty:
             st.markdown("##### 1. Identify Operational Control Parameters:")
             st.write(f"- Setup Cost Value = `{setup_cost:,.2f}` | Holding Cost Value = `{holding_cost:,.2f}`")
             st.markdown("##### 2. Calculate Balanced Economic Part Period (EPP) Target Limit Baseline:")
-            st.markdown(f"$$EPP = \\frac{{\\text{{Setup Cost}}}}{{\\text{{Holding Cost}}}}$$")
-            st.markdown(f"$$EPP = \\frac{{{setup_cost:,.2f}}}{{{holding_cost:,.2f}}} = {res['ppb']['epp']:.4f}\\text{{ part-periods}}$$")
+            st.markdown("$$EPP = \\frac{\\text{Setup Cost}}{\\text{Holding Cost}}$$")
+            st.markdown(f"$$EPP = \\frac{{{setup_cost:,.2f}}}{{{holding_cost:,.2f}}}$$")
+            st.markdown(f"$$EPP = {res['ppb']['epp']:.4f}\\text{{ part-periods}}$$")
             st.markdown(f"💡 **Part Period Matrix Target Status:** The EPP target limit constraint is locked at **{res['ppb']['epp']:.4f}** part-periods.")
             
         fmt_ppb = {'Target EPP': '{:.2f}', 'Accumulated Part-Period': '{:.2f}'}
@@ -807,8 +810,9 @@ if df_workbench is not None and not df_workbench.empty:
         with st.expander("🔬 CLICK HERE TO VIEW DETAILED FORMULA LOG CALCULATIONS (POQ)", expanded=True):
             st.markdown("### 📝 Sizing Steps for POQ:")
             st.markdown("##### 1. Calculate Dynamic Ordering Frequency Coverage ($P_{oq}$):")
-            st.markdown(f"$$P_{{oq}} = \\text{{Round}} \\left( \\frac{{\\text{{EOQ Size}}}}{{D}} \\right)$$")
-            st.markdown(f"$$P_{{oq}} = \\text{{Round}} \\left( \\frac{{{res['eoq']['size']}}}{{{res['avg_demand_gross']:.4f}}} \\right) = {res['poq']['raw_interval']:.4f}\\text{{ periods}}$$")
+            st.markdown("$$P_{oq} = \\frac{\\text{EOQ Size}}{D}$$")
+            st.markdown(f"$$P_{{oq}} = \\frac{{{res['eoq']['size']}}}{{{res['avg_demand_gross']:.4f}}}$$")
+            st.markdown(f"$$P_{{oq}} = {res['poq']['raw_interval']:.4f}\\text{{ periods}}$$")
             st.markdown("##### 2. Discrete Standard Integer Rounding Adjustment:")
             st.markdown(f"- Rounded via standard constraints: **`{res['poq']['interval']}` periods**.")
             
