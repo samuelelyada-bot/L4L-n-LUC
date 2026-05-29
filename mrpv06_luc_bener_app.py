@@ -472,7 +472,7 @@ if df_workbench is not None and not df_workbench.empty:
         c_ppb_setup = sum(1 for x in ppb_rec if x > 0) * setup
         c_ppb_hold = sum(max(0, x) for x in ppb_poh) * hold
 
-        # 5. SILVER-MEAL (SM) — FIXED BUG LOGIC L < MIN_AVG_COST
+        # 5. SILVER-MEAL (SM)
         sm_rec = [0] * n
         sm_trace_logs = []
         idx = 0
@@ -494,7 +494,6 @@ if df_workbench is not None and not df_workbench.empty:
                 
                 covered_periods_str = ", ".join([period_labels[m] for m in range(idx, k+1)])
                 
-                # FIXED: Menggunakan operator < (bukan <=) untuk mencegah salah henti akibat zero demand
                 if avg_cost < min_avg_cost:
                     min_avg_cost = avg_cost
                     best_k = k
@@ -529,19 +528,18 @@ if df_workbench is not None and not df_workbench.empty:
         c_sm_setup = sum(1 for x in sm_rec if x > 0) * setup
         c_sm_hold = sum(max(0, x) for x in sm_poh) * hold
 
-        # 6. PERIOD ORDER QUANTITY (POQ) — FIXED TIME COHORT WINDOW
+        # 6. PERIOD ORDER QUANTITY (POQ)
         poq_raw_interval = eoq_size / avg_demand_gross if avg_demand_gross > 0 and eoq_size > 0 else 1
         poq_interval = max(1, round(poq_raw_interval))
         
         poq_rec = [0] * n
         i = 0
-        # FIXED: Menjalankan pemisahan interval kaku (Fixed Window Shift) sesuai teori murni POQ
         while i < n:
             window_end = min(i + poq_interval, n)
             total_window_net = sum(net_req[i:window_end])
             if total_window_net > 0:
-                poq_rec[i] = total_window_net  # Akumulasi order diletakkan tepat di awal window interval
-            i = window_end                 # Selalu melompat sejauh kapasitas penuh panjang window
+                poq_rec[i] = total_window_net  
+            i = window_end                 
             
         poq_poh, poq_rel = generate_poh_and_release(poq_rec)
         c_poq_setup = sum(1 for x in poq_rec if x > 0) * setup
@@ -739,7 +737,7 @@ if df_workbench is not None and not df_workbench.empty:
         render_mrp_grid_view(res['sm'], max_capacity, safety_stock)
         render_cost_audit_window(res['sm'], setup_cost, holding_cost, res['sm']['rec'], res['sm']['poh'])
 
-    # TAB 6: POQ — FIXED FORMULA VISUAL & CLEAN SHORT WARNING
+    # TAB 6: POQ
     with tabs_list[5]:
         st.subheader("Period Order Quantity (POQ) Time-Phased Sizing")
         
@@ -765,7 +763,7 @@ if df_workbench is not None and not df_workbench.empty:
         render_mrp_grid_view(res['poq'], max_capacity, safety_stock)
         render_cost_audit_window(res['poq'], setup_cost, holding_cost, res['poq']['rec'], res['poq']['poh'])
 
-    # TAB 7: FOQ — CLEAN SHORT WARNING
+    # TAB 7: FOQ
     with tabs_list[6]:
         st.subheader("Fixed Order Quantity (FOQ) Rigid Sizing Model")
         if fixed_lot_size <= 0:
@@ -775,7 +773,7 @@ if df_workbench is not None and not df_workbench.empty:
             render_mrp_grid_view(res['foq'], max_capacity, safety_stock)
             render_cost_audit_window(res['foq'], setup_cost, holding_cost, res['foq']['rec'], res['foq']['poh'])
 
-    # TAB 8: MOQ — CLEAN SHORT WARNING
+    # TAB 8: MOQ
     with tabs_list[7]:
         st.subheader("Minimum Order Quantity (MOQ) Supplier Boundary Model")
         if min_order_qty <= 0:
@@ -831,7 +829,7 @@ if df_workbench is not None and not df_workbench.empty:
 
 
     # ==========================================
-    # 7. GRAPH VISUALIZATION
+    # 7. GRAPH VISUALIZATION (DEDUPLICATED SENSITIVITY RANGE)
     # ==========================================
     st.markdown("---")
     st.subheader("📉 Parametric Sensitivity Analysis Charts")
@@ -853,13 +851,13 @@ if df_workbench is not None and not df_workbench.empty:
         st.pyplot(fig)
         
     with cg2:
-        scale_factors = np.arange(0.70, 1.31, 0.05) 
+        # FIXED: Menggunakan integer linspace langsung (-30 sampai +30 dengan beda pas 5%)
+        pct_integers = np.linspace(-30, 30, 13, dtype=int)
+        
         s_l4l, s_eoq, s_luc, s_ppb, s_sm, s_poq, s_foq, s_moq, labels_pct = [], [], [], [], [], [], [], [], []
         
-        for f in scale_factors:
-            pct_val = int(round((f - 1) * 100))
-            if pct_val > 30: 
-                continue
+        for p_val in pct_integers:
+            f = 1.0 + (p_val / 100.0)
             sim_demand = [int(round(d * f)) for d in gross_req]
             s_res = calculate_multi_mrp(sim_demand, sched_rec, setup_cost, holding_cost, initial_inv, safety_stock, lead_time, fixed_lot_size, min_order_qty)
             
@@ -873,7 +871,8 @@ if df_workbench is not None and not df_workbench.empty:
                 s_foq.append(s_res['foq']['total'])
             if min_order_qty > 0:
                 s_moq.append(s_res['moq']['total'])
-            labels_pct.append(f"{pct_val:+}%")
+            
+            labels_pct.append(f"{p_val:+}%")
         
         fig2, ax2 = plt.subplots(figsize=(7, 4.2))
         fig2.patch.set_facecolor('#faf8f2')
