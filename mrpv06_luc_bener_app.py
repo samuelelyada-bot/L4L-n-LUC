@@ -657,7 +657,7 @@ if df_workbench is not None and not df_workbench.empty:
     """, unsafe_allow_html=True)
 
 
-    # ==========================================
+# ==========================================
     # 7. GRAPH VISUALIZATION
     # ==========================================
     st.markdown("---")
@@ -709,7 +709,12 @@ if df_workbench is not None and not df_workbench.empty:
         plt.xticks(rotation=30)
         st.pyplot(fig2)
 
-    # Export Excel File Report workbench
+    # ==========================================
+    # 8. REPORT EXPORT WORKBENCH (PERBAIKAN POSISI)
+    # ==========================================
+    st.markdown("---")
+    
+    # Bungkus proses penulisan Excel ke dalam buffer memori
     buffer = io.BytesIO()
     with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
         pd.DataFrame({'Gross Requirements': gross_req, 'Scheduled Receipts': sched_rec, 'Net Requirements': res['net_req']}, index=period_labels).T.to_excel(writer, sheet_name="Baseline Framework")
@@ -719,12 +724,16 @@ if df_workbench is not None and not df_workbench.empty:
         pd.DataFrame({'Projected On Hand': res['ppb']['poh'], 'Planned Order Receipts': res['ppb']['rec'], 'Planned Order Releases': res['ppb']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="PPB Plan")
     
     buffer.seek(0)
-    st.sidebar.markdown("---")
-    st.sidebar.download_button(
-        label="📥 Download Plan Document Report", 
-        data=buffer, 
-        file_name="MRP_Lot_Sizing_Report.xlsx", 
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
+    
+    # Gunakan layout kolom untuk memosisikan tombol unduh agar terlihat rapi di halaman utama
+    btn_col1, btn_col2, btn_col3 = st.columns([1, 2, 1])
+    with btn_col2:
+        st.download_button(
+            label="📥 Download Plan Document Report", 
+            data=buffer, 
+            file_name="MRP_Lot_Sizing_Report.xlsx", 
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True # Membuat tombol melebar proporsional mengikuti kolom tengah
+        )
 else:
     st.info("Please initialize input values or upload transaction vectors to run calculation routines.")
