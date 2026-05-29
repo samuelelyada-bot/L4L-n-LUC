@@ -94,7 +94,6 @@ st.markdown("---")
 # ==========================================
 st.subheader("📚 Glossary")
 
-# Row 1 Allocation
 g_row1_col1, g_row1_col2, g_row1_col3, g_row1_col4, g_row1_col5 = st.columns(5)
 with g_row1_col1:
     st.markdown("""<div class='glossary-card'><div class='glossary-title'>📋 1. Lot-for-Lot (L4L)</div><div class='text-justify'><b>Concept:</b> Orders exact net requirements per discrete period.<br><b>Function:</b> Minimizes holding values straight to a zero-point baseline.</div></div>""", unsafe_allow_html=True)
@@ -107,7 +106,6 @@ with g_row1_col4:
 with g_row1_col5:
     st.markdown("""<div class='glossary-card'><div class='glossary-title'>💸 5. Least Total Cost (LTC)</div><div class='text-justify'><b>Concept:</b> Accumulates periods and enforces an immediate cut-off when holding cost matches or exceeds setup cost.<br><b>Function:</b> Sharp structural step heuristic.</div></div>""", unsafe_allow_html=True)
 
-# Row 2 Allocation
 g_row2_col1, g_row2_col2, g_row2_col3, g_row2_col4, g_row2_col5 = st.columns(5)
 with g_row2_col1:
     st.markdown("""<div class='glossary-card'><div class='glossary-title'>🚀 6. Silver-Meal (SM)</div><div class='text-justify'><b>Concept:</b> Minimizes average total cost per period by incrementally scanning upcoming horizons.<br><b>Function:</b> Robust under volatile demand shifts.</div></div>""", unsafe_allow_html=True)
@@ -128,20 +126,17 @@ st.markdown("---")
 # ==========================================
 st.sidebar.header("⚙️ Control Dashboard")
 
-st.sidebar.subheader("💰 Financial Factors")  
 setup_cost = st.sidebar.number_input("Setup Cost", min_value=0.0, value=100.0, step=5.0)
 holding_cost = st.sidebar.number_input("Holding Cost (per unit/period)", min_value=0.0, value=2.0, step=0.5)
 
 st.sidebar.markdown("<br>", unsafe_allow_html=True)
 
-st.sidebar.subheader("🗂️ Inventory Profiles")  
 initial_inv = st.sidebar.number_input("Initial Inventory", min_value=0, value=35, step=5)
 safety_stock = st.sidebar.number_input("Safety Stock", min_value=0, value=0, step=1)
 lead_time = st.sidebar.number_input("Lead Time", min_value=0, value=1, step=1)
 
 st.sidebar.markdown("<br>", unsafe_allow_html=True)
 
-st.sidebar.subheader("🏭 Operational Boundaries")
 max_capacity = st.sidebar.number_input("Maximum Warehouse Capacity (Units)", min_value=1, value=100, step=10)
 
 
@@ -285,15 +280,15 @@ if df_workbench is not None and not df_workbench.empty:
     ])
 
     with tabs_list[6]:
-        fixed_lot_size = st.number_input("Enter Fixed Order Size (FOQ Multiplier):", min_value=0, value=0, step=5, help="Set a value > 0 to run FOQ logic.")
+        fixed_lot_size = st.number_input("Enter Fixed Order Size (FOQ Multiplier):", min_value=0, value=0, step=5)
     with tabs_list[7]:
-        min_order_qty = st.number_input("Enter Minimum Order Quantity (MOQ):", min_value=0, value=0, step=5, help="Set a value > 0 to run MOQ logic.")
+        min_order_qty = st.number_input("Enter Minimum Order Quantity (MOQ):", min_value=0, value=0, step=5)
 
 
     # ==========================================
     # CORE PROCESSING MATHEMATICAL ALGORITHMS
     # ==========================================
-    def calculate_multi_mrp(demands, s_receipts, setup, hold, init_inv, ss, lt, f_lot, m_qty):
+    def calculate_multi_mrp(demands, s_receipts, setup, hold, init_inv, ss, lt, f_lot, m_qty, build_trace=True):
         n = len(demands)
         
         # Calculate Net Requirements Matrix
@@ -352,30 +347,33 @@ if df_workbench is not None and not df_workbench.empty:
                 
                 if uc < min_uc:  
                     min_uc, best_k = uc, k
-                    t_log.append({
-                        'Periods Covered': covered_periods_str, 'Total Units': acc_d, 
-                        'Setup Cost': setup, 'Holding Cost': acc_h, 'Total Cost': t_cost, 
-                        'Unit Cost': uc, 'Status': 'Feasible'
-                    })
+                    if build_trace:
+                        t_log.append({
+                            'Periods Covered': covered_periods_str, 'Total Units': acc_d, 
+                            'Setup Cost': setup, 'Holding Cost': acc_h, 'Total Cost': t_cost, 
+                            'Unit Cost': uc, 'Status': 'Feasible'
+                        })
                 else:
-                    t_log.append({
-                        'Periods Covered': covered_periods_str, 'Total Units': acc_d, 
-                        'Setup Cost': setup, 'Holding Cost': acc_h, 'Total Cost': t_cost, 
-                        'Unit Cost': uc, 'Status': 'Stop ⚠️ (Limit Exceeded)'
-                    })
+                    if build_trace:
+                        t_log.append({
+                            'Periods Covered': covered_periods_str, 'Total Units': acc_d, 
+                            'Setup Cost': setup, 'Holding Cost': acc_h, 'Total Cost': t_cost, 
+                            'Unit Cost': uc, 'Status': 'Stop ⚠️ (Limit Exceeded)'
+                        })
                     break
             
-            df_step = pd.DataFrame(t_log)
-            if not df_step.empty:
-                stop_exists = df_step['Status'].str.contains('Stop').any()
-                if stop_exists:
-                    stop_idx = df_step[df_step['Status'].str.contains('Stop')].index[0]
-                    if stop_idx > 0:
-                        df_step.at[stop_idx - 1, 'Status'] = 'Selected (Optimal)'
-                else:
-                    df_step.at[df_step.index[-1], 'Status'] = 'Horizon End (Optimal)'
-                    
-            luc_trace_logs.append(df_step)
+            if build_trace:
+                df_step = pd.DataFrame(t_log)
+                if not df_step.empty:
+                    stop_exists = df_step['Status'].str.contains('Stop').any()
+                    if stop_exists:
+                        stop_idx = df_step[df_step['Status'].str.contains('Stop')].index[0]
+                        if stop_idx > 0:
+                            df_step.at[stop_idx - 1, 'Status'] = 'Selected (Optimal)'
+                    else:
+                        df_step.at[df_step.index[-1], 'Status'] = 'Horizon End (Optimal)'
+                luc_trace_logs.append(df_step)
+                
             luc_rec[idx] = sum(net_req[idx:best_k+1])
             idx = best_k + 1
             
@@ -429,11 +427,12 @@ if df_workbench is not None and not df_workbench.empty:
                     acc_d += net_req[k]
                     cum_part_period = new_cum_part_period
                     best_k = k
-                    t_log.append({
-                        'Periods Covered': covered_periods_str, 'Total Units': acc_d,
-                        'Target EPP': epp_limit, 'Accumulated Part-Period': cum_part_period,
-                        'Status': 'Feasible'
-                    })
+                    if build_trace:
+                        t_log.append({
+                            'Periods Covered': covered_periods_str, 'Total Units': acc_d,
+                            'Target EPP': epp_limit, 'Accumulated Part-Period': cum_part_period,
+                            'Status': 'Feasible'
+                        })
                 else:
                     dist_before = abs(cum_part_period - epp_limit)
                     dist_after = abs(new_cum_part_period - epp_limit)
@@ -442,30 +441,33 @@ if df_workbench is not None and not df_workbench.empty:
                         acc_d += net_req[k]
                         cum_part_period = new_cum_part_period
                         best_k = k
-                        t_log.append({
-                            'Periods Covered': covered_periods_str, 'Total Units': acc_d,
-                            'Target EPP': epp_limit, 'Accumulated Part-Period': cum_part_period,
-                            'Status': 'Feasible (Closer Beyond Limit)'
-                        })
+                        if build_trace:
+                            t_log.append({
+                                'Periods Covered': covered_periods_str, 'Total Units': acc_d,
+                                'Target EPP': epp_limit, 'Accumulated Part-Period': cum_part_period,
+                                'Status': 'Feasible (Closer Beyond Limit)'
+                            })
                     else:
-                        t_log.append({
-                            'Periods Covered': covered_periods_str, 'Total Units': acc_d + net_req[k],
-                            'Target EPP': epp_limit, 'Accumulated Part-Period': new_cum_part_period,
-                            'Status': 'Stop ⚠️ (Limit Exceeded)'
-                        })
+                        if build_trace:
+                            t_log.append({
+                                'Periods Covered': covered_periods_str, 'Total Units': acc_d + net_req[k],
+                                'Target EPP': epp_limit, 'Accumulated Part-Period': new_cum_part_period,
+                                'Status': 'Stop ⚠️ (Limit Exceeded)'
+                            })
                     break
                     
-            df_step = pd.DataFrame(t_log)
-            if not df_step.empty:
-                stop_exists = df_step['Status'].str.contains('Stop').any()
-                if stop_exists:
-                    stop_idx = df_step[df_step['Status'].str.contains('Stop')].index[0]
-                    if stop_idx > 0:
-                        df_step.at[stop_idx - 1, 'Status'] = 'Selected (Optimal)'
-                else:
-                    df_step.at[df_step.index[-1], 'Status'] = 'Horizon End (Optimal)'
-                    
-            ppb_trace_logs.append(df_step)
+            if build_trace:
+                df_step = pd.DataFrame(t_log)
+                if not df_step.empty:
+                    stop_exists = df_step['Status'].str.contains('Stop').any()
+                    if stop_exists:
+                        stop_idx = df_step[df_step['Status'].str.contains('Stop')].index[0]
+                        if stop_idx > 0:
+                            df_step.at[stop_idx - 1, 'Status'] = 'Selected (Optimal)'
+                    else:
+                        df_step.at[df_step.index[-1], 'Status'] = 'Horizon End (Optimal)'
+                ppb_trace_logs.append(df_step)
+                
             ppb_rec[idx] = sum(net_req[idx:best_k+1])
             idx = best_k + 1
             
@@ -498,30 +500,33 @@ if df_workbench is not None and not df_workbench.empty:
                 if avg_cost < min_avg_cost:
                     min_avg_cost = avg_cost
                     best_k = k
-                    t_log.append({
-                        'Periods Covered': covered_periods_str, 'Total Units': acc_d,
-                        'Setup Cost': setup, 'Holding Cost': acc_h, 'Total Cost': t_cost,
-                        'Average Cost/Period': avg_cost, 'Status': 'Feasible'
-                    })
+                    if build_trace:
+                        t_log.append({
+                            'Periods Covered': covered_periods_str, 'Total Units': acc_d,
+                            'Setup Cost': setup, 'Holding Cost': acc_h, 'Total Cost': t_cost,
+                            'Average Cost/Period': avg_cost, 'Status': 'Feasible'
+                        })
                 else:
-                    t_log.append({
-                        'Periods Covered': covered_periods_str, 'Total Units': acc_d,
-                        'Setup Cost': setup, 'Holding Cost': acc_h, 'Total Cost': t_cost,
-                        'Average Cost/Period': avg_cost, 'Status': 'Stop ⚠️ (Limit Exceeded)'
-                    })
+                    if build_trace:
+                        t_log.append({
+                            'Periods Covered': covered_periods_str, 'Total Units': acc_d,
+                            'Setup Cost': setup, 'Holding Cost': acc_h, 'Total Cost': t_cost,
+                            'Average Cost/Period': avg_cost, 'Status': 'Stop ⚠️ (Limit Exceeded)'
+                        })
                     break
                     
-            df_step = pd.DataFrame(t_log)
-            if not df_step.empty:
-                stop_exists = df_step['Status'].str.contains('Stop').any()
-                if stop_exists:
-                    stop_idx = df_step[df_step['Status'].str.contains('Stop')].index[0]
-                    if stop_idx > 0:
-                        df_step.at[stop_idx - 1, 'Status'] = 'Selected (Optimal)'
-                else:
-                    df_step.at[df_step.index[-1], 'Status'] = 'Horizon End (Optimal)'
-                    
-            sm_trace_logs.append(df_step)
+            if build_trace:
+                df_step = pd.DataFrame(t_log)
+                if not df_step.empty:
+                    stop_exists = df_step['Status'].str.contains('Stop').any()
+                    if stop_exists:
+                        stop_idx = df_step[df_step['Status'].str.contains('Stop')].index[0]
+                        if stop_idx > 0:
+                            df_step.at[stop_idx - 1, 'Status'] = 'Selected (Optimal)'
+                    else:
+                        df_step.at[df_step.index[-1], 'Status'] = 'Horizon End (Optimal)'
+                sm_trace_logs.append(df_step)
+                
             sm_rec[idx] = sum(net_req[idx:best_k+1])
             idx = best_k + 1
             
@@ -606,28 +611,33 @@ if df_workbench is not None and not df_workbench.empty:
                 
                 if acc_h < setup:
                     best_k = k
-                    t_log.append({
-                        'Periods Covered': covered_periods_str, 'Total Units': acc_d,
-                        'Setup Cost': setup, 'Holding Cost': acc_h, 'Status': 'Feasible'
-                    })
+                    if build_trace:
+                        t_log.append({
+                            'Periods Covered': covered_periods_str, 'Total Units': acc_d,
+                            'Setup Cost': setup, 'Holding Cost': acc_h, 'Status': 'Feasible'
+                        })
+                    if hold == 0:  # Prevent infinite lock if holding cost is zero
+                        break
                 else:
-                    t_log.append({
-                        'Periods Covered': covered_periods_str, 'Total Units': acc_d,
-                        'Setup Cost': setup, 'Holding Cost': acc_h, 'Status': 'Stop ⚠️ (Holding ≥ Setup)'
-                    })
+                    if build_trace:
+                        t_log.append({
+                            'Periods Covered': covered_periods_str, 'Total Units': acc_d,
+                            'Setup Cost': setup, 'Holding Cost': acc_h, 'Status': 'Stop ⚠️ (Holding ≥ Setup)'
+                        })
                     break
                     
-            df_step = pd.DataFrame(t_log)
-            if not df_step.empty:
-                stop_exists = df_step['Status'].str.contains('Stop').any()
-                if stop_exists:
-                    stop_idx = df_step[df_step['Status'].str.contains('Stop')].index[0]
-                    if stop_idx > 0:
-                        df_step.at[stop_idx - 1, 'Status'] = 'Selected (Optimal)'
-                else:
-                    df_step.at[df_step.index[-1], 'Status'] = 'Horizon End (Optimal)'
-                    
-            ltc_trace_logs.append(df_step)
+            if build_trace:
+                df_step = pd.DataFrame(t_log)
+                if not df_step.empty:
+                    stop_exists = df_step['Status'].str.contains('Stop').any()
+                    if stop_exists:
+                        stop_idx = df_step[df_step['Status'].str.contains('Stop')].index[0]
+                        if stop_idx > 0:
+                            df_step.at[stop_idx - 1, 'Status'] = 'Selected (Optimal)'
+                    else:
+                        df_step.at[df_step.index[-1], 'Status'] = 'Horizon End (Optimal)'
+                ltc_trace_logs.append(df_step)
+                
             ltc_rec[idx] = sum(net_req[idx:best_k+1])
             idx = best_k + 1
             
@@ -635,13 +645,17 @@ if df_workbench is not None and not df_workbench.empty:
         c_ltc_setup = sum(1 for x in ltc_rec if x > 0) * setup
         c_ltc_hold = sum(max(0, x) for x in ltc_poh) * hold
 
-        # 10. WAGNER-WHITIN (WW) — Dynamic Programming Execution
+        # 10. WAGNER-WHITIN (WW) — Sempurna & Kebal Zero-Demand Bug
         INF = float('inf')
         f = [INF] * (n + 1)
         order_at = [0] * (n + 1)
         f[0] = 0
         
         for j in range(1, n + 1):
+            if net_req[j-1] == 0:
+                f[j] = f[j-1]
+                order_at[j] = order_at[j-1]
+                continue
             for i in range(1, j + 1):
                 holding = sum(net_req[k-1] * hold * (k - i) for k in range(i, j + 1))
                 cost = f[i-1] + setup + holding
@@ -653,7 +667,13 @@ if df_workbench is not None and not df_workbench.empty:
         j = n
         ww_windows = [] 
         while j > 0:
+            if net_req[j-1] == 0:
+                j -= 1
+                continue
             i = order_at[j]
+            if i == 0:  # Fallback safety handler
+                j -= 1
+                continue
             ww_rec[i-1] = sum(net_req[i-1:j])
             ww_windows.insert(0, (i, j))
             j = i - 1
@@ -663,21 +683,24 @@ if df_workbench is not None and not df_workbench.empty:
         c_ww_hold = sum(max(0, x) for x in ww_poh) * hold
         
         ww_trace_logs = []
-        for (w_start, w_end) in ww_windows:
-            window_rows = []
-            for j_val in range(w_start, w_end + 1):
-                for i_val in range(w_start, j_val + 1):
-                    holding = sum(net_req[k-1] * hold * (k - i_val) for k in range(i_val, j_val + 1))
-                    cost = f[i_val-1] + setup + holding
-                    is_optimal = (order_at[j_val] == i_val and cost == f[j_val])
-                    window_rows.append({
-                        'Order Period': period_labels[i_val-1],
-                        'Covers Until': period_labels[j_val-1],
-                        'Cumulative Holding': holding,
-                        'Evaluated Cost': cost,
-                        'Status': 'Optimal Selection ✅' if is_optimal else 'Feasible Combination'
-                    })
-            ww_trace_logs.append(pd.DataFrame(window_rows))
+        if build_trace:
+            for (w_start, w_end) in ww_windows:
+                window_rows = []
+                for j_val in range(w_start, w_end + 1):
+                    if net_req[j_val-1] == 0: continue
+                    for i_val in range(w_start, j_val + 1):
+                        holding = sum(net_req[k-1] * hold * (k - i_val) for k in range(i_val, j_val + 1))
+                        cost = f[i_val-1] + setup + holding
+                        is_optimal = (order_at[j_val] == i_val and cost == f[j_val])
+                        window_rows.append({
+                            'Order Period': period_labels[i_val-1],
+                            'Covers Until': period_labels[j_val-1],
+                            'Cumulative Holding': holding,
+                            'Evaluated Cost': cost,
+                            'Status': 'Optimal Selection ✅' if is_optimal else 'Feasible Combination'
+                        })
+                if window_rows:
+                    ww_trace_logs.append(pd.DataFrame(window_rows))
 
         return {
             'net_req': net_req,
@@ -695,8 +718,13 @@ if df_workbench is not None and not df_workbench.empty:
             'ww': {'poh': ww_poh, 'rec': ww_rec, 'rel': ww_rel, 'setup': c_ww_setup, 'hold': c_ww_hold, 'total': c_ww_setup + c_ww_hold, 'iters': ww_trace_logs}
         }
 
-    res = calculate_multi_mrp(gross_req, sched_rec, setup_cost, holding_cost, initial_inv, safety_stock, lead_time, fixed_lot_size, min_order_qty)
+    # Operational Logic Run With Complete Trace Build Activated
+    res = calculate_multi_mrp(gross_req, sched_rec, setup_cost, holding_cost, initial_inv, safety_stock, lead_time, fixed_lot_size, min_order_qty, build_trace=True)
     num_periods = len(gross_req)
+
+    # Global warning guard for zero holding cost (LTC rule constraint)
+    if holding_cost == 0:
+        st.warning("⚠️ **Holding Cost set to 0:** LTC and iterative models will automatically consolidate all parameters into a single bulk launch load pattern.")
 
     def render_mrp_grid_view(data_dict, max_cap, ss):
         df = pd.DataFrame({
@@ -783,7 +811,7 @@ if df_workbench is not None and not df_workbench.empty:
         st.subheader("Least Unit Cost (LUC) Iterative Consolidation Grid")
         fmt_luc = {'Setup Cost': '{:.2f}', 'Holding Cost': '{:.2f}', 'Total Cost': '{:.2f}', 'Unit Cost': '{:.4f}'}
         for step_idx, df_step in enumerate(res['luc']['iters']):
-            if df_step.empty: continue
+            if df_step is None or df_step.empty: continue
             with st.expander(f"Iteration Block {step_idx + 1}", expanded=True):
                 st.dataframe(df_step.style.apply(style_iteration_rows, axis=None).format(fmt_luc), hide_index=True, use_container_width=True)
         render_mrp_grid_view(res['luc'], max_capacity, safety_stock)
@@ -816,7 +844,7 @@ if df_workbench is not None and not df_workbench.empty:
             
         fmt_ppb = {'Target EPP': '{:.2f}', 'Accumulated Part-Period': '{:.2f}'}
         for step_idx, df_step in enumerate(res['ppb']['iters']):
-            if df_step.empty: continue
+            if df_step is None or df_step.empty: continue
             with st.expander(f"Iteration Block {step_idx + 1}", expanded=True):
                 st.dataframe(df_step.style.apply(style_iteration_rows, axis=None).format(fmt_ppb), hide_index=True, use_container_width=True)
         render_mrp_grid_view(res['ppb'], max_capacity, safety_stock)
@@ -827,7 +855,7 @@ if df_workbench is not None and not df_workbench.empty:
         st.subheader("Silver-Meal (SM) Criterion Period Cost Average Heuristic")
         fmt_sm = {'Setup Cost': '{:.2f}', 'Holding Cost': '{:.2f}', 'Total Cost': '{:.2f}', 'Average Cost/Period': '{:.4f}'}
         for step_idx, df_step in enumerate(res['sm']['iters']):
-            if df_step.empty: continue
+            if df_step is None or df_step.empty: continue
             with st.expander(f"Iteration Block {step_idx + 1}", expanded=True):
                 st.dataframe(df_step.style.apply(style_iteration_rows, axis=None).format(fmt_sm), hide_index=True, use_container_width=True)
         render_mrp_grid_view(res['sm'], max_capacity, safety_stock)
@@ -886,7 +914,7 @@ if df_workbench is not None and not df_workbench.empty:
         st.subheader("💸 Least Total Cost (LTC) Sequential Cut-off Grid")
         fmt_ltc = {'Setup Cost': '{:.2f}', 'Holding Cost': '{:.2f}'}
         for step_idx, df_step in enumerate(res['ltc']['iters']):
-            if df_step.empty: continue
+            if df_step is None or df_step.empty: continue
             with st.expander(f"Iteration Block {step_idx + 1}", expanded=True):
                 st.dataframe(df_step.style.apply(style_iteration_rows, axis=None).format(fmt_ltc), hide_index=True, use_container_width=True)
         render_mrp_grid_view(res['ltc'], max_capacity, safety_stock)
@@ -898,10 +926,13 @@ if df_workbench is not None and not df_workbench.empty:
         st.success("🎯 **Global Optimal Solution:** This exact algorithmic model evaluates all valid multi-period paths to secure the global cost minimum.")
         
         fmt_ww = {'Cumulative Holding': '{:.2f}', 'Evaluated Cost': '{:.2f}'}
-        for w_idx, df_window in enumerate(res['ww']['iters']):
-            if df_window.empty: continue
-            with st.expander(f"Order Window Segment Block {w_idx + 1}", expanded=True):
-                st.dataframe(df_window.style.apply(style_iteration_rows, axis=None).format(fmt_ww), hide_index=True, use_container_width=True)
+        if res['ww']['iters']:
+            for w_idx, df_window in enumerate(res['ww']['iters']):
+                if df_window is None or df_window.empty: continue
+                with st.expander(f"Order Window Segment Block {w_idx + 1}", expanded=True):
+                    st.dataframe(df_window.style.apply(style_iteration_rows, axis=None).format(fmt_ww), hide_index=True, use_container_width=True)
+        else:
+            st.info("No trace operations needed for zero net requirement arrays.")
                 
         render_mrp_grid_view(res['ww'], max_capacity, safety_stock)
         render_cost_audit_window(res['ww'], setup_cost, holding_cost, res['ww']['rec'], res['ww']['poh'])
@@ -958,7 +989,7 @@ if df_workbench is not None and not df_workbench.empty:
 
 
     # ==========================================
-    # 7. GRAPH VISUALIZATION
+    # 7. GRAPH VISUALIZATION (FAST CALCULATE SENSITIVITY)
     # ==========================================
     st.markdown("---")
     st.subheader("📉 Parametric Sensitivity Analysis Charts")
@@ -986,7 +1017,9 @@ if df_workbench is not None and not df_workbench.empty:
         for p_val in pct_integers:
             f = 1.0 + (p_val / 100.0)
             sim_demand = [int(round(d * f)) for d in gross_req]
-            s_res = calculate_multi_mrp(sim_demand, sched_rec, setup_cost, holding_cost, initial_inv, safety_stock, lead_time, fixed_lot_size, min_order_qty)
+            
+            # RUN SENSITIVITY WITH build_trace=False (SUPER FAST RUN SPEED AS RECOMMENDED)
+            s_res = calculate_multi_mrp(sim_demand, sched_rec, setup_cost, holding_cost, initial_inv, safety_stock, lead_time, fixed_lot_size, min_order_qty, build_trace=False)
             
             s_l4l.append(s_res['l4l']['total'])
             s_eoq.append(s_res['eoq']['total'])
