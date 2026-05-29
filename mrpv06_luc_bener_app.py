@@ -76,6 +76,12 @@ st.markdown("""
         font-size: 14px;
         margin-bottom: 6px;
     }
+    
+    /* Justify Math Equation Wrapper */
+    .math-justify .katex-display {
+        text-align: justify !important;
+        margin-left: 0px !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -738,24 +744,35 @@ if df_workbench is not None and not df_workbench.empty:
     with tabs_list[1]:
         st.subheader("Economic Order Quantity (EOQ) Optimization")
         with st.expander("🔬 CLICK HERE TO VIEW FORMULA LOG CALCULATIONS (EOQ)", expanded=True):
+            avg_demand_fmt = f"{res['avg_demand_gross']:.4f}"
+            setup_fmt = f"{setup_cost:,.2f}"
+            hold_fmt = f"{holding_cost:,.2f}"
+            eoq_raw_fmt = f"{res['eoq']['raw_size']:.4f}"
+            
+            st.markdown('<div class="text-justify">', unsafe_allow_html=True)
             st.markdown("### 📝 Sizing Steps for EOQ:")
             st.markdown("##### 1. Identify Input Gross Requirements Data Matrix:")
             st.write(f"- Data per Period: `{gross_req}`")
             st.write(f"- Total Demand ($\sum \\text{{Gross Req}}$) = `{res['total_demand_gross']}` units")
             st.write(f"- Planning Horizon ($n$) = `{num_periods}` periods")
+            st.markdown('</div>', unsafe_allow_html=True)
             
-            st.markdown("$$\\text{Calculate Average Demand (D):}$$")
-            st.markdown("$$D = \\frac{\\sum \\text{Gross Req}}{n}$$")
+            st.markdown('<div class="math-justify">', unsafe_allow_html=True)
+            st.markdown(f"$$\\text{{Calculate Average Demand (D):}}$$")
+            st.markdown(f"$$D = \\frac{{\\sum \\text{{Gross Req}}}}{{n}}$$")
             st.markdown(f"$$D = \\frac{{{res['total_demand_gross']}}}{{{num_periods}}}$$")
-            st.markdown(f"$$D = {res['avg_demand_gross']:.4f}\\text{{ units/period}}$$")
+            st.markdown(f"$$D = {avg_demand_fmt}\\text{{ units/period}}$$")
             
             st.markdown("##### 2. Standard Square-Root Mathematical Equation Substitution:")
-            st.markdown("$$EOQ = \\sqrt{\\frac{2 \\times D \\times \\text{Setup Cost}}{\\text{Holding Cost}}}$$")
-            st.markdown(f"$$EOQ = \\sqrt{\\frac{{2 \\times {res['avg_demand_gross']:.4f} \\times {setup_cost:,.2f}}}{{{holding_cost:,.2f}}}}$$")
-            st.markdown(f"$$EOQ = {res['eoq']['raw_size']:.4f}\\text{{ units}}$$")
+            st.markdown(f"$$EOQ = \\sqrt{{\\frac{{2 \\times D \\times \\text{{Setup Cost}}}}{{\\text{{Holding Cost}}}}}}$$")
+            st.markdown(f"$$EOQ = \\sqrt{{\\frac{{2 \\times {avg_demand_fmt} \\times {setup_fmt}}}{{{hold_fmt}}}}}$$")
+            st.markdown(f"$$EOQ = {eoq_raw_fmt}\\text{{ units}}$$")
+            st.markdown('</div>', unsafe_allow_html=True)
             
+            st.markdown('<div class="text-justify">', unsafe_allow_html=True)
             st.markdown("##### 3. Discrete Upper Integer Ceiling Rounding:")
             st.markdown(f"- Rounded up via ceiling constraints: **`{res['eoq']['size']}` units**.")
+            st.markdown('</div>', unsafe_allow_html=True)
             
         st.info(f"💡 **Lot Sizing Matrix Status:** Fixed EOQ profile is locked at **{res['eoq']['size']} units** per order.")
         render_mrp_grid_view(res['eoq'], max_capacity, safety_stock)
@@ -776,14 +793,26 @@ if df_workbench is not None and not df_workbench.empty:
     with tabs_list[3]:
         st.subheader("Part Period Balancing (PPB) Dynamic Policy Grid")
         with st.expander("🔬 CLICK HERE TO VIEW DETAILED FORMULA LOG CALCULATIONS (PPB)", expanded=True):
+            setup_fmt = f"{setup_cost:,.2f}"
+            hold_fmt = f"{holding_cost:,.2f}"
+            epp_fmt = f"{res['ppb']['epp']:.4f}"
+            
+            st.markdown('<div class="text-justify">', unsafe_allow_html=True)
             st.markdown("### 📝 Sizing Steps for PPB:")
             st.markdown("##### 1. Identify Operational Control Parameters:")
             st.write(f"- Setup Cost Value = `{setup_cost:,.2f}` | Holding Cost Value = `{holding_cost:,.2f}`")
             st.markdown("##### 2. Calculate Balanced Economic Part Period (EPP) Target Limit Baseline:")
-            st.markdown("$$EPP = \\frac{\\text{Setup Cost}}{\\text{Holding Cost}}$$")
-            st.markdown(f"$$EPP = \\frac{{{setup_cost:,.2f}}}{{{holding_cost:,.2f}}}$$")
-            st.markdown(f"$$EPP = {res['ppb']['epp']:.4f}\\text{{ part-periods}}$$")
-            st.markdown(f"💡 **Part Period Matrix Target Status:** The EPP target limit constraint is locked at **{res['ppb']['epp']:.4f}** part-periods.")
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            st.markdown('<div class="math-justify">', unsafe_allow_html=True)
+            st.markdown(f"$$EPP = \\frac{{\\text{{Setup Cost}}}}{{\\text{{Holding Cost}}}}$$")
+            st.markdown(f"$$EPP = \\frac{{{setup_fmt}}}{{{hold_fmt}}}$$")
+            st.markdown(f"$$EPP = {epp_fmt}\\text{{ part-periods}}$$")
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            st.markdown('<div class="text-justify">', unsafe_allow_html=True)
+            st.markdown(f"💡 **Part Period Matrix Target Status:** The EPP target limit constraint is locked at **{epp_fmt}** part-periods.")
+            st.markdown('</div>', unsafe_allow_html=True)
             
         fmt_ppb = {'Target EPP': '{:.2f}', 'Accumulated Part-Period': '{:.2f}'}
         for step_idx, df_step in enumerate(res['ppb']['iters']):
@@ -808,13 +837,25 @@ if df_workbench is not None and not df_workbench.empty:
     with tabs_list[5]:
         st.subheader("Period Order Quantity (POQ) Time-Phased Sizing")
         with st.expander("🔬 CLICK HERE TO VIEW DETAILED FORMULA LOG CALCULATIONS (POQ)", expanded=True):
+            eoq_size_fmt = f"{res['eoq']['size']}"
+            avg_demand_fmt = f"{res['avg_demand_gross']:.4f}"
+            poq_raw_fmt = f"{res['poq']['raw_interval']:.4f}"
+            
+            st.markdown('<div class="text-justify">', unsafe_allow_html=True)
             st.markdown("### 📝 Sizing Steps for POQ:")
             st.markdown("##### 1. Calculate Dynamic Ordering Frequency Coverage ($P_{oq}$):")
-            st.markdown("$$P_{oq} = \\frac{\\text{EOQ Size}}{D}$$")
-            st.markdown(f"$$P_{{oq}} = \\frac{{{res['eoq']['size']}}}{{{res['avg_demand_gross']:.4f}}}$$")
-            st.markdown(f"$$P_{{oq}} = {res['poq']['raw_interval']:.4f}\\text{{ periods}}$$")
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            st.markdown('<div class="math-justify">', unsafe_allow_html=True)
+            st.markdown(f"$$P_{{oq}} = \\frac{{\\text{{EOQ Size}}}}{{D}}$$")
+            st.markdown(f"$$P_{{oq}} = \\frac{{{eoq_size_fmt}}}{{{avg_demand_fmt}}}$$")
+            st.markdown(f"$$P_{{oq}} = {poq_raw_fmt}\\text{{ periods}}$$")
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            st.markdown('<div class="text-justify">', unsafe_allow_html=True)
             st.markdown("##### 2. Discrete Standard Integer Rounding Adjustment:")
             st.markdown(f"- Rounded via standard constraints: **`{res['poq']['interval']}` periods**.")
+            st.markdown('</div>', unsafe_allow_html=True)
             
         st.info(f"💡 **POQ Policy Status:** Each order cycle covers **{res['poq']['interval']} periods**.")
         render_mrp_grid_view(res['poq'], max_capacity, safety_stock)
