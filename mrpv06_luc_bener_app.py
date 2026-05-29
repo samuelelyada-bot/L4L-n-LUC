@@ -729,7 +729,7 @@ if df_workbench is not None and not df_workbench.empty:
     st.markdown("""
         <style>
         div.stDownloadButton > button p {
-            color: #d90429 !important;
+            color: #6a0708 !important;
             font-weight: bold !important;
         }
         </style>
