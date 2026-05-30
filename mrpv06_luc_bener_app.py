@@ -83,7 +83,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("📦 MRP Lot Sizing Calculator — Ultimate 10-Method Edition")
+st.title("📦 MRP Lot Sizing Calculator")
 st.markdown("---")
 
 
@@ -94,27 +94,39 @@ st.subheader("📚 Glossary")
 
 g_row1_col1, g_row1_col2, g_row1_col3, g_row1_col4, g_row1_col5 = st.columns(5)
 with g_row1_col1:
-    st.markdown("""<div class='glossary-card'><div class='glossary-title'>📋 1. Lot-for-Lot (L4L)</div><div class='text-justify'><b>Concept:</b> Orders exact net requirements per discrete period.<br><b>Function:</b> Minimizes holding values straight to a zero-point baseline.</div></div>""", unsafe_allow_html=True)
+    st.markdown("""<div class='glossary-card'><div class='glossary-title'>📋 1. Lot-for-Lot (L4L)</div><div class='text-justify'><b>Concept:</b> Orders exact net requirements per discrete period, no more and no less.<br><b>Function:</b> Eliminates holding cost entirely by zeroing out inventory between periods.</div></div>""", unsafe_allow_html=True)
 with g_row1_col2:
-    st.markdown("""<div class='glossary-card'><div class='glossary-title'>🎯 2. Economic Order Quantity (EOQ)</div><div class='text-justify'><b>Concept:</b> Establishes a fixed lot size based on structural average baseline demand profiles.<br><b>Function:</b> Maximizes cost balance stability.</div></div>""", unsafe_allow_html=True)
+    st.markdown("""<div class='glossary-card'><div class='glossary-title'>🎯 2. Economic Order Quantity (EOQ)</div><div class='text-justify'><b>Concept:</b> Derives a fixed optimal lot size by balancing setup cost against holding cost using average demand.<br><b>Function:</b> Minimizes total inventory cost under stable, predictable demand conditions.</div></div>""", unsafe_allow_html=True)
 with g_row1_col3:
-    st.markdown("""<div class='glossary-card'><div class='glossary-title'>⏱️ 3. Period Order Quantity (POQ)</div><div class='text-justify'><b>Concept:</b> Transforms classical EOQ metrics into optimized integer time-phased frequency coverage intervals.<br><b>Function:</b> Stabilizes ordering cycles.</div></div>""", unsafe_allow_html=True)
+    st.markdown("""<div class='glossary-card'><div class='glossary-title'>⏱️ 3. Period Order Quantity (POQ)</div><div class='text-justify'><b>Concept:</b> Converts the EOQ quantity into a time-based ordering interval (number of periods per order).<br><b>Function:</b> Provides a stable ordering frequency derived automatically from cost parameters.</div></div>""", unsafe_allow_html=True)
 with g_row1_col4:
-    st.markdown("""<div class='glossary-card'><div class='glossary-title'>🔒 4. Fixed Order Quantity (FOQ)</div><div class='text-justify'><b>Concept:</b> Enforces rigid predefined vendor batch sizes multipliers whenever net positions drop below safety limits.<br><b>Function:</b> Standardizes freight handling.</div></div>""", unsafe_allow_html=True)
+    st.markdown("""<div class='glossary-card'><div class='glossary-title'>🔒 4. Fixed Order Quantity (FOQ)</div><div class='text-justify'><b>Concept:</b> Orders a predetermined fixed quantity (or its multiples) set by supplier or operational constraints.<br><b>Function:</b> Standardizes order sizes for environments with rigid container or pallet sizing.</div></div>""", unsafe_allow_html=True)
 with g_row1_col5:
-    st.markdown("""<div class='glossary-card'><div class='glossary-title'>📅 5. Fixed Period Requirements (FPR)</div><div class='text-justify'><b>Concept:</b> Orders to cover a user-defined fixed number of periods, accumulating all net requirements within each window.<br><b>Function:</b> Simple time-bucket consolidation with manual interval control.</div></div>""", unsafe_allow_html=True)
+    st.markdown("""<div class='glossary-card'><div class='glossary-title'>📅 5. Fixed Period Requirements (FPR)</div><div class='text-justify'><b>Concept:</b> Accumulates net requirements over a manually defined fixed period window and places one order at the window start.<br><b>Function:</b> Gives planners direct control over ordering frequency without relying on cost-derived intervals.</div></div>""", unsafe_allow_html=True)
 
 g_row2_col1, g_row2_col2, g_row2_col3, g_row2_col4, g_row2_col5 = st.columns(5)
 with g_row2_col1:
-    st.markdown("""<div class='glossary-card'><div class='glossary-title'>💰 6. Incremental Unit Cost (IUC)</div><div class='text-justify'><b>Concept:</b> Evaluates the marginal cost of adding each successive period's demand to the current lot, stopping when incremental cost per unit rises.<br><b>Function:</b> Captures true marginal cost dynamics period by period.</div></div>""", unsafe_allow_html=True)
+    st.markdown("""<div class='glossary-card'><div class='glossary-title'>💰 6. Incremental Unit Cost (IUC)</div><div class='text-justify'><b>Concept:</b> Evaluates the marginal (incremental) cost per unit added when extending the lot to cover one more period, stopping when this marginal cost rises.<br><b>Function:</b> Captures true marginal cost dynamics, distinguishing it from LUC which uses cumulative average.</div></div>""", unsafe_allow_html=True)
 with g_row2_col2:
-    st.markdown("""<div class='glossary-card'><div class='glossary-title'>💸 7. Least Total Cost (LTC)</div><div class='text-justify'><b>Concept:</b> Accumulates periods and enforces an immediate cut-off when holding cost matches or exceeds setup cost.<br><b>Function:</b> Sharp structural step heuristic.</div></div>""", unsafe_allow_html=True)
+    st.markdown("""<div class='glossary-card'><div class='glossary-title'>💸 7. Least Total Cost (LTC)</div><div class='text-justify'><b>Concept:</b> Adds periods to the current lot until cumulative holding cost meets or exceeds the setup cost, then stops.<br><b>Function:</b> Achieves rough cost balance between setup and holding through a simple threshold comparison.</div></div>""", unsafe_allow_html=True)
 with g_row2_col3:
-    st.markdown("""<div class='glossary-card'><div class='glossary-title'>🔍 8. Least Unit Cost (LUC)</div><div class='text-justify'><b>Concept:</b> Aggregates upcoming period blocks sequentially until total cost per unit starts to climb.<br><b>Function:</b> Dynamic cost variance control.</div></div>""", unsafe_allow_html=True)
+    st.markdown("""<div class='glossary-card'><div class='glossary-title'>🔍 8. Least Unit Cost (LUC)</div><div class='text-justify'><b>Concept:</b> Iteratively adds future periods to the lot and stops when the total cost per unit (setup + holding) starts to increase.<br><b>Function:</b> Minimizes average cost per unit ordered across the consolidation window.</div></div>""", unsafe_allow_html=True)
 with g_row2_col4:
-    st.markdown("""<div class='glossary-card'><div class='glossary-title'>⚖️ 9. Part Period Balancing (PPB)</div><div class='text-justify'><b>Concept:</b> Syncs setup costs against cumulative holding components by targeting Economic Part Period (EPP).<br><b>Function:</b> Drives balanced inventory costs.</div></div>""", unsafe_allow_html=True)
+    st.markdown("""<div class='glossary-card'><div class='glossary-title'>⚖️ 9. Part Period Balancing (PPB)</div><div class='text-justify'><b>Concept:</b> Searches for the lot coverage that brings cumulative holding cost (in part-periods) closest to the Economic Part Period (EPP = Setup/Holding).<br><b>Function:</b> Balances setup and holding costs by targeting an equilibrium part-period value.</div></div>""", unsafe_allow_html=True)
 with g_row2_col5:
-    st.markdown("""<div class='glossary-card'><div class='glossary-title'>🚀 10. Silver-Meal (SM)</div><div class='text-justify'><b>Concept:</b> Minimizes average total cost per period by incrementally scanning upcoming horizons.<br><b>Function:</b> Robust under volatile demand shifts.</div></div>""", unsafe_allow_html=True)
+    st.markdown("""<div class='glossary-card'><div class='glossary-title'>🚀 10. Silver-Meal (SM)</div><div class='text-justify'><b>Concept:</b> Stops adding periods when the average total cost per period covered begins to rise, rather than per unit.<br><b>Function:</b> Performs well under volatile demand by optimizing cost per time period rather than per unit.</div></div>""", unsafe_allow_html=True)
+
+g_row3_col1, g_row3_col2, g_row3_col3, g_row3_col4, g_row3_col5 = st.columns(5)
+with g_row3_col1:
+    st.markdown("""<div class='glossary-card'><div class='glossary-title'>🔬 11. Wagner-Whitin (WW)</div><div class='text-justify'><b>Concept:</b> Uses dynamic programming to evaluate all possible lot combinations across the entire planning horizon simultaneously.<br><b>Function:</b> Guarantees the mathematically global minimum total cost — the benchmark all heuristics are measured against.</div></div>""", unsafe_allow_html=True)
+with g_row3_col2:
+    st.markdown("", unsafe_allow_html=True)
+with g_row3_col3:
+    st.markdown("", unsafe_allow_html=True)
+with g_row3_col4:
+    st.markdown("", unsafe_allow_html=True)
+with g_row3_col5:
+    st.markdown("", unsafe_allow_html=True)
 
 st.markdown("---")
 
@@ -147,12 +159,6 @@ st.sidebar.subheader("🔧 Universal Constraint")
 use_moq = st.sidebar.checkbox("Apply MOQ Constraint to All Methods", value=False)
 moq_value = st.sidebar.number_input("MOQ Value (units)", min_value=1, value=50, step=5, disabled=not use_moq)
 moq_val = moq_value if use_moq else 0
-
-st.sidebar.markdown("<br>", unsafe_allow_html=True)
-
-# FPR Interval input di sidebar
-st.sidebar.subheader("📅 FPR Parameter")
-fpr_interval = st.sidebar.number_input("FPR Interval (periods)", min_value=1, max_value=52, value=3, step=1)
 
 
 # ==========================================
@@ -301,6 +307,14 @@ if df_workbench is not None and not df_workbench.empty:
     # FOQ input tetap di dalam tab seperti sebelumnya
     with tabs_list[3]:
         fixed_lot_size = st.number_input("Enter Fixed Order Size (FOQ Multiplier):", min_value=0, value=0, step=5)
+
+    # FPR interval input di dalam tab FPR
+    with tabs_list[4]:
+        fpr_interval = st.number_input(
+            "FPR Interval (periods):",
+            min_value=1, max_value=len(gross_req), value=3, step=1,
+            help="Tentukan jumlah periode yang akan digabung dalam satu window pemesanan FPR."
+        )
 
 
     # ==========================================
@@ -977,14 +991,14 @@ if df_workbench is not None and not df_workbench.empty:
             render_mrp_grid_view(res['foq'], max_capacity, safety_stock)
             render_cost_audit_window(res['foq'], setup_cost, holding_cost, res['foq']['rec'], res['foq']['poh'])
 
-    # TAB 4: FPR — BARU
+    # TAB 4: FPR
     with tabs_list[4]:
         st.subheader("📅 Fixed Period Requirements (FPR) Manual Interval Sizing")
         with st.expander("🔬 CLICK HERE TO VIEW FORMULA LOG CALCULATIONS (FPR)", expanded=True):
             st.markdown('<div class="text-justify">', unsafe_allow_html=True)
             st.markdown("### 📝 Sizing Steps for FPR:")
             st.markdown("##### 1. User-Defined Fixed Interval Parameter:")
-            st.write(f"- FPR Interval (user input from sidebar) = **`{fpr_interval}` periods**")
+            st.write(f"- FPR Interval (input above) = **`{fpr_interval}` periods**")
             st.markdown("##### 2. Window-Based Accumulation Logic:")
             st.markdown("""
             For each window of `fpr_interval` periods starting from period 1:
@@ -997,7 +1011,7 @@ if df_workbench is not None and not df_workbench.empty:
             st.markdown(f"- FPR uses manually set interval → **`{fpr_interval}` periods** (user-controlled)")
             st.markdown('</div>', unsafe_allow_html=True)
 
-        st.info(f"💡 **FPR Policy Status:** Each order cycle covers a fixed window of **{res['fpr']['interval']} periods** as defined by user input.")
+        st.info(f"💡 **FPR Policy Status:** Each order cycle covers a fixed window of **{res['fpr']['interval']} periods** as defined by your input above.")
         render_mrp_grid_view(res['fpr'], max_capacity, safety_stock)
         render_cost_audit_window(res['fpr'], setup_cost, holding_cost, res['fpr']['rec'], res['fpr']['poh'])
 
@@ -1054,9 +1068,9 @@ if df_workbench is not None and not df_workbench.empty:
             st.markdown(f"$$EPP = \\frac{{{setup_fmt}}}{{{hold_fmt}}}$$")
             st.markdown(f"$$EPP = {epp_fmt}\\text{{ part-periods}}$$")
             st.markdown('</div>', unsafe_allow_html=True)
-            st.markdown('<div class="text-justify">', unsafe_allow_html=True)
-            st.markdown(f"💡 **Part Period Matrix Target Status:** The EPP target limit constraint is locked at **{epp_fmt}** part-periods.")
-            st.markdown('</div>', unsafe_allow_html=True)
+
+        epp_fmt_display = f"{res['ppb']['epp']:.4f}" if holding_cost > 0 else "INF"
+        st.info(f"💡 **Part Period Matrix Target Status:** The EPP target limit constraint is locked at **{epp_fmt_display}** part-periods.")
 
         fmt_ppb = {'Target EPP': '{:.2f}', 'Accumulated Part-Period': '{:.2f}'}
         for step_idx, df_step in enumerate(res['ppb']['iters']):
@@ -1247,24 +1261,49 @@ if df_workbench is not None and not df_workbench.empty:
             pd.DataFrame({'Projected On Hand': res['foq']['poh'], 'Planned Order Receipts': res['foq']['rec'], 'Planned Order Releases': res['foq']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="FOQ Plan")
     
     buffer.seek(0)
-    
-    st.markdown("""
-        <style>
-        div.stDownloadButton > button p {
-            color: #6a0708 !important;
-            font-weight: bold !important;
-        }
-        </style>
+
+    # Download section — clean minimalist design
+    active_method_count = len(biaya_dict)
+    moq_note = f" · MOQ {moq_val} units active" if use_moq else ""
+
+    st.markdown(f"""
+    <div style="
+        background: linear-gradient(135deg, #6a0708 0%, #9b1a1b 100%);
+        border-radius: 12px;
+        padding: 32px 40px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 8px;
+        box-shadow: 0 4px 16px rgba(106,7,8,0.18);
+    ">
+        <div>
+            <div style="color: #f4efdc; font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; opacity: 0.8; margin-bottom: 6px;">
+                MRP Lot Sizing Calculator
+            </div>
+            <div style="color: #ffffff; font-size: 20px; font-weight: 700; margin-bottom: 4px;">
+                📊 Full Planning Report
+            </div>
+            <div style="color: #f4efdc; font-size: 13px; opacity: 0.75;">
+                {active_method_count} active methods · {num_periods} periods · Excel format{moq_note}
+            </div>
+        </div>
+        <div style="color: #f4efdc; font-size: 36px; opacity: 0.25;">
+            ↓
+        </div>
+    </div>
     """, unsafe_allow_html=True)
-    
+
+    st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
+
     btn_col1, btn_col2, btn_col3 = st.columns([1, 2, 1])
     with btn_col2:
         st.download_button(
-            label="📥 Download Plan Document Report (10 Methods)", 
-            data=buffer, 
-            file_name="MRP_Lot_Sizing_Ultimate_Report.xlsx", 
+            label="📥 Download Plan Document Report",
+            data=buffer,
+            file_name="MRP_Lot_Sizing_Report.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True 
+            use_container_width=True
         )
 else:
     st.info("Please initialize input values or upload transaction vectors to run calculation routines.")
