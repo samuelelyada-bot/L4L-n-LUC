@@ -1270,58 +1270,71 @@ if df_workbench is not None and not df_workbench.empty:
     moq_badge = f'🔧 MOQ {moq_val} units' if use_moq else ''
     methods_list_string = " · ".join(list(biaya_dict.keys()))
 
-    # Trik CSS Kustom: Kita bungkus area tombol Streamlit agar menyatu ke dalam desain card
+    # 1. Bagian Atas Card Premium (Tanpa kaki penutup yang rawan bocor)
     st.markdown(f"""
     <div style="
+        position: relative;
         background: linear-gradient(135deg, #4a0506 0%, #6a0708 50%, #8a1a1b 100%);
         border-radius: 16px 16px 0px 0px;
-        padding: 36px 44px 20px 44px;
-        box-shadow: 0 8px 32px rgba(106,7,8,0.15);
+        padding: 36px 44px 24px 44px;
+        box-shadow: 0 8px 32px rgba(106,7,8,0.18);
         margin-bottom: 0px;
     ">
-        <div style="display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
-            <div>
-                <div style="color: rgba(244,239,220,0.6); font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px;">
-                    MRP Lot Sizing Calculator · Export
+        <div style="
+            position: absolute; top: 0; right: 0;
+            width: 220px; height: 220px;
+            background: radial-gradient(circle, rgba(255,255,255,0.04) 0%, transparent 70%);
+            border-radius: 50%;
+            transform: translate(60px, -60px);
+        "></div>
+        <div style="position: relative; z-index: 1;">
+            <div style="display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
+                <div>
+                    <div style="color: rgba(244,239,220,0.6); font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px;">
+                        MRP Lot Sizing Calculator · Export
+                    </div>
+                    <div style="color: #ffffff; font-size: 24px; font-weight: 800; margin-bottom: 12px; letter-spacing: -0.3px;">
+                        📊 Full Planning Report
+                    </div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+                        <span style="background: rgba(255,255,255,0.12); color: #f4efdc; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px;">
+                            📋 {active_method_count} methods
+                        </span>
+                        <span style="background: rgba(255,255,255,0.12); color: #f4efdc; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px;">
+                            📅 {num_periods} periods
+                        </span>
+                        <span style="background: rgba(255,255,255,0.12); color: #f4efdc; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px;">
+                            📁 Excel .xlsx
+                        </span>
+                        {f'<span style="background: rgba(255,255,255,0.15); color: #f4efdc; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px;">{moq_badge}</span>' if moq_badge else ''}
+                    </div>
                 </div>
-                <div style="color: #ffffff; font-size: 24px; font-weight: 800; margin-bottom: 12px; letter-spacing: -0.3px;">
-                    📊 Full Planning Report
+                <div style="text-align: right; color: rgba(244,239,220,0.22); font-size: 52px; line-height: 1; user-select: none;">
+                    ⬇
                 </div>
-                <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
-                    <span style="background: rgba(255,255,255,0.12); color: #f4efdc; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px;">
-                        📋 {active_method_count} methods
-                    </span>
-                    <span style="background: rgba(255,255,255,0.12); color: #f4efdc; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px;">
-                        📅 {num_periods} periods
-                    </span>
-                    <span style="background: rgba(255,255,255,0.12); color: #f4efdc; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px;">
-                        📁 Excel .xlsx
-                    </span>
-                    {f'<span style="background: rgba(255,255,255,0.15); color: #f4efdc; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px;">{moq_badge}</span>' if moq_badge else ''}
-                </div>
-            </div>
-            <div style="color: rgba(244,239,220,0.25); font-size: 48px; line-height: 1; user-select: none;">
-                💾
             </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-    # Inject style kustom khusus agar tombol bawaan Streamlit berubah warna mengikuti tema card
+    # 2. Inject CSS untuk memaksa tombol Streamlit menyatu mendominasi bagian bawah card
     st.markdown("""
     <style>
         div.stDownloadButton > button {
             background-color: #8a1a1b !important;
             color: #ffffff !important;
-            border: 1px solid rgba(255,255,255,0.2) !important;
-            border-radius: 0px 0px 16px 16px !important;
-            padding: 16px 24px !important;
+            border: 1px solid rgba(255,255,255,0.15) !important;
+            border-radius: 0px 0px 0px 0px !important;
+            padding: 18px 24px !important;
             font-weight: bold !important;
             font-size: 14px !important;
             letter-spacing: 0.5px !important;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05) !important;
-            margin-top: -2px !important;
+            margin-top: 0px !important;
+            margin-bottom: 0px !important;
+            use-container-width: true;
             transition: all 0.3s ease !important;
+            display: block !important;
+            width: 100% !important;
         }
         div.stDownloadButton > button:hover {
             background-color: #a12325 !important;
@@ -1331,7 +1344,7 @@ if df_workbench is not None and not df_workbench.empty:
     </style>
     """, unsafe_allow_html=True)
 
-    # Tombol download yang sekarang otomatis menyatu sebagai bagian bawah dari card
+    # 3. Tombol download diletakkan tepat di tengah susunan struktur komponen
     st.download_button(
         label="⚡ DOWNLOAD PLAN DOCUMENT REPORT (.XLSX)",
         data=buffer,
@@ -1340,20 +1353,22 @@ if df_workbench is not None and not df_workbench.empty:
         use_container_width=True
     )
 
-    # Tambahkan baris Contains di paling bawah luar tombol sebagai penutup kaki card yang bersih
+    # 4. Bagian Kaki Informasi Utama (Menutup blok layout dengan border bawah melengkung)
     st.markdown(f"""
     <div style="
         background-color: #ffffff;
         border: 1px solid #e0dacf;
         border-top: none;
-        border-radius: 0 0 12px 12px;
-        padding: 12px 24px;
+        border-radius: 0px 0px 16px 16px;
+        padding: 14px 44px;
         color: #555555;
         font-size: 12px;
         font-family: sans-serif;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.03);
-        margin-top: -4px;
-        margin-bottom: 24px;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.03);
+        margin-top: 0px;
+        margin-bottom: 30px;
+     border-left: 1px solid #e0dacf;
+        border-right: 1px solid #e0dacf;
     ">
         <b>Contains Sheets:</b> Executive Cost Summary · {methods_list_string} · All Planned Order Releases
     </div>
