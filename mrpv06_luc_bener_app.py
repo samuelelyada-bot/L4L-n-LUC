@@ -60,7 +60,6 @@ st.markdown("""
         font-size: 14px !important;
     }
 
-    /* Fixed Height Utility to Guarantee Grid Symmetry */
     .glossary-card {
         background-color: #ffffff;
         padding: 16px;
@@ -77,7 +76,6 @@ st.markdown("""
         margin-bottom: 6px;
     }
     
-    /* Justify Math Equation Wrapper */
     .math-justify .katex-display {
         text-align: justify !important;
         margin-left: 0px !important;
@@ -90,7 +88,7 @@ st.markdown("---")
 
 
 # ==========================================
-# 2. GLOSSARY SECTION (FIXED BLOCK COHESION)
+# 2. GLOSSARY SECTION
 # ==========================================
 st.subheader("📚 Glossary")
 
@@ -100,23 +98,23 @@ with g_row1_col1:
 with g_row1_col2:
     st.markdown("""<div class='glossary-card'><div class='glossary-title'>🎯 2. Economic Order Quantity (EOQ)</div><div class='text-justify'><b>Concept:</b> Establishes a fixed lot size based on structural average baseline demand profiles.<br><b>Function:</b> Maximizes cost balance stability.</div></div>""", unsafe_allow_html=True)
 with g_row1_col3:
-    st.markdown("""<div class='glossary-card'><div class='glossary-title'>🔍 3. Least Unit Cost (LUC)</div><div class='text-justify'><b>Concept:</b> Aggregates upcoming period blocks sequentially until total cost per unit starts to climb.<br><b>Function:</b> Dynamic cost variance control.</div></div>""", unsafe_allow_html=True)
+    st.markdown("""<div class='glossary-card'><div class='glossary-title'>⏱️ 3. Period Order Quantity (POQ)</div><div class='text-justify'><b>Concept:</b> Transforms classical EOQ metrics into optimized integer time-phased frequency coverage intervals.<br><b>Function:</b> Stabilizes ordering cycles.</div></div>""", unsafe_allow_html=True)
 with g_row1_col4:
-    st.markdown("""<div class='glossary-card'><div class='glossary-title'>⚖️ 4. Part Period Balancing (PPB)</div><div class='text-justify'><b>Concept:</b> Syncs setup costs against cumulative holding components by targeting Economic Part Period (EPP).<br><b>Function:</b> Drives balanced inventory costs.</div></div>""", unsafe_allow_html=True)
+    st.markdown("""<div class='glossary-card'><div class='glossary-title'>🔒 4. Fixed Order Quantity (FOQ)</div><div class='text-justify'><b>Concept:</b> Enforces rigid predefined vendor batch sizes multipliers whenever net positions drop below safety limits.<br><b>Function:</b> Standardizes freight handling.</div></div>""", unsafe_allow_html=True)
 with g_row1_col5:
-    st.markdown("""<div class='glossary-card'><div class='glossary-title'>💸 5. Least Total Cost (LTC)</div><div class='text-justify'><b>Concept:</b> Accumulates periods and enforces an immediate cut-off when holding cost matches or exceeds setup cost.<br><b>Function:</b> Sharp structural step heuristic.</div></div>""", unsafe_allow_html=True)
+    st.markdown("""<div class='glossary-card'><div class='glossary-title'>📅 5. Fixed Period Requirements (FPR)</div><div class='text-justify'><b>Concept:</b> Orders to cover a user-defined fixed number of periods, accumulating all net requirements within each window.<br><b>Function:</b> Simple time-bucket consolidation with manual interval control.</div></div>""", unsafe_allow_html=True)
 
 g_row2_col1, g_row2_col2, g_row2_col3, g_row2_col4, g_row2_col5 = st.columns(5)
 with g_row2_col1:
-    st.markdown("""<div class='glossary-card'><div class='glossary-title'>🚀 6. Silver-Meal (SM)</div><div class='text-justify'><b>Concept:</b> Minimizes average total cost per period by incrementally scanning upcoming horizons.<br><b>Function:</b> Robust under volatile demand shifts.</div></div>""", unsafe_allow_html=True)
+    st.markdown("""<div class='glossary-card'><div class='glossary-title'>💰 6. Incremental Unit Cost (IUC)</div><div class='text-justify'><b>Concept:</b> Evaluates the marginal cost of adding each successive period's demand to the current lot, stopping when incremental cost per unit rises.<br><b>Function:</b> Captures true marginal cost dynamics period by period.</div></div>""", unsafe_allow_html=True)
 with g_row2_col2:
-    st.markdown("""<div class='glossary-card'><div class='glossary-title'>⏱️ 7. Period Order Quantity (POQ)</div><div class='text-justify'><b>Concept:</b> Transforms classical EOQ metrics into optimized integer time-phased frequency coverage intervals.<br><b>Function:</b> Stabilizes ordering cycles.</div></div>""", unsafe_allow_html=True)
+    st.markdown("""<div class='glossary-card'><div class='glossary-title'>💸 7. Least Total Cost (LTC)</div><div class='text-justify'><b>Concept:</b> Accumulates periods and enforces an immediate cut-off when holding cost matches or exceeds setup cost.<br><b>Function:</b> Sharp structural step heuristic.</div></div>""", unsafe_allow_html=True)
 with g_row2_col3:
-    st.markdown("""<div class='glossary-card'><div class='glossary-title'>🔒 8. Fixed Order Quantity (FOQ)</div><div class='text-justify'><b>Concept:</b> Enforces rigid predefined vendor batch sizes multipliers whenever net positions drop below safety limits.<br><b>Function:</b> Standardizes freight handling.</div></div>""", unsafe_allow_html=True)
+    st.markdown("""<div class='glossary-card'><div class='glossary-title'>🔍 8. Least Unit Cost (LUC)</div><div class='text-justify'><b>Concept:</b> Aggregates upcoming period blocks sequentially until total cost per unit starts to climb.<br><b>Function:</b> Dynamic cost variance control.</div></div>""", unsafe_allow_html=True)
 with g_row2_col4:
-    st.markdown("""<div class='glossary-card'><div class='glossary-title'>🧱 9. Minimum Order Quantity (MOQ)</div><div class='text-justify'><b>Concept:</b> Guarantees every discrete manufacturing procurement run matches or scales up to a mandatory vendor floor threshold.<br><b>Function:</b> Secures supplier execution lines.</div></div>""", unsafe_allow_html=True)
+    st.markdown("""<div class='glossary-card'><div class='glossary-title'>⚖️ 9. Part Period Balancing (PPB)</div><div class='text-justify'><b>Concept:</b> Syncs setup costs against cumulative holding components by targeting Economic Part Period (EPP).<br><b>Function:</b> Drives balanced inventory costs.</div></div>""", unsafe_allow_html=True)
 with g_row2_col5:
-    st.markdown("""<div class='glossary-card'><div class='glossary-title'>🔬 10. Wagner-Whitin (WW)</div><div class='text-justify'><b>Concept:</b> Dynamic Programming optimization evaluating all possible combinations across horizons.<br><b>Function:</b> Guarantees mathematically global minimum cost.</div></div>""", unsafe_allow_html=True)
+    st.markdown("""<div class='glossary-card'><div class='glossary-title'>🚀 10. Silver-Meal (SM)</div><div class='text-justify'><b>Concept:</b> Minimizes average total cost per period by incrementally scanning upcoming horizons.<br><b>Function:</b> Robust under volatile demand shifts.</div></div>""", unsafe_allow_html=True)
 
 st.markdown("---")
 
@@ -126,18 +124,35 @@ st.markdown("---")
 # ==========================================
 st.sidebar.header("⚙️ Control Dashboard")
 
+st.sidebar.subheader("💰 Financial Factors")
 setup_cost = st.sidebar.number_input("Setup Cost", min_value=0.0, value=100.0, step=5.0)
 holding_cost = st.sidebar.number_input("Holding Cost (per unit/period)", min_value=0.0, value=2.0, step=0.5)
 
 st.sidebar.markdown("<br>", unsafe_allow_html=True)
 
+st.sidebar.subheader("🗂️ Inventory Profiles")
 initial_inv = st.sidebar.number_input("Initial Inventory", min_value=0, value=35, step=5)
 safety_stock = st.sidebar.number_input("Safety Stock", min_value=0, value=0, step=1)
 lead_time = st.sidebar.number_input("Lead Time", min_value=0, value=1, step=1)
 
 st.sidebar.markdown("<br>", unsafe_allow_html=True)
 
+st.sidebar.subheader("🏭 Operational Boundaries")
 max_capacity = st.sidebar.number_input("Maximum Warehouse Capacity (Units)", min_value=1, value=100, step=10)
+
+st.sidebar.markdown("<br>", unsafe_allow_html=True)
+
+# MOQ sebagai Universal Constraint (bukan metode lot sizing)
+st.sidebar.subheader("🔧 Universal Constraint")
+use_moq = st.sidebar.checkbox("Apply MOQ Constraint to All Methods", value=False)
+moq_value = st.sidebar.number_input("MOQ Value (units)", min_value=1, value=50, step=5, disabled=not use_moq)
+moq_val = moq_value if use_moq else 0
+
+st.sidebar.markdown("<br>", unsafe_allow_html=True)
+
+# FPR Interval input di sidebar
+st.sidebar.subheader("📅 FPR Parameter")
+fpr_interval = st.sidebar.number_input("FPR Interval (periods)", min_value=1, max_value=52, value=3, step=1)
 
 
 # ==========================================
@@ -269,29 +284,32 @@ if df_workbench is not None and not df_workbench.empty:
 
 
     # ==========================================
-    # INITIAL STRATEGY MODULES (TABS INITIALIZATION)
+    # TABS INITIALIZATION — urutan dari mudah ke advance
     # ==========================================
     st.markdown("---")
     st.subheader("⚙️ Lot Sizing Operational Performance Strategy Modules")
-    
+
+    # MOQ active banner di atas tabs
+    if use_moq:
+        st.info(f"🔧 **MOQ Constraint Active ({moq_val} units):** Applied as a post-fulfillment adjustment to all method order quantities. Note: Each method's lot grouping decision is based on original net requirements; MOQ scales up individual orders to meet the minimum threshold, and the resulting surplus inventory is reflected in the Projected On Hand.")
+
     tabs_list = st.tabs([
-        "📋 L4L", "🎯 EOQ", "🔍 LUC", "⚖️ PPB", "🚀 Silver-Meal", 
-        "⏱️ POQ", "🔒 FOQ", "🧱 MOQ", "💸 LTC", "🔬 Wagner-Whitin"
+        "📋 L4L", "🎯 EOQ", "⏱️ POQ", "🔒 FOQ", "📅 FPR",
+        "💰 IUC", "💸 LTC", "🔍 LUC", "⚖️ PPB", "🚀 Silver-Meal", "🔬 Wagner-Whitin"
     ])
 
-    with tabs_list[6]:
+    # FOQ input tetap di dalam tab seperti sebelumnya
+    with tabs_list[3]:
         fixed_lot_size = st.number_input("Enter Fixed Order Size (FOQ Multiplier):", min_value=0, value=0, step=5)
-    with tabs_list[7]:
-        min_order_qty = st.number_input("Enter Minimum Order Quantity (MOQ):", min_value=0, value=0, step=5)
 
 
     # ==========================================
     # CORE PROCESSING MATHEMATICAL ALGORITHMS
     # ==========================================
-    def calculate_multi_mrp(demands, s_receipts, setup, hold, init_inv, ss, lt, f_lot, m_qty, build_trace=True):
+    def calculate_multi_mrp(demands, s_receipts, setup, hold, init_inv, ss, lt, f_lot, moq_val, fpr_interval, build_trace=True):
         n = len(demands)
         
-        # Calculate Net Requirements Matrix
+        # Net Requirements Matrix
         net_req = []
         prev_inv = init_inv
         for i in range(n):
@@ -304,27 +322,47 @@ if df_workbench is not None and not df_workbench.empty:
                 net_req.append(0)
                 prev_inv = available_stock - demands[i]
 
-        def generate_poh_and_release(rec_lot):
+        # ==========================================
+        # generate_poh_and_release — sekarang return 3 nilai
+        # MOQ diterapkan di sini: actual_rec = rec setelah MOQ adjustment
+        # POH dan release dihitung dari actual_rec
+        # Cost dihitung dari actual_rec (bukan rec original)
+        # ==========================================
+        def generate_poh_and_release(rec_lot, moq_v=0):
+            # Step 1: terapkan MOQ per order
+            actual_rec = []
+            for i in range(n):
+                raw = rec_lot[i]
+                actual = max(raw, moq_v) if (moq_v > 0 and raw > 0) else raw
+                actual_rec.append(actual)
+
+            # Step 2: hitung POH dari actual_rec
             poh = []
             r_inv = init_inv
             for i in range(n):
-                r_inv += s_receipts[i] + rec_lot[i] - demands[i]
+                r_inv += s_receipts[i] + actual_rec[i] - demands[i]
                 poh.append(r_inv)
-            
+
+            # Step 3: release planning dari actual_rec
             rel_lot = [0] * n
             for i in range(n):
-                if rec_lot[i] > 0:
+                if actual_rec[i] > 0:
                     target = i - lt
-                    rel_lot[max(0, target)] += rec_lot[i]
-            return poh, rel_lot
+                    rel_lot[max(0, target)] += actual_rec[i]
 
+            return poh, rel_lot, actual_rec
+
+        # ==========================================
         # 1. LOT-FOR-LOT (L4L)
+        # ==========================================
         l4l_rec = list(net_req)
-        l4l_poh, l4l_rel = generate_poh_and_release(l4l_rec)
-        c_l4l_setup = sum(1 for x in l4l_rec if x > 0) * setup
-        c_l4l_hold = sum(max(0, x) for x in l4l_poh) * hold
+        l4l_poh, l4l_rel, l4l_actual = generate_poh_and_release(l4l_rec, moq_val)
+        c_l4l_setup = sum(1 for x in l4l_actual if x > 0) * setup
+        c_l4l_hold  = sum(max(0, x) for x in l4l_poh) * hold
 
+        # ==========================================
         # 2. LEAST UNIT COST (LUC)
+        # ==========================================
         luc_rec = [0] * n
         luc_trace_logs = []
         idx = 0
@@ -342,22 +380,21 @@ if df_workbench is not None and not df_workbench.empty:
                 acc_h += net_req[k] * hold * (k - idx)
                 t_cost = setup + acc_h
                 uc = t_cost / acc_d if acc_d > 0 else float('inf')
-                
                 covered_periods_str = ", ".join([period_labels[m] for m in range(idx, k+1)])
                 
-                if uc < min_uc:  
+                if uc < min_uc:
                     min_uc, best_k = uc, k
                     if build_trace:
                         t_log.append({
-                            'Periods Covered': covered_periods_str, 'Total Units': acc_d, 
-                            'Setup Cost': setup, 'Holding Cost': acc_h, 'Total Cost': t_cost, 
+                            'Periods Covered': covered_periods_str, 'Total Units': acc_d,
+                            'Setup Cost': setup, 'Holding Cost': acc_h, 'Total Cost': t_cost,
                             'Unit Cost': uc, 'Status': 'Feasible'
                         })
                 else:
                     if build_trace:
                         t_log.append({
-                            'Periods Covered': covered_periods_str, 'Total Units': acc_d, 
-                            'Setup Cost': setup, 'Holding Cost': acc_h, 'Total Cost': t_cost, 
+                            'Periods Covered': covered_periods_str, 'Total Units': acc_d,
+                            'Setup Cost': setup, 'Holding Cost': acc_h, 'Total Cost': t_cost,
                             'Unit Cost': uc, 'Status': 'Stop ⚠️ (Limit Exceeded)'
                         })
                     break
@@ -377,11 +414,13 @@ if df_workbench is not None and not df_workbench.empty:
             luc_rec[idx] = sum(net_req[idx:best_k+1])
             idx = best_k + 1
             
-        luc_poh, luc_rel = generate_poh_and_release(luc_rec)
-        c_luc_setup = sum(1 for x in luc_rec if x > 0) * setup
-        c_luc_hold = sum(max(0, x) for x in luc_poh) * hold
+        luc_poh, luc_rel, luc_actual = generate_poh_and_release(luc_rec, moq_val)
+        c_luc_setup = sum(1 for x in luc_actual if x > 0) * setup
+        c_luc_hold  = sum(max(0, x) for x in luc_poh) * hold
 
+        # ==========================================
         # 3. ECONOMIC ORDER QUANTITY (EOQ)
+        # ==========================================
         avg_demand_gross = np.mean(demands)
         total_demand_gross = sum(demands)
         eoq_raw_size = math.sqrt((2 * avg_demand_gross * setup) / hold) if hold > 0 else 0
@@ -400,11 +439,13 @@ if df_workbench is not None and not df_workbench.empty:
                     else:
                         rem_stok -= net_req[i]
                     
-        eoq_poh, eoq_rel = generate_poh_and_release(eoq_rec)
-        c_eoq_setup = sum(1 for x in eoq_rec if x > 0) * setup
-        c_eoq_hold = sum(max(0, x) for x in eoq_poh) * hold
+        eoq_poh, eoq_rel, eoq_actual = generate_poh_and_release(eoq_rec, moq_val)
+        c_eoq_setup = sum(1 for x in eoq_actual if x > 0) * setup
+        c_eoq_hold  = sum(max(0, x) for x in eoq_poh) * hold
 
+        # ==========================================
         # 4. PART PERIOD BALANCING (PPB)
+        # ==========================================
         ppb_rec = [0] * n
         ppb_trace_logs = []
         epp_limit = setup / hold if hold > 0 else float('inf')
@@ -436,7 +477,7 @@ if df_workbench is not None and not df_workbench.empty:
                         })
                 else:
                     dist_before = abs(cum_part_period - epp_limit)
-                    dist_after = abs(new_cum_part_period - epp_limit)
+                    dist_after  = abs(new_cum_part_period - epp_limit)
                     
                     if dist_after < dist_before:
                         acc_d += net_req[k]
@@ -472,11 +513,13 @@ if df_workbench is not None and not df_workbench.empty:
             ppb_rec[idx] = sum(net_req[idx:best_k+1])
             idx = best_k + 1
             
-        ppb_poh, ppb_rel = generate_poh_and_release(ppb_rec)
-        c_ppb_setup = sum(1 for x in ppb_rec if x > 0) * setup
-        c_ppb_hold = sum(max(0, x) for x in ppb_poh) * hold
+        ppb_poh, ppb_rel, ppb_actual = generate_poh_and_release(ppb_rec, moq_val)
+        c_ppb_setup = sum(1 for x in ppb_actual if x > 0) * setup
+        c_ppb_hold  = sum(max(0, x) for x in ppb_poh) * hold
 
+        # ==========================================
         # 5. SILVER-MEAL (SM)
+        # ==========================================
         sm_rec = [0] * n
         sm_trace_logs = []
         idx = 0
@@ -495,7 +538,6 @@ if df_workbench is not None and not df_workbench.empty:
                 t_cost = setup + acc_h
                 n_periods_covered = k - idx + 1
                 avg_cost = t_cost / n_periods_covered
-                
                 covered_periods_str = ", ".join([period_labels[m] for m in range(idx, k+1)])
                 
                 if avg_cost < min_avg_cost:
@@ -531,11 +573,13 @@ if df_workbench is not None and not df_workbench.empty:
             sm_rec[idx] = sum(net_req[idx:best_k+1])
             idx = best_k + 1
             
-        sm_poh, sm_rel = generate_poh_and_release(sm_rec)
-        c_sm_setup = sum(1 for x in sm_rec if x > 0) * setup
-        c_sm_hold = sum(max(0, x) for x in sm_poh) * hold
+        sm_poh, sm_rel, sm_actual = generate_poh_and_release(sm_rec, moq_val)
+        c_sm_setup = sum(1 for x in sm_actual if x > 0) * setup
+        c_sm_hold  = sum(max(0, x) for x in sm_poh) * hold
 
+        # ==========================================
         # 6. PERIOD ORDER QUANTITY (POQ)
+        # ==========================================
         poq_raw_interval = eoq_size / avg_demand_gross if avg_demand_gross > 0 and eoq_size > 0 else 1
         poq_interval = max(1, round(poq_raw_interval))
         
@@ -545,14 +589,16 @@ if df_workbench is not None and not df_workbench.empty:
             window_end = min(i + poq_interval, n)
             total_window_net = sum(net_req[i:window_end])
             if total_window_net > 0:
-                poq_rec[i] = total_window_net  
-            i = window_end                 
+                poq_rec[i] = total_window_net
+            i = window_end
             
-        poq_poh, poq_rel = generate_poh_and_release(poq_rec)
-        c_poq_setup = sum(1 for x in poq_rec if x > 0) * setup
-        c_poq_hold = sum(max(0, x) for x in poq_poh) * hold
+        poq_poh, poq_rel, poq_actual = generate_poh_and_release(poq_rec, moq_val)
+        c_poq_setup = sum(1 for x in poq_actual if x > 0) * setup
+        c_poq_hold  = sum(max(0, x) for x in poq_poh) * hold
 
+        # ==========================================
         # 7. FIXED ORDER QUANTITY (FOQ)
+        # ==========================================
         foq_rec = [0] * n
         c_foq_setup, c_foq_hold = 0.0, 0.0
         if f_lot > 0:
@@ -566,35 +612,15 @@ if df_workbench is not None and not df_workbench.empty:
                         rem_foq_stok = (foq_rec[i] + rem_foq_stok) - net_req[i]
                     else:
                         rem_foq_stok -= net_req[i]
-                        
-        foq_poh, foq_rel = generate_poh_and_release(foq_rec)
+
+        foq_poh, foq_rel, foq_actual = generate_poh_and_release(foq_rec, moq_val)
         if f_lot > 0:
-            c_foq_setup = sum(1 for x in foq_rec if x > 0) * setup
-            c_foq_hold = sum(max(0, x) for x in foq_poh) * hold
+            c_foq_setup = sum(1 for x in foq_actual if x > 0) * setup
+            c_foq_hold  = sum(max(0, x) for x in foq_poh) * hold
 
-        # 8. MINIMUM ORDER QUANTITY (MOQ)
-        moq_rec = [0] * n
-        c_moq_setup, c_moq_hold = 0.0, 0.0
-        if m_qty > 0:
-            rem_moq_stok = 0
-            for i in range(n):
-                if net_req[i] > 0:
-                    if rem_moq_stok < net_req[i]:
-                        needed = net_req[i] - rem_moq_stok
-                        if needed < m_qty:
-                            moq_rec[i] = m_qty
-                        else:
-                            moq_rec[i] = needed
-                        rem_moq_stok = (moq_rec[i] + rem_moq_stok) - net_req[i]
-                    else:
-                        rem_moq_stok -= net_req[i]
-                        
-        moq_poh, moq_rel = generate_poh_and_release(moq_rec)
-        if m_qty > 0:
-            c_moq_setup = sum(1 for x in moq_rec if x > 0) * setup
-            c_moq_hold = sum(max(0, x) for x in moq_poh) * hold
-
-        # 9. LEAST TOTAL COST (LTC)
+        # ==========================================
+        # 8. LEAST TOTAL COST (LTC)
+        # ==========================================
         ltc_rec = [0] * n
         ltc_trace_logs = []
         idx = 0
@@ -617,7 +643,7 @@ if df_workbench is not None and not df_workbench.empty:
                             'Periods Covered': covered_periods_str, 'Total Units': acc_d,
                             'Setup Cost': setup, 'Holding Cost': acc_h, 'Status': 'Feasible'
                         })
-                    if hold == 0:  
+                    if hold == 0:
                         break
                 else:
                     if build_trace:
@@ -642,11 +668,109 @@ if df_workbench is not None and not df_workbench.empty:
             ltc_rec[idx] = sum(net_req[idx:best_k+1])
             idx = best_k + 1
             
-        ltc_poh, ltc_rel = generate_poh_and_release(ltc_rec)
-        c_ltc_setup = sum(1 for x in ltc_rec if x > 0) * setup
-        c_ltc_hold = sum(max(0, x) for x in ltc_poh) * hold
+        ltc_poh, ltc_rel, ltc_actual = generate_poh_and_release(ltc_rec, moq_val)
+        c_ltc_setup = sum(1 for x in ltc_actual if x > 0) * setup
+        c_ltc_hold  = sum(max(0, x) for x in ltc_poh) * hold
 
-        # 10. WAGNER-WHITIN (WW) — Exact DP Path Engine
+        # ==========================================
+        # 9. FIXED PERIOD REQUIREMENTS (FPR) — BARU
+        # fpr_interval diinput user dari sidebar
+        # Logika identik POQ tapi interval manual, bukan derived dari EOQ
+        # ==========================================
+        fpr_rec = [0] * n
+        i = 0
+        while i < n:
+            window_end = min(i + fpr_interval, n)
+            total_window = sum(net_req[i:window_end])
+            if total_window > 0:
+                fpr_rec[i] = total_window
+            i = window_end
+
+        fpr_poh, fpr_rel, fpr_actual = generate_poh_and_release(fpr_rec, moq_val)
+        c_fpr_setup = sum(1 for x in fpr_actual if x > 0) * setup
+        c_fpr_hold  = sum(max(0, x) for x in fpr_poh) * hold
+
+        # ==========================================
+        # 10. INCREMENTAL UNIT COST (IUC) — BARU
+        # Berbeda dari LUC: IUC menghitung delta cost / delta units per periode
+        # Zero-demand handling: update prev_total_cost tapi skip inc_uc calculation
+        # ==========================================
+        iuc_rec = [0] * n
+        iuc_trace_logs = []
+        idx = 0
+        while idx < n:
+            if net_req[idx] == 0:
+                idx += 1
+                continue
+            best_k = idx
+            min_inc_uc = float('inf')
+            prev_total_cost = 0
+            acc_d = 0
+            t_log = []
+
+            for k in range(idx, n):
+                # Hitung total cost sampai periode k DULU
+                # termasuk holding cost untuk unit dari periode sebelumnya
+                acc_h_k = sum(net_req[m] * hold * (m - idx) for m in range(idx, k + 1))
+                total_cost_k = setup + acc_h_k
+
+                if net_req[k] == 0:
+                    # Zero demand: update prev_total_cost agar akurat
+                    # tapi tidak ada unit baru → tidak ada inc_uc → skip
+                    prev_total_cost = total_cost_k
+                    continue
+
+                # Hitung incremental unit cost
+                delta_cost  = total_cost_k - prev_total_cost
+                delta_units = net_req[k]
+                inc_uc = delta_cost / delta_units
+
+                acc_d += net_req[k]
+                covered_str = ", ".join([period_labels[m] for m in range(idx, k + 1)])
+
+                if inc_uc < min_inc_uc:
+                    min_inc_uc = inc_uc
+                    best_k = k
+                    prev_total_cost = total_cost_k
+                    if build_trace:
+                        t_log.append({
+                            'Periods Covered': covered_str, 'Total Units': acc_d,
+                            'Setup Cost': setup, 'Holding Cost': acc_h_k,
+                            'Total Cost': total_cost_k, 'Inc. Unit Cost': inc_uc,
+                            'Status': 'Feasible'
+                        })
+                else:
+                    if build_trace:
+                        t_log.append({
+                            'Periods Covered': covered_str, 'Total Units': acc_d,
+                            'Setup Cost': setup, 'Holding Cost': acc_h_k,
+                            'Total Cost': total_cost_k, 'Inc. Unit Cost': inc_uc,
+                            'Status': 'Stop ⚠️ (Inc. Cost Rising)'
+                        })
+                    break
+
+            if build_trace:
+                df_step = pd.DataFrame(t_log)
+                if not df_step.empty:
+                    stop_exists = df_step['Status'].str.contains('Stop').any()
+                    if stop_exists:
+                        stop_idx = df_step[df_step['Status'].str.contains('Stop')].index[0]
+                        if stop_idx > 0:
+                            df_step.at[stop_idx - 1, 'Status'] = 'Selected (Optimal)'
+                    else:
+                        df_step.at[df_step.index[-1], 'Status'] = 'Horizon End (Optimal)'
+                iuc_trace_logs.append(df_step)
+
+            iuc_rec[idx] = sum(net_req[idx:best_k + 1])
+            idx = best_k + 1
+
+        iuc_poh, iuc_rel, iuc_actual = generate_poh_and_release(iuc_rec, moq_val)
+        c_iuc_setup = sum(1 for x in iuc_actual if x > 0) * setup
+        c_iuc_hold  = sum(max(0, x) for x in iuc_poh) * hold
+
+        # ==========================================
+        # 11. WAGNER-WHITIN (WW) — Exact DP
+        # ==========================================
         INF = float('inf')
         f = [INF] * (n + 1)
         order_at = [0] * (n + 1)
@@ -666,22 +790,22 @@ if df_workbench is not None and not df_workbench.empty:
                     
         ww_rec = [0] * n
         j = n
-        ww_windows = [] 
+        ww_windows = []
         while j > 0:
             if net_req[j-1] == 0:
                 j -= 1
                 continue
             i = order_at[j]
-            if i == 0:  
+            if i == 0:
                 j -= 1
                 continue
             ww_rec[i-1] = sum(net_req[i-1:j])
             ww_windows.insert(0, (i, j))
             j = i - 1
             
-        ww_poh, ww_rel = generate_poh_and_release(ww_rec)
-        c_ww_setup = sum(1 for x in ww_rec if x > 0) * setup
-        c_ww_hold = sum(max(0, x) for x in ww_poh) * hold
+        ww_poh, ww_rel, ww_actual = generate_poh_and_release(ww_rec, moq_val)
+        c_ww_setup = sum(1 for x in ww_actual if x > 0) * setup
+        c_ww_hold  = sum(max(0, x) for x in ww_poh) * hold
         
         ww_trace_logs = []
         if build_trace:
@@ -690,7 +814,6 @@ if df_workbench is not None and not df_workbench.empty:
                 for j_val in range(w_start, w_end + 1):
                     if net_req[j_val-1] == 0: continue
                     for i_val in range(w_start, j_val + 1):
-                        # CRASH BUG RESOLVED BY DEWA CODING AUDIT (Murni menggunakan list comprehension standar tanpa enumerate)
                         holding = sum(net_req[k-1] * hold * (k - i_val) for k in range(i_val, j_val + 1))
                         cost = f[i_val-1] + setup + holding
                         is_optimal = (order_at[j_val] == i_val and cost == f[j_val])
@@ -708,23 +831,28 @@ if df_workbench is not None and not df_workbench.empty:
             'net_req': net_req,
             'total_demand_gross': total_demand_gross,
             'avg_demand_gross': avg_demand_gross,
-            'l4l': {'poh': l4l_poh, 'rec': l4l_rec, 'rel': l4l_rel, 'setup': c_l4l_setup, 'hold': c_l4l_hold, 'total': c_l4l_setup + c_l4l_hold},
-            'luc': {'poh': luc_poh, 'rec': luc_rec, 'rel': luc_rel, 'setup': c_luc_setup, 'hold': c_luc_hold, 'total': c_luc_setup + c_luc_hold, 'iters': luc_trace_logs},
-            'eoq': {'poh': eoq_poh, 'rec': eoq_rec, 'rel': eoq_rel, 'setup': c_eoq_setup, 'hold': c_eoq_hold, 'total': c_eoq_setup + c_eoq_hold, 'raw_size': eoq_raw_size, 'size': eoq_size},
-            'ppb': {'poh': ppb_poh, 'rec': ppb_rec, 'rel': ppb_rel, 'setup': c_ppb_setup, 'hold': c_ppb_hold, 'total': c_ppb_setup + c_ppb_hold, 'iters': ppb_trace_logs, 'epp': epp_limit},
-            'sm': {'poh': sm_poh, 'rec': sm_rec, 'rel': sm_rel, 'setup': c_sm_setup, 'hold': c_sm_hold, 'total': c_sm_setup + c_sm_hold, 'iters': sm_trace_logs},
-            'poq': {'poh': poq_poh, 'rec': poq_rec, 'rel': poq_rel, 'setup': c_poq_setup, 'hold': c_poq_hold, 'total': c_poq_setup + c_poq_hold, 'raw_interval': poq_raw_interval, 'interval': poq_interval},
-            'foq': {'poh': foq_poh, 'rec': foq_rec, 'rel': foq_rel, 'setup': c_foq_setup, 'hold': c_foq_hold, 'total': c_foq_setup + c_foq_hold, 'size': f_lot},
-            'moq': {'poh': moq_poh, 'rec': moq_rec, 'rel': moq_rel, 'setup': c_moq_setup, 'hold': c_moq_hold, 'total': c_moq_setup + c_moq_hold, 'min_limit': m_qty},
-            'ltc': {'poh': ltc_poh, 'rec': ltc_rec, 'rel': ltc_rel, 'setup': c_ltc_setup, 'hold': c_ltc_hold, 'total': c_ltc_setup + c_ltc_hold, 'iters': ltc_trace_logs},
-            'ww': {'poh': ww_poh, 'rec': ww_rec, 'rel': ww_rel, 'setup': c_ww_setup, 'hold': c_ww_hold, 'total': c_ww_setup + c_ww_hold, 'iters': ww_trace_logs}
+            'l4l':  {'poh': l4l_poh,  'rec': l4l_actual,  'rel': l4l_rel,  'setup': c_l4l_setup,  'hold': c_l4l_hold,  'total': c_l4l_setup  + c_l4l_hold},
+            'luc':  {'poh': luc_poh,  'rec': luc_actual,  'rel': luc_rel,  'setup': c_luc_setup,  'hold': c_luc_hold,  'total': c_luc_setup  + c_luc_hold,  'iters': luc_trace_logs},
+            'eoq':  {'poh': eoq_poh,  'rec': eoq_actual,  'rel': eoq_rel,  'setup': c_eoq_setup,  'hold': c_eoq_hold,  'total': c_eoq_setup  + c_eoq_hold,  'raw_size': eoq_raw_size, 'size': eoq_size},
+            'ppb':  {'poh': ppb_poh,  'rec': ppb_actual,  'rel': ppb_rel,  'setup': c_ppb_setup,  'hold': c_ppb_hold,  'total': c_ppb_setup  + c_ppb_hold,  'iters': ppb_trace_logs, 'epp': epp_limit},
+            'sm':   {'poh': sm_poh,   'rec': sm_actual,   'rel': sm_rel,   'setup': c_sm_setup,   'hold': c_sm_hold,   'total': c_sm_setup   + c_sm_hold,   'iters': sm_trace_logs},
+            'poq':  {'poh': poq_poh,  'rec': poq_actual,  'rel': poq_rel,  'setup': c_poq_setup,  'hold': c_poq_hold,  'total': c_poq_setup  + c_poq_hold,  'raw_interval': poq_raw_interval, 'interval': poq_interval},
+            'foq':  {'poh': foq_poh,  'rec': foq_actual,  'rel': foq_rel,  'setup': c_foq_setup,  'hold': c_foq_hold,  'total': c_foq_setup  + c_foq_hold,  'size': f_lot},
+            'ltc':  {'poh': ltc_poh,  'rec': ltc_actual,  'rel': ltc_rel,  'setup': c_ltc_setup,  'hold': c_ltc_hold,  'total': c_ltc_setup  + c_ltc_hold,  'iters': ltc_trace_logs},
+            'fpr':  {'poh': fpr_poh,  'rec': fpr_actual,  'rel': fpr_rel,  'setup': c_fpr_setup,  'hold': c_fpr_hold,  'total': c_fpr_setup  + c_fpr_hold,  'interval': fpr_interval},
+            'iuc':  {'poh': iuc_poh,  'rec': iuc_actual,  'rel': iuc_rel,  'setup': c_iuc_setup,  'hold': c_iuc_hold,  'total': c_iuc_setup  + c_iuc_hold,  'iters': iuc_trace_logs},
+            'ww':   {'poh': ww_poh,   'rec': ww_actual,   'rel': ww_rel,   'setup': c_ww_setup,   'hold': c_ww_hold,   'total': c_ww_setup   + c_ww_hold,   'iters': ww_trace_logs}
         }
 
-    # Operational Logic Run With Complete Trace Build Activated
-    res = calculate_multi_mrp(gross_req, sched_rec, setup_cost, holding_cost, initial_inv, safety_stock, lead_time, fixed_lot_size, min_order_qty, build_trace=True)
+    # Run kalkulasi utama
+    res = calculate_multi_mrp(
+        gross_req, sched_rec, setup_cost, holding_cost,
+        initial_inv, safety_stock, lead_time,
+        fixed_lot_size, moq_val, fpr_interval,
+        build_trace=True
+    )
     num_periods = len(gross_req)
 
-    # Global warning guard for zero holding cost (LTC rule constraint)
     if holding_cost == 0:
         st.warning("⚠️ **Holding Cost set to 0:** LTC and iterative models will automatically consolidate all parameters into a single bulk launch load pattern.")
 
@@ -762,15 +890,16 @@ if df_workbench is not None and not df_workbench.empty:
 
 
     # ==========================================
-    # 5. METHODS MODULES EXECUTION WORKBENCH TABS CONTENT
+    # TAB CONTENT — urutan dari mudah ke advance
     # ==========================================
-    # TAB 1: L4L
+
+    # TAB 0: L4L
     with tabs_list[0]:
         st.subheader("Lot-for-Lot (L4L) Performance Execution Model")
         render_mrp_grid_view(res['l4l'], max_capacity, safety_stock)
         render_cost_audit_window(res['l4l'], setup_cost, holding_cost, res['l4l']['rec'], res['l4l']['poh'])
 
-    # TAB 2: EOQ
+    # TAB 1: EOQ
     with tabs_list[1]:
         st.subheader("Economic Order Quantity (EOQ) Optimization")
         if holding_cost == 0:
@@ -795,110 +924,51 @@ if df_workbench is not None and not df_workbench.empty:
                 st.markdown(f"$$D = \\frac{{\\sum \\text{{Gross Req}}}}{{n}}$$")
                 st.markdown(f"$$D = \\frac{{{res['total_demand_gross']}}}{{{num_periods}}}$$")
                 st.markdown(f"$$D = {avg_demand_fmt}\\text{{ units/period}}$$")
-                
                 st.markdown("##### 2. Standard Square-Root Mathematical Equation Substitution:")
                 st.markdown(f"$$EOQ = \\sqrt{{\\frac{{2 \\times D \\times \\text{{Setup Cost}}}}{{\\text{{Holding Cost}}}}}}$$")
                 st.markdown(f"$$EOQ = \\sqrt{{\\frac{{2 \\times {avg_demand_fmt} \\times {setup_fmt}}}{{{hold_fmt}}}}}$$")
                 st.markdown(f"$$EOQ = {eoq_raw_fmt}\\text{{ units}}$$")
                 st.markdown('</div>', unsafe_allow_html=True)
-                
                 st.markdown('<div class="text-justify">', unsafe_allow_html=True)
                 st.markdown("##### 3. Discrete Upper Integer Ceiling Rounding:")
                 st.markdown(f"- Rounded up via ceiling constraints: **`{res['eoq']['size']}` units**.")
                 st.markdown('</div>', unsafe_allow_html=True)
-                
+
             st.info(f"💡 **Lot Sizing Matrix Status:** Fixed EOQ profile is locked at **{res['eoq']['size']} units** per order.")
             render_mrp_grid_view(res['eoq'], max_capacity, safety_stock)
             render_cost_audit_window(res['eoq'], setup_cost, holding_cost, res['eoq']['rec'], res['eoq']['poh'])
 
-    # TAB 3: LUC
+    # TAB 2: POQ
     with tabs_list[2]:
-        st.subheader("Least Unit Cost (LUC) Iterative Consolidation Grid")
-        fmt_luc = {'Setup Cost': '{:.2f}', 'Holding Cost': '{:.2f}', 'Total Cost': '{:.2f}', 'Unit Cost': '{:.4f}'}
-        for step_idx, df_step in enumerate(res['luc']['iters']):
-            if df_step is None or df_step.empty: continue
-            with st.expander(f"Iteration Block {step_idx + 1}", expanded=True):
-                st.dataframe(df_step.style.apply(style_iteration_rows, axis=None).format(fmt_luc), hide_index=True, use_container_width=True)
-        render_mrp_grid_view(res['luc'], max_capacity, safety_stock)
-        render_cost_audit_window(res['luc'], setup_cost, holding_cost, res['luc']['rec'], res['luc']['poh'])
-
-    # TAB 4: PPB
-    with tabs_list[3]:
-        st.subheader("Part Period Balancing (PPB) Dynamic Policy Grid")
-        with st.expander("🔬 CLICK HERE TO VIEW DETAILED FORMULA LOG CALCULATIONS (PPB)", expanded=True):
-            setup_fmt = f"{setup_cost:,.2f}"
-            hold_fmt = f"{holding_cost:,.2f}"
-            epp_fmt = f"{res['ppb']['epp']:.4f}" if holding_cost > 0 else "INF"
-            
-            st.markdown('<div class="text-justify">', unsafe_allow_html=True)
-            st.markdown("### 📝 Sizing Steps for PPB:")
-            st.markdown("##### 1. Identify Operational Control Parameters:")
-            st.write(f"- Setup Cost Value = `{setup_cost:,.2f}` | Holding Cost Value = `{holding_cost:,.2f}`")
-            st.markdown("##### 2. Calculate Balanced Economic Part Period (EPP) Target Limit Baseline:")
-            st.markdown('</div>', unsafe_allow_html=True)
-            
-            st.markdown('<div class="math-justify">', unsafe_allow_html=True)
-            st.markdown(f"$$EPP = \\frac{{\\text{{Setup Cost}}}}{{\\text{{Holding Cost}}}}$$")
-            st.markdown(f"$$EPP = \\frac{{{setup_fmt}}}{{{hold_fmt}}}$$")
-            st.markdown(f"$$EPP = {epp_fmt}\\text{{ part-periods}}$$")
-            st.markdown('</div>', unsafe_allow_html=True)
-            
-            st.markdown('<div class="text-justify">', unsafe_allow_html=True)
-            st.markdown(f"💡 **Part Period Matrix Target Status:** The EPP target limit constraint is locked at **{epp_fmt}** part-periods.")
-            st.markdown('</div>', unsafe_allow_html=True)
-            
-        fmt_ppb = {'Target EPP': '{:.2f}', 'Accumulated Part-Period': '{:.2f}'}
-        for step_idx, df_step in enumerate(res['ppb']['iters']):
-            if df_step is None or df_step.empty: continue
-            with st.expander(f"Iteration Block {step_idx + 1}", expanded=True):
-                st.dataframe(df_step.style.apply(style_iteration_rows, axis=None).format(fmt_ppb), hide_index=True, use_container_width=True)
-        render_mrp_grid_view(res['ppb'], max_capacity, safety_stock)
-        render_cost_audit_window(res['ppb'], setup_cost, holding_cost, res['ppb']['rec'], res['ppb']['poh'])
-
-    # TAB 5: SM
-    with tabs_list[4]:
-        st.subheader("Silver-Meal (SM) Criterion Period Cost Average Heuristic")
-        fmt_sm = {'Setup Cost': '{:.2f}', 'Holding Cost': '{:.2f}', 'Total Cost': '{:.2f}', 'Average Cost/Period': '{:.4f}'}
-        for step_idx, df_step in enumerate(res['sm']['iters']):
-            if df_step is None or df_step.empty: continue
-            with st.expander(f"Iteration Block {step_idx + 1}", expanded=True):
-                st.dataframe(df_step.style.apply(style_iteration_rows, axis=None).format(fmt_sm), hide_index=True, use_container_width=True)
-        render_mrp_grid_view(res['sm'], max_capacity, safety_stock)
-        render_cost_audit_window(res['sm'], setup_cost, holding_cost, res['sm']['rec'], res['sm']['poh'])
-
-    # TAB 6: POQ
-    with tabs_list[5]:
         st.subheader("Period Order Quantity (POQ) Time-Phased Sizing")
         if holding_cost == 0:
             st.error("⚠️ EOQ tidak valid karena Holding Cost = 0. Otomatis POQ tidak dapat dievaluasi.")
         else:
             with st.expander("🔬 CLICK HERE TO VIEW DETAILED FORMULA LOG CALCULATIONS (POQ)", expanded=True):
-                eoq_size_fmt = f"{res['eoq']['size']}"
+                eoq_size_fmt  = f"{res['eoq']['size']}"
                 avg_demand_fmt = f"{res['avg_demand_gross']:.4f}"
-                poq_raw_fmt = f"{res['poq']['raw_interval']:.4f}"
+                poq_raw_fmt   = f"{res['poq']['raw_interval']:.4f}"
                 
                 st.markdown('<div class="text-justify">', unsafe_allow_html=True)
                 st.markdown("### 📝 Sizing Steps for POQ:")
                 st.markdown("##### 1. Calculate Dynamic Ordering Frequency Coverage ($P_{oq}$):")
                 st.markdown('</div>', unsafe_allow_html=True)
-                
                 st.markdown('<div class="math-justify">', unsafe_allow_html=True)
                 st.markdown(f"$$P_{{oq}} = \\frac{{\\text{{EOQ Size}}}}{{D}}$$")
                 st.markdown(f"$$P_{{oq}} = \\frac{{{eoq_size_fmt}}}{{{avg_demand_fmt}}}$$")
                 st.markdown(f"$$P_{{oq}} = {poq_raw_fmt}\\text{{ periods}}$$")
                 st.markdown('</div>', unsafe_allow_html=True)
-                
                 st.markdown('<div class="text-justify">', unsafe_allow_html=True)
                 st.markdown("##### 2. Discrete Standard Integer Rounding Adjustment:")
                 st.markdown(f"- Rounded via standard constraints: **`{res['poq']['interval']}` periods**.")
                 st.markdown('</div>', unsafe_allow_html=True)
-                
+
             st.info(f"💡 **POQ Policy Status:** Each order cycle covers **{res['poq']['interval']} periods**.")
             render_mrp_grid_view(res['poq'], max_capacity, safety_stock)
             render_cost_audit_window(res['poq'], setup_cost, holding_cost, res['poq']['rec'], res['poq']['poh'])
 
-    # TAB 7: FOQ
-    with tabs_list[6]:
+    # TAB 3: FOQ
+    with tabs_list[3]:
         st.subheader("Fixed Order Quantity (FOQ) Rigid Sizing Model")
         if fixed_lot_size <= 0:
             st.warning("⚠️ FOQ calculation is disabled. Enter a Fixed Order Size (> 0) above to activate.")
@@ -907,18 +977,44 @@ if df_workbench is not None and not df_workbench.empty:
             render_mrp_grid_view(res['foq'], max_capacity, safety_stock)
             render_cost_audit_window(res['foq'], setup_cost, holding_cost, res['foq']['rec'], res['foq']['poh'])
 
-    # TAB 8: MOQ
-    with tabs_list[7]:
-        st.subheader("Minimum Order Quantity (MOQ) Supplier Boundary Model")
-        if min_order_qty <= 0:
-            st.warning("⚠️ MOQ calculation is disabled. Enter a Minimum Order Quantity (> 0) above to activate.")
-        else:
-            st.info(f"🧱 **MOQ Constraint Active:** Threshold enforced at **{res['moq']['min_limit']} units**.")
-            render_mrp_grid_view(res['moq'], max_capacity, safety_stock)
-            render_cost_audit_window(res['moq'], setup_cost, holding_cost, res['moq']['rec'], res['moq']['poh'])
+    # TAB 4: FPR — BARU
+    with tabs_list[4]:
+        st.subheader("📅 Fixed Period Requirements (FPR) Manual Interval Sizing")
+        with st.expander("🔬 CLICK HERE TO VIEW FORMULA LOG CALCULATIONS (FPR)", expanded=True):
+            st.markdown('<div class="text-justify">', unsafe_allow_html=True)
+            st.markdown("### 📝 Sizing Steps for FPR:")
+            st.markdown("##### 1. User-Defined Fixed Interval Parameter:")
+            st.write(f"- FPR Interval (user input from sidebar) = **`{fpr_interval}` periods**")
+            st.markdown("##### 2. Window-Based Accumulation Logic:")
+            st.markdown("""
+            For each window of `fpr_interval` periods starting from period 1:
+            - Sum all net requirements within the window
+            - Place a single order at the **start** of the window for the total amount
+            - Advance to the next window regardless of demand pattern
+            """)
+            st.markdown("##### 3. Key Difference vs POQ:")
+            st.markdown(f"- POQ derives interval from EOQ formula → **`{res['poq']['interval']}` periods** (auto-calculated)")
+            st.markdown(f"- FPR uses manually set interval → **`{fpr_interval}` periods** (user-controlled)")
+            st.markdown('</div>', unsafe_allow_html=True)
 
-    # TAB 9: LTC
-    with tabs_list[8]:
+        st.info(f"💡 **FPR Policy Status:** Each order cycle covers a fixed window of **{res['fpr']['interval']} periods** as defined by user input.")
+        render_mrp_grid_view(res['fpr'], max_capacity, safety_stock)
+        render_cost_audit_window(res['fpr'], setup_cost, holding_cost, res['fpr']['rec'], res['fpr']['poh'])
+
+    # TAB 5: IUC — BARU
+    with tabs_list[5]:
+        st.subheader("💰 Incremental Unit Cost (IUC) Marginal Cost Heuristic")
+        st.markdown("##### Incremental Decision Log Blocks Trace:")
+        fmt_iuc = {'Setup Cost': '{:.2f}', 'Holding Cost': '{:.2f}', 'Total Cost': '{:.2f}', 'Inc. Unit Cost': '{:.4f}'}
+        for step_idx, df_step in enumerate(res['iuc']['iters']):
+            if df_step is None or df_step.empty: continue
+            with st.expander(f"Iteration Block {step_idx + 1}", expanded=True):
+                st.dataframe(df_step.style.apply(style_iteration_rows, axis=None).format(fmt_iuc), hide_index=True, use_container_width=True)
+        render_mrp_grid_view(res['iuc'], max_capacity, safety_stock)
+        render_cost_audit_window(res['iuc'], setup_cost, holding_cost, res['iuc']['rec'], res['iuc']['poh'])
+
+    # TAB 6: LTC
+    with tabs_list[6]:
         st.subheader("💸 Least Total Cost (LTC) Sequential Cut-off Grid")
         fmt_ltc = {'Setup Cost': '{:.2f}', 'Holding Cost': '{:.2f}'}
         for step_idx, df_step in enumerate(res['ltc']['iters']):
@@ -928,11 +1024,63 @@ if df_workbench is not None and not df_workbench.empty:
         render_mrp_grid_view(res['ltc'], max_capacity, safety_stock)
         render_cost_audit_window(res['ltc'], setup_cost, holding_cost, res['ltc']['rec'], res['ltc']['poh'])
 
-    # TAB 10: WAGNER-WHITIN (WW)
+    # TAB 7: LUC
+    with tabs_list[7]:
+        st.subheader("Least Unit Cost (LUC) Iterative Consolidation Grid")
+        fmt_luc = {'Setup Cost': '{:.2f}', 'Holding Cost': '{:.2f}', 'Total Cost': '{:.2f}', 'Unit Cost': '{:.4f}'}
+        for step_idx, df_step in enumerate(res['luc']['iters']):
+            if df_step is None or df_step.empty: continue
+            with st.expander(f"Iteration Block {step_idx + 1}", expanded=True):
+                st.dataframe(df_step.style.apply(style_iteration_rows, axis=None).format(fmt_luc), hide_index=True, use_container_width=True)
+        render_mrp_grid_view(res['luc'], max_capacity, safety_stock)
+        render_cost_audit_window(res['luc'], setup_cost, holding_cost, res['luc']['rec'], res['luc']['poh'])
+
+    # TAB 8: PPB
+    with tabs_list[8]:
+        st.subheader("Part Period Balancing (PPB) Dynamic Policy Grid")
+        with st.expander("🔬 CLICK HERE TO VIEW DETAILED FORMULA LOG CALCULATIONS (PPB)", expanded=True):
+            setup_fmt = f"{setup_cost:,.2f}"
+            hold_fmt  = f"{holding_cost:,.2f}"
+            epp_fmt   = f"{res['ppb']['epp']:.4f}" if holding_cost > 0 else "INF"
+            
+            st.markdown('<div class="text-justify">', unsafe_allow_html=True)
+            st.markdown("### 📝 Sizing Steps for PPB:")
+            st.markdown("##### 1. Identify Operational Control Parameters:")
+            st.write(f"- Setup Cost Value = `{setup_cost:,.2f}` | Holding Cost Value = `{holding_cost:,.2f}`")
+            st.markdown("##### 2. Calculate Balanced Economic Part Period (EPP) Target Limit Baseline:")
+            st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown('<div class="math-justify">', unsafe_allow_html=True)
+            st.markdown(f"$$EPP = \\frac{{\\text{{Setup Cost}}}}{{\\text{{Holding Cost}}}}$$")
+            st.markdown(f"$$EPP = \\frac{{{setup_fmt}}}{{{hold_fmt}}}$$")
+            st.markdown(f"$$EPP = {epp_fmt}\\text{{ part-periods}}$$")
+            st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown('<div class="text-justify">', unsafe_allow_html=True)
+            st.markdown(f"💡 **Part Period Matrix Target Status:** The EPP target limit constraint is locked at **{epp_fmt}** part-periods.")
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        fmt_ppb = {'Target EPP': '{:.2f}', 'Accumulated Part-Period': '{:.2f}'}
+        for step_idx, df_step in enumerate(res['ppb']['iters']):
+            if df_step is None or df_step.empty: continue
+            with st.expander(f"Iteration Block {step_idx + 1}", expanded=True):
+                st.dataframe(df_step.style.apply(style_iteration_rows, axis=None).format(fmt_ppb), hide_index=True, use_container_width=True)
+        render_mrp_grid_view(res['ppb'], max_capacity, safety_stock)
+        render_cost_audit_window(res['ppb'], setup_cost, holding_cost, res['ppb']['rec'], res['ppb']['poh'])
+
+    # TAB 9: Silver-Meal
     with tabs_list[9]:
+        st.subheader("Silver-Meal (SM) Criterion Period Cost Average Heuristic")
+        fmt_sm = {'Setup Cost': '{:.2f}', 'Holding Cost': '{:.2f}', 'Total Cost': '{:.2f}', 'Average Cost/Period': '{:.4f}'}
+        for step_idx, df_step in enumerate(res['sm']['iters']):
+            if df_step is None or df_step.empty: continue
+            with st.expander(f"Iteration Block {step_idx + 1}", expanded=True):
+                st.dataframe(df_step.style.apply(style_iteration_rows, axis=None).format(fmt_sm), hide_index=True, use_container_width=True)
+        render_mrp_grid_view(res['sm'], max_capacity, safety_stock)
+        render_cost_audit_window(res['sm'], setup_cost, holding_cost, res['sm']['rec'], res['sm']['poh'])
+
+    # TAB 10: Wagner-Whitin
+    with tabs_list[10]:
         st.subheader("🔬 Wagner-Whitin (WW) Exact Dynamic Programming Matrix")
         st.success("🎯 **Global Optimal Solution:** This exact algorithmic model evaluates all valid multi-period paths to secure the global cost minimum.")
-        
         fmt_ww = {'Cumulative Holding': '{:.2f}', 'Evaluated Cost': '{:.2f}'}
         if res['ww']['iters']:
             for w_idx, df_window in enumerate(res['ww']['iters']):
@@ -941,7 +1089,6 @@ if df_workbench is not None and not df_workbench.empty:
                     st.dataframe(df_window.style.apply(style_iteration_rows, axis=None).format(fmt_ww), hide_index=True, use_container_width=True)
         else:
             st.info("No trace operations needed for zero net requirement arrays.")
-                
         render_mrp_grid_view(res['ww'], max_capacity, safety_stock)
         render_cost_audit_window(res['ww'], setup_cost, holding_cost, res['ww']['rec'], res['ww']['poh'])
 
@@ -951,19 +1098,26 @@ if df_workbench is not None and not df_workbench.empty:
     # ==========================================
     st.markdown("---")
     st.header("🏁 Strategic Portfolio Cost Summary Comparison Matrix")
-    
+
+    if use_moq:
+        st.info(f"🔧 **MOQ Constraint ({moq_val} units) is active.** All cost figures below reflect MOQ-adjusted order quantities.")
+
     biaya_dict = {
-        'L4L': res['l4l']['total'], 'LUC': res['luc']['total'], 'PPB': res['ppb']['total'],
-        'SM': res['sm']['total'], 'LTC': res['ltc']['total'], 'WW': res['ww']['total']
+        'L4L': res['l4l']['total'],
+        'FPR': res['fpr']['total'],
+        'IUC': res['iuc']['total'],
+        'LTC': res['ltc']['total'],
+        'LUC': res['luc']['total'],
+        'PPB': res['ppb']['total'],
+        'SM':  res['sm']['total'],
+        'WW':  res['ww']['total'],
     }
     if holding_cost > 0:
         biaya_dict['EOQ'] = res['eoq']['total']
         biaya_dict['POQ'] = res['poq']['total']
     if fixed_lot_size > 0:
         biaya_dict['FOQ'] = res['foq']['total']
-    if min_order_qty > 0:
-        biaya_dict['MOQ'] = res['moq']['total']
-    
+
     min_cost = min(biaya_dict.values())
     best_methods = [k for k, v in biaya_dict.items() if v == min_cost]
     
@@ -976,13 +1130,11 @@ if df_workbench is not None and not df_workbench.empty:
             is_best = key in best_methods
             sub_text = "<div style='color: #2e7d32; font-size: 13px; font-weight: bold;'>🏆 Optimal Strategy</div>" if is_best else f"<div style='color: #d90429; font-size: 13px; font-weight: bold;'>⚠️ Inefficient by {biaya_dict[key] - min_cost:,.2f}</div>"
             caption_text = "<div style='font-size: 11px; color: #555555; font-style: italic; margin-top: 4px;'>🔬 Exact optimal (Dynamic Programming)</div>" if key == 'WW' else ""
-            
             st.markdown(f"""
                 <div style='background-color: #f4efdc; padding: 14px; border-radius: 8px; border-left: 5px solid #6a0708; margin-bottom: 15px; min-height: 140px;'>
                     <div style='color: #333; font-size: 13px; font-weight: 600;'>Total Cost {key}</div>
                     <div style='font-size: 21px; font-weight: 700; color: #111111; margin-top: 4px;'>{biaya_dict[key]:,.2f}</div>
-                    {sub_text}
-                    {caption_text}
+                    {sub_text}{caption_text}
                 </div>
             """, unsafe_allow_html=True)
 
@@ -1000,7 +1152,7 @@ if df_workbench is not None and not df_workbench.empty:
 
 
     # ==========================================
-    # 7. GRAPH VISUALIZATION (SHADOWING RESOLVED)
+    # 7. GRAPH VISUALIZATION
     # ==========================================
     st.markdown("---")
     st.subheader("📉 Parametric Sensitivity Analysis Charts")
@@ -1010,10 +1162,8 @@ if df_workbench is not None and not df_workbench.empty:
         fig, ax = plt.subplots(figsize=(7, 4.2))
         fig.patch.set_facecolor('#faf8f2')
         ax.set_facecolor('#faf8f2')
-        
-        color_palette = ['#444444', '#e65c00', '#6a0708', '#2a7b4c', '#0288d1', '#7b1fa2', '#1565c0', '#2e7d32', '#d32f2f', '#f57c00']
+        color_palette = ['#444444', '#e65c00', '#6a0708', '#2a7b4c', '#0288d1', '#7b1fa2', '#1565c0', '#2e7d32', '#d32f2f', '#f57c00', '#8d6e63']
         active_colors = color_palette[:len(biaya_dict)]
-        
         ax.bar(biaya_dict.keys(), biaya_dict.values(), color=active_colors, width=0.5)
         ax.set_title("Comparison of Lot Sizing Methods", fontsize=11, fontweight='bold', color='#6a0708', pad=12)
         ax.set_xlabel('Lot Sizing Strategy', color='#111', fontsize=9, fontweight='bold')
@@ -1023,48 +1173,48 @@ if df_workbench is not None and not df_workbench.empty:
         
     with cg2:
         pct_integers = np.linspace(-30, 30, 13, dtype=int)
-        s_l4l, s_eoq, s_luc, s_ppb, s_sm, s_poq, s_foq, s_moq, s_ltc, s_ww, labels_pct = [], [], [], [], [], [], [], [], [], [], []
+        s_l4l, s_eoq, s_luc, s_ppb, s_sm, s_poq, s_foq, s_ltc, s_fpr, s_iuc, s_ww, labels_pct = [], [], [], [], [], [], [], [], [], [], [], []
         
         for p_val in pct_integers:
             scale_factor = 1.0 + (p_val / 100.0)
             sim_demand = [int(round(d * scale_factor)) for d in gross_req]
-            
-            s_res = calculate_multi_mrp(sim_demand, sched_rec, setup_cost, holding_cost, initial_inv, safety_stock, lead_time, fixed_lot_size, min_order_qty, build_trace=False)
-            
+            s_res = calculate_multi_mrp(
+                sim_demand, sched_rec, setup_cost, holding_cost,
+                initial_inv, safety_stock, lead_time,
+                fixed_lot_size, moq_val, fpr_interval,
+                build_trace=False
+            )
             s_l4l.append(s_res['l4l']['total'])
             s_luc.append(s_res['luc']['total'])
             s_ppb.append(s_res['ppb']['total'])
             s_sm.append(s_res['sm']['total'])
             s_ltc.append(s_res['ltc']['total'])
+            s_fpr.append(s_res['fpr']['total'])
+            s_iuc.append(s_res['iuc']['total'])
             s_ww.append(s_res['ww']['total'])
             if holding_cost > 0:
                 s_eoq.append(s_res['eoq']['total'])
                 s_poq.append(s_res['poq']['total'])
             if fixed_lot_size > 0:
                 s_foq.append(s_res['foq']['total'])
-            if min_order_qty > 0:
-                s_moq.append(s_res['moq']['total'])
-            
             labels_pct.append(f"{p_val:+}%")
         
         fig2, ax2 = plt.subplots(figsize=(7, 4.2))
         fig2.patch.set_facecolor('#faf8f2')
         ax2.set_facecolor('#faf8f2')
-        
         ax2.plot(labels_pct, s_l4l, marker='o', label='L4L', color='#444444', linewidth=1.5)
         ax2.plot(labels_pct, s_luc, marker='s', label='LUC', color='#6a0708', linewidth=1.5)
         ax2.plot(labels_pct, s_ppb, marker='x', label='PPB', color='#2a7b4c', linewidth=1.5)
-        ax2.plot(labels_pct, s_sm, marker='d', label='SM', color='#0288d1', linewidth=1.5)
+        ax2.plot(labels_pct, s_sm,  marker='d', label='SM',  color='#0288d1', linewidth=1.5)
         ax2.plot(labels_pct, s_ltc, marker='P', label='LTC', color='#1565c0', linewidth=1.5)
-        ax2.plot(labels_pct, s_ww, marker='H', label='WW', color='#2e7d32', linewidth=2.0, linestyle='--')
+        ax2.plot(labels_pct, s_fpr, marker='D', label='FPR', color='#7b1fa2', linewidth=1.5)
+        ax2.plot(labels_pct, s_iuc, marker='p', label='IUC', color='#e65c00', linewidth=1.5)
+        ax2.plot(labels_pct, s_ww,  marker='H', label='WW',  color='#2e7d32', linewidth=2.0, linestyle='--')
         if holding_cost > 0:
-            ax2.plot(labels_pct, s_eoq, marker='^', label='EOQ', color='#e65c00', linewidth=1.5)
-            ax2.plot(labels_pct, s_poq, marker='v', label='POQ', color='#7b1fa2', linewidth=1.5)
+            ax2.plot(labels_pct, s_eoq, marker='^', label='EOQ', color='#d32f2f', linewidth=1.5)
+            ax2.plot(labels_pct, s_poq, marker='v', label='POQ', color='#f57c00', linewidth=1.5)
         if fixed_lot_size > 0:
-            ax2.plot(labels_pct, s_foq, marker='*', label='FOQ', color='#d32f2f', linewidth=1.5)
-        if min_order_qty > 0:
-            ax2.plot(labels_pct, s_moq, marker='X', label='MOQ', color='#f57c00', linewidth=1.5)
-        
+            ax2.plot(labels_pct, s_foq, marker='*', label='FOQ', color='#8d6e63', linewidth=1.5)
         ax2.set_title("Demand Change Sensitivity Chart", fontsize=11, fontweight='bold', color='#6a0708', pad=12)
         ax2.set_ylabel('Simulated Total Incurred Cost', color='#111', fontsize=9, fontweight='bold')
         ax2.set_xlabel('Customer Demand Change Sensitivity', color='#111', fontsize=9, fontweight='bold')
@@ -1085,16 +1235,16 @@ if df_workbench is not None and not df_workbench.empty:
         pd.DataFrame({'Projected On Hand': res['l4l']['poh'], 'Planned Order Receipts': res['l4l']['rec'], 'Planned Order Releases': res['l4l']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="L4L Plan")
         pd.DataFrame({'Projected On Hand': res['luc']['poh'], 'Planned Order Receipts': res['luc']['rec'], 'Planned Order Releases': res['luc']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="LUC Plan")
         pd.DataFrame({'Projected On Hand': res['ppb']['poh'], 'Planned Order Receipts': res['ppb']['rec'], 'Planned Order Releases': res['ppb']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="PPB Plan")
-        pd.DataFrame({'Projected On Hand': res['sm']['poh'], 'Planned Order Receipts': res['sm']['rec'], 'Planned Order Releases': res['sm']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="Silver-Meal Plan")
+        pd.DataFrame({'Projected On Hand': res['sm']['poh'],  'Planned Order Receipts': res['sm']['rec'],  'Planned Order Releases': res['sm']['rel']},  index=period_labels).T.to_excel(writer, sheet_name="Silver-Meal Plan")
         pd.DataFrame({'Projected On Hand': res['ltc']['poh'], 'Planned Order Receipts': res['ltc']['rec'], 'Planned Order Releases': res['ltc']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="LTC Plan")
-        pd.DataFrame({'Projected On Hand': res['ww']['poh'], 'Planned Order Receipts': res['ww']['rec'], 'Planned Order Releases': res['ww']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="WW Plan")
+        pd.DataFrame({'Projected On Hand': res['fpr']['poh'], 'Planned Order Receipts': res['fpr']['rec'], 'Planned Order Releases': res['fpr']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="FPR Plan")
+        pd.DataFrame({'Projected On Hand': res['iuc']['poh'], 'Planned Order Receipts': res['iuc']['rec'], 'Planned Order Releases': res['iuc']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="IUC Plan")
+        pd.DataFrame({'Projected On Hand': res['ww']['poh'],  'Planned Order Receipts': res['ww']['rec'],  'Planned Order Releases': res['ww']['rel']},  index=period_labels).T.to_excel(writer, sheet_name="WW Plan")
         if holding_cost > 0:
             pd.DataFrame({'Projected On Hand': res['eoq']['poh'], 'Planned Order Receipts': res['eoq']['rec'], 'Planned Order Releases': res['eoq']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="EOQ Plan")
             pd.DataFrame({'Projected On Hand': res['poq']['poh'], 'Planned Order Receipts': res['poq']['rec'], 'Planned Order Releases': res['poq']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="POQ Plan")
         if fixed_lot_size > 0:
             pd.DataFrame({'Projected On Hand': res['foq']['poh'], 'Planned Order Receipts': res['foq']['rec'], 'Planned Order Releases': res['foq']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="FOQ Plan")
-        if min_order_qty > 0:
-            pd.DataFrame({'Projected On Hand': res['moq']['poh'], 'Planned Order Receipts': res['moq']['rec'], 'Planned Order Releases': res['moq']['rel']}, index=period_labels).T.to_excel(writer, sheet_name="MOQ Plan")
     
     buffer.seek(0)
     
