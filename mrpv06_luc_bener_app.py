@@ -1261,18 +1261,19 @@ if df_workbench is not None and not df_workbench.empty:
     
     buffer.seek(0)
 
-    # ==========================================
+# ==========================================
     # DOWNLOAD SECTION — Premium redesign
     # ==========================================
     st.markdown("<br>", unsafe_allow_html=True)
 
     active_method_count = len(biaya_dict)
     moq_badge = f"""<span style="background: rgba(255,255,255,0.15); color: #f4efdc; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; letter-spacing: 0.5px;">🔧 MOQ {moq_val} units</span>""" if use_moq else ""
-    
-    # Selesaikan penggabungan teks metode di luar f-string agar terhindar dari bug tanda kutip
+
+    # Menggabungkan nama metode aktif ke dalam string terpisah agar aman dari bug f-string
     methods_list_string = " · ".join(list(biaya_dict.keys()))
 
-    st.markdown(f"""
+    # Menyusun layout HTML ke dalam satu variabel string yang rapi
+    html_card_layout = f"""
     <div style="
         position: relative;
         background: linear-gradient(135deg, #4a0506 0%, #6a0708 50%, #8a1a1b 100%);
@@ -1315,17 +1316,17 @@ if df_workbench is not None and not df_workbench.empty:
                     ⬇
                 </div>
             </div>
-            <div style="margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.10); padding-top: 16px; color: rgba(244,239,220,0.5); font-size: 12px;">
+            <div style="margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.10); padding-top: 16px; color: rgba(244,239,220,0.5); font-size: 12px; font-family: sans-serif;">
                 Contains: Baseline Framework · {methods_list_string} · All Planned Order Releases
             </div>
         </div>
     </div>
-    """, unsafe_allow_html=True)
+    """
+    
+    # Menampilkan Card ke Streamlit
+    st.markdown(html_card_layout, unsafe_allow_html=True)
 
-    # Spasi negatif kecil agar tombol menempel pas di bawah card premium tanpa jarak menganga
-    st.markdown("<div style='margin-top: -8px;'></div>", unsafe_allow_html=True)
-
-    # Tombol download diubah memanjang penuh mengikuti lebar card di atasnya
+    # Menempelkan tombol download langsung di bawahnya tanpa membagi kolom sempit
     st.download_button(
         label="⚡ DOWNLOAD PLAN DOCUMENT REPORT (.XLSX)",
         data=buffer,
@@ -1333,5 +1334,3 @@ if df_workbench is not None and not df_workbench.empty:
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         use_container_width=True
     )
-else:
-    st.info("Please initialize input values or upload transaction vectors to run calculation routines.")
