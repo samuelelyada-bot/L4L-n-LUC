@@ -1261,7 +1261,7 @@ if df_workbench is not None and not df_workbench.empty:
     
     buffer.seek(0)
 
-# ==========================================
+    # ==========================================
     # DOWNLOAD SECTION — Premium Integrated Card
     # ==========================================
     st.markdown("<br>", unsafe_allow_html=True)
@@ -1270,10 +1270,10 @@ if df_workbench is not None and not df_workbench.empty:
     moq_badge = f'🔧 MOQ {moq_val} units' if use_moq else ''
     methods_list_string = " · ".join(list(biaya_dict.keys()))
 
-    # 1. Suntik CSS kustom agar tombol bawaan Streamlit menyatu dan berubah warna premium
+    # 1. Inject CSS super kuat dengan selektor spesifik [data-testid="stDownloadButton"]
     st.markdown("""
     <style>
-        /* Mengatur kontainer tombol download Streamlit */
+        /* Hilangkan padding default bawaan dari kontainer kolom download Streamlit */
         div[data-testid="stDownloadButton"] {
             margin-top: -6px !important;
             margin-bottom: 0px !important;
@@ -1281,13 +1281,13 @@ if df_workbench is not None and not df_workbench.empty:
             width: 100% !important;
         }
         
-        /* Mengubah total tampilan tombol di dalam kontainer */
+        /* Paksa tombol download agar menyatu sempurna menjadi bagian bawah card */
         div[data-testid="stDownloadButton"] button {
             background-color: #8a1a1b !important;
             color: #ffffff !important;
-            border: 1px solid rgba(255,255,255,0.2) !important;
-            border-radius: 0px 0px 16px 16px !important;
-            padding: 16px 24px !important;
+            border: 1px solid rgba(255,255,255,0.15) !important;
+            border-radius: 0px 0px 16px 16px !important; /* Melengkung hanya di sudut bawah */
+            padding: 18px 24px !important;
             font-weight: bold !important;
             font-size: 14px !important;
             letter-spacing: 0.5px !important;
@@ -1297,7 +1297,7 @@ if df_workbench is not None and not df_workbench.empty:
             transition: all 0.3s ease !important;
         }
         
-        /* Efek hover interaktif tombol */
+        /* Efek hover premium interaktif saat kursor mendekati tombol */
         div[data-testid="stDownloadButton"] button:hover {
             background-color: #a12325 !important;
             border-color: #ffffff !important;
@@ -1306,7 +1306,7 @@ if df_workbench is not None and not df_workbench.empty:
     </style>
     """, unsafe_allow_html=True)
 
-    # 2. Render Bagian Atas Card Premium (Sudut bawah dibuat tajam 0px agar menyambung ke tombol)
+    # 2. Render Bagian Atas Card Premium (Sudut bawah dibuat tajam 0px agar mengunci pas ke tombol)
     st.markdown(f"""
     <div style="
         position: relative;
@@ -1353,7 +1353,7 @@ if df_workbench is not None and not df_workbench.empty:
     </div>
     """, unsafe_allow_html=True)
 
-    # 3. Tombol download bawaan Streamlit yang sekarang ter-override CSS di atas
+    # 3. Tombol download asli milik Streamlit yang otomatis ter-override CSS di atas
     st.download_button(
         label="⚡ DOWNLOAD PLAN DOCUMENT REPORT (.XLSX)",
         data=buffer,
@@ -1362,10 +1362,10 @@ if df_workbench is not None and not df_workbench.empty:
         use_container_width=True
     )
 
-    # 4. Bagian footer luar penunjuk nama isi sheet laporan Excel
+    # 4. Kaki informasi luar penunjuk daftar isi sheet laporan Excel yang bersih
     st.markdown(f"""
     <div style="
-        margin-top: 12px;
+        margin-top: 14px;
         color: #555555;
         font-size: 12px;
         font-family: sans-serif;
