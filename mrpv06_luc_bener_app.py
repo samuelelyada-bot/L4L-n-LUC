@@ -1268,6 +1268,9 @@ if df_workbench is not None and not df_workbench.empty:
 
     active_method_count = len(biaya_dict)
     moq_badge = f"""<span style="background: rgba(255,255,255,0.15); color: #f4efdc; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; letter-spacing: 0.5px;">🔧 MOQ {moq_val} units</span>""" if use_moq else ""
+    
+    # Selesaikan penggabungan teks metode di luar f-string agar terhindar dari bug tanda kutip
+    methods_list_string = " · ".join(list(biaya_dict.keys()))
 
     st.markdown(f"""
     <div style="
@@ -1313,20 +1316,22 @@ if df_workbench is not None and not df_workbench.empty:
                 </div>
             </div>
             <div style="margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.10); padding-top: 16px; color: rgba(244,239,220,0.5); font-size: 12px;">
-                Contains: Baseline Framework · {" · ".join(list(biaya_dict.keys()))} · All Planned Order Releases
+                Contains: Baseline Framework · {methods_list_string} · All Planned Order Releases
             </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-    dl_c1, dl_c2, dl_c3 = st.columns([1, 2, 1])
-    with dl_c2:
-        st.download_button(
-            label="📥 Download Plan Document Report",
-            data=buffer,
-            file_name="MRP_Lot_Sizing_Report.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True
-        )
+    # Spasi negatif kecil agar tombol menempel pas di bawah card premium tanpa jarak menganga
+    st.markdown("<div style='margin-top: -8px;'></div>", unsafe_allow_html=True)
+
+    # Tombol download diubah memanjang penuh mengikuti lebar card di atasnya
+    st.download_button(
+        label="⚡ DOWNLOAD PLAN DOCUMENT REPORT (.XLSX)",
+        data=buffer,
+        file_name="MRP_Lot_Sizing_Master_Report.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        use_container_width=True
+    )
 else:
     st.info("Please initialize input values or upload transaction vectors to run calculation routines.")
