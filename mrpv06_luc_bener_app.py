@@ -1261,57 +1261,23 @@ if df_workbench is not None and not df_workbench.empty:
     
     buffer.seek(0)
 
-# ==========================================
-    # DOWNLOAD SECTION — Premium Integrated Card
+    # ==========================================
+    # DOWNLOAD SECTION — Premium redesign
     # ==========================================
     st.markdown("<br>", unsafe_allow_html=True)
 
     active_method_count = len(biaya_dict)
-    moq_badge = f'🔧 MOQ {moq_val} units' if use_moq else ''
-    methods_list_string = " · ".join(list(biaya_dict.keys()))
+    moq_badge = f"""<span style="background: rgba(255,255,255,0.15); color: #f4efdc; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; letter-spacing: 0.5px;">🔧 MOQ {moq_val} units</span>""" if use_moq else ""
 
-    # 1. Suntik CSS kustom agar tombol bawaan Streamlit menyatu ke badan card
-    st.markdown("""
-    <style>
-        div[data-testid="stDownloadButton"] {
-            margin-top: -6px !important;
-            margin-bottom: 0px !important;
-            padding: 0px !important;
-            width: 100% !important;
-        }
-        
-        div[data-testid="stDownloadButton"] button {
-            background-color: #8a1a1b !important;
-            color: #ffffff !important;
-            border: 1px solid rgba(255,255,255,0.2) !important;
-            border-radius: 0px 0px 16px 16px !important;
-            padding: 16px 24px !important;
-            font-weight: bold !important;
-            font-size: 14px !important;
-            letter-spacing: 0.5px !important;
-            width: 100% !important;
-            display: block !important;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05) !important;
-            transition: all 0.3s ease !important;
-        }
-        
-        div[data-testid="stDownloadButton"] button:hover {
-            background-color: #a12325 !important;
-            border-color: #ffffff !important;
-            color: #f4efdc !important;
-        }
-    </style>
-    """, unsafe_allow_html=True)
-
-    # 2. Render Bagian Atas Card Premium
     st.markdown(f"""
     <div style="
         position: relative;
         background: linear-gradient(135deg, #4a0506 0%, #6a0708 50%, #8a1a1b 100%);
-        border-radius: 16px 16px 0px 0px;
+        border-radius: 16px;
         padding: 36px 44px 28px 44px;
-        box-shadow: 0 8px 32px rgba(106,7,8,0.18);
-        margin-bottom: 0px;
+        box-shadow: 0 8px 32px rgba(106,7,8,0.22), 0 2px 8px rgba(0,0,0,0.10);
+        overflow: hidden;
+        margin-bottom: 4px;
     ">
         <div style="
             position: absolute; top: 0; right: 0;
@@ -1326,52 +1292,41 @@ if df_workbench is not None and not df_workbench.empty:
                     <div style="color: rgba(244,239,220,0.6); font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px;">
                         MRP Lot Sizing Calculator · Export
                     </div>
-                    <div style="color: #ffffff; font-size: 24px; font-weight: 800; margin-bottom: 12px; letter-spacing: -0.3px;">
+                    <div style="color: #ffffff; font-size: 24px; font-weight: 800; margin-bottom: 10px; letter-spacing: -0.3px;">
                         📊 Full Planning Report
                     </div>
                     <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
-                        <span style="background: rgba(255,255,255,0.12); color: #f4efdc; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px;">
+                        <span style="background: rgba(255,255,255,0.12); color: #f4efdc; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; letter-spacing: 0.5px;">
                             📋 {active_method_count} methods
                         </span>
-                        <span style="background: rgba(255,255,255,0.12); color: #f4efdc; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px;">
+                        <span style="background: rgba(255,255,255,0.12); color: #f4efdc; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; letter-spacing: 0.5px;">
                             📅 {num_periods} periods
                         </span>
-                        <span style="background: rgba(255,255,255,0.12); color: #f4efdc; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px;">
+                        <span style="background: rgba(255,255,255,0.12); color: #f4efdc; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; letter-spacing: 0.5px;">
                             📁 Excel .xlsx
                         </span>
-                        {f'<span style="background: rgba(255,255,255,0.15); color: #f4efdc; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px;">{moq_badge}</span>' if moq_badge else ''}
+                        {moq_badge}
                     </div>
                 </div>
-                <div style="text-align: right; color: rgba(244,239,220,0.25); font-size: 48px; line-height: 1; user-select: none;">
-                    💾
+                <div style="text-align: right; color: rgba(244,239,220,0.18); font-size: 64px; line-height: 1; user-select: none;">
+                    ⬇
                 </div>
+            </div>
+            <div style="margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.10); padding-top: 16px; color: rgba(244,239,220,0.5); font-size: 12px;">
+                Contains: Baseline Framework · {" · ".join(list(biaya_dict.keys()))} · All Planned Order Releases
             </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-    # 3. Eksekusi Tombol Download Utama
-    st.download_button(
-        label="⚡ DOWNLOAD PLAN DOCUMENT REPORT (.XLSX)",
-        data=buffer,
-        file_name="MRP_Lot_Sizing_Master_Report.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        use_container_width=True
-    )
-
-    # 4. Teks Informasi Kaki Sheet Laporan Excel
-    st.markdown(f"""
-    <div style="
-        margin-top: 12px;
-        color: #555555;
-        font-size: 12px;
-        font-family: sans-serif;
-        padding-left: 8px;
-    ">
-        <b>Contains Sheets:</b> Executive Cost Summary · {methods_list_string} · All Planned Order Releases
-    </div>
-    <br><br>
-    """, unsafe_allow_html=True)
-
+    dl_c1, dl_c2, dl_c3 = st.columns([1, 2, 1])
+    with dl_c2:
+        st.download_button(
+            label="📥 Download Plan Document Report",
+            data=buffer,
+            file_name="MRP_Lot_Sizing_Report.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True
+        )
 else:
     st.info("Please initialize input values or upload transaction vectors to run calculation routines.")
