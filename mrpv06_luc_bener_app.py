@@ -1261,7 +1261,7 @@ if df_workbench is not None and not df_workbench.empty:
     
     buffer.seek(0)
 
-# ==========================================
+    # ==========================================
     # DOWNLOAD SECTION — Premium redesign (fixed)
     # ==========================================
     st.markdown("<br>", unsafe_allow_html=True)
@@ -1272,8 +1272,7 @@ if df_workbench is not None and not df_workbench.empty:
     # Pre-render badge MOQ jika aktif
     moq_badge_html = f'<span style="background:rgba(255,255,255,0.15); color:#ffffff; font-size:11px; font-weight:700; padding:4px 12px; border-radius:20px; border:1px solid rgba(255,255,255,0.2); white-space:nowrap;">&#x1F527; MOQ {moq_val} units</span>' if use_moq else ""
 
-    # KUNCI UTAMA: Gabungkan Banner, Badge, dan Footer ke dalam SATU BLOK HTML UTUH
-    # Dengan cara ini, Streamlit dipaksa merender semuanya di dalam satu container yang sama.
+    # Menggabungkan seluruh komponen kartu agar tidak dipecah oleh Streamlit
     mega_card_html = f"""
     <div style="font-family: inherit; box-shadow: 0 8px 32px rgba(106,7,8,0.15); border-radius: 16px 16px 0 0; overflow: hidden;">
         
@@ -1302,14 +1301,13 @@ if df_workbench is not None and not df_workbench.empty:
     </div>
     """
     
-    # Eksekusi seluruh struktur di atas dalam SATU KALI panggil saja
     st.markdown(mega_card_html, unsafe_allow_html=True)
 
-    # BAGIAN 3: STYLE TOMBOL DOWNLOAD (Memaksa agar nempel di bawah card tanpa jeda/margin bawaan Streamlit)
+    # BAGIAN 3: STYLE TOMBOL DOWNLOAD (Komentar CSS bermasalah sudah dihapus)
     st.markdown(
         '<style>'
         'div[data-testid="stDownloadButton"] {'
-        '  margin-top: -1px !important;' /* Menghilangkan gap halus antar elemen Streamlit */
+        '  margin-top: -1px !important;'
         '}'
         'div[data-testid="stDownloadButton"] > button {'
         '  background: #111111 !important;'
