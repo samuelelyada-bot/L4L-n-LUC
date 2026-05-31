@@ -1262,62 +1262,50 @@ if df_workbench is not None and not df_workbench.empty:
     buffer.seek(0)
 
     # ==========================================
-    # DOWNLOAD SECTION — Premium redesign (fixed)
+    # DOWNLOAD SECTION — Fixed rendering
     # ==========================================
     st.markdown("<br>", unsafe_allow_html=True)
 
     active_method_count = len(biaya_dict)
-    method_keys_str = " · ".join(list(biaya_dict.keys()))
-    moq_badge_html = f'<span style="background:rgba(255,255,255,0.15);color:#f4efdc;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;letter-spacing:0.5px;">&#x1F527; MOQ {moq_val} units</span>' if use_moq else ""
+    method_keys_str = " &middot; ".join(list(biaya_dict.keys()))
 
-    # Banner atas — murni dekoratif, tidak mengandung f-string kompleks di dalam HTML
-    st.markdown(
-        '<div style="position:relative;background:linear-gradient(135deg,#4a0506 0%,#6a0708 55%,#8a1a1b 100%);border-radius:16px 16px 0 0;padding:32px 40px 24px 40px;box-shadow:0 8px 32px rgba(106,7,8,0.22);overflow:hidden;">'
-        '<div style="position:absolute;top:0;right:0;width:200px;height:200px;background:radial-gradient(circle,rgba(255,255,255,0.05) 0%,transparent 70%);border-radius:50%;transform:translate(60px,-60px);"></div>'
-        '<div style="position:relative;z-index:1;">'
-        '<div style="color:rgba(244,239,220,0.55);font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;">MRP Lot Sizing Calculator &middot; Export</div>'
-        '<div style="color:#ffffff;font-size:23px;font-weight:800;margin-bottom:12px;letter-spacing:-0.2px;">&#x1F4CA; Full Planning Report</div>'
-        '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">',
-        unsafe_allow_html=True
-    )
+    # Build badge pills sebagai string biasa tanpa emoji HTML entity
+    moq_pill = f'<span style="background:rgba(255,255,255,0.18);color:#ffffff;font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;margin-left:6px;">MOQ {moq_val} units</span>' if use_moq else ""
 
-    # Badge pills — dirender terpisah agar f-string aman
     st.markdown(
-        f'<span style="background:rgba(255,255,255,0.13);color:#f4efdc;font-size:11px;font-weight:600;padding:3px 11px;border-radius:20px;">&#x1F4CB; {active_method_count} methods</span>'
-        f'<span style="background:rgba(255,255,255,0.13);color:#f4efdc;font-size:11px;font-weight:600;padding:3px 11px;border-radius:20px;margin-left:6px;">&#x1F4C5; {num_periods} periods</span>'
-        '<span style="background:rgba(255,255,255,0.13);color:#f4efdc;font-size:11px;font-weight:600;padding:3px 11px;border-radius:20px;margin-left:6px;">&#x1F4C1; Excel .xlsx</span>'
-        f'{moq_badge_html}'
-        '</div>'
-        '</div>'
-        '</div>',
-        unsafe_allow_html=True
-    )
-
-    # Footer strip — dirender terpisah agar method keys tidak merusak HTML
-    st.markdown(
-        f'<div style="background:rgba(74,5,6,0.97);border-radius:0 0 0 0;padding:10px 40px;border-top:1px solid rgba(255,255,255,0.08);">'
-        f'<span style="color:rgba(244,239,220,0.45);font-size:11px;">Contains: Baseline Framework &middot; {method_keys_str} &middot; All Planned Order Releases</span>'
+        f'<div style="background:linear-gradient(135deg,#4a0506 0%,#6a0708 55%,#8a1a1b 100%);border-radius:14px 14px 0 0;padding:28px 36px 22px 36px;box-shadow:0 6px 24px rgba(106,7,8,0.2);">'
+        f'<div style="color:rgba(255,255,255,0.5);font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;">MRP Lot Sizing Calculator &middot; Export</div>'
+        f'<div style="color:#ffffff;font-size:22px;font-weight:800;margin-bottom:14px;">Full Planning Report</div>'
+        f'<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">'
+        f'<span style="background:rgba(255,255,255,0.18);color:#ffffff;font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;">{active_method_count} methods</span>'
+        f'<span style="background:rgba(255,255,255,0.18);color:#ffffff;font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;">{num_periods} periods</span>'
+        f'<span style="background:rgba(255,255,255,0.18);color:#ffffff;font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;">Excel .xlsx</span>'
+        f'{moq_pill}'
+        f'</div>'
+        f'</div>'
+        f'<div style="background:#3a0405;padding:10px 36px;border-left:none;border-right:none;">'
+        f'<span style="color:rgba(255,255,255,0.45);font-size:11px;">Contains: Baseline Framework &middot; {method_keys_str} &middot; All Planned Order Releases</span>'
         f'</div>',
         unsafe_allow_html=True
     )
 
-    # Tombol download — full width, menempel langsung di bawah banner
+    # Tombol download menempel langsung di bawah — border radius hanya di bawah
     st.markdown(
         '<style>'
         'div[data-testid="stDownloadButton"] > button {'
-        '  background: #111111 !important;'
+        '  background-color: #111111 !important;'
         '  color: #f4efdc !important;'
         '  border: none !important;'
-        '  border-radius: 0 0 16px 16px !important;'
+        '  border-radius: 0 0 14px 14px !important;'
         '  padding: 16px 0 !important;'
-        '  font-size: 15px !important;'
+        '  font-size: 14px !important;'
         '  font-weight: 700 !important;'
-        '  letter-spacing: 0.3px !important;'
         '  width: 100% !important;'
-        '  transition: background 0.2s !important;'
+        '  margin-top: 0 !important;'
         '}'
         'div[data-testid="stDownloadButton"] > button:hover {'
-        '  background: #2a2a2a !important;'
+        '  background-color: #222222 !important;'
+        '  color: #ffffff !important;'
         '}'
         '</style>',
         unsafe_allow_html=True
