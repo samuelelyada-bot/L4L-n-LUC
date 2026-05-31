@@ -1268,68 +1268,60 @@ if df_workbench is not None and not df_workbench.empty:
 
     active_method_count = len(biaya_dict)
     method_keys_str = " · ".join(list(biaya_dict.keys()))
-    
-    # Pre-render badge MOQ jika aktif
-    moq_badge_html = f'<span style="background:rgba(255,255,255,0.15); color:#ffffff; font-size:11px; font-weight:700; padding:4px 12px; border-radius:20px; border:1px solid rgba(255,255,255,0.2); white-space:nowrap;">&#x1F527; MOQ {moq_val} units</span>' if use_moq else ""
+    moq_badge_html = f'<span style="background:rgba(255,255,255,0.15);color:#f4efdc;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;letter-spacing:0.5px;">&#x1F527; MOQ {moq_val} units</span>' if use_moq else ""
 
-    # Menggabungkan seluruh komponen kartu agar tidak dipecah oleh Streamlit
-    mega_card_html = f"""
-    <div style="font-family: inherit; box-shadow: 0 8px 32px rgba(106,7,8,0.15); border-radius: 16px 16px 0 0; overflow: hidden;">
-        
-        <div style="position:relative; background:linear-gradient(135deg, #4a0506 0%, #6a0708 55%, #8a1a1b 100%); padding:32px 40px 28px 40px;">
-            <div style="position:absolute; top:0; right:0; width:200px; height:200px; background:radial-gradient(circle, rgba(255,255,255,0.05) 0%, transparent 70%); border-radius:50%; transform:translate(60px,-60px); pointer-events:none;"></div>
-            
-            <div style="position:relative; z-index:1;">
-                <div style="color:rgba(244,239,220,0.65); font-size:11px; font-weight:700; letter-spacing:2px; text-transform:uppercase; margin-bottom:8px;">MRP Lot Sizing Calculator &middot; Export</div>
-                <div style="color:#ffffff; font-size:24px; font-weight:800; margin-bottom:18px; letter-spacing:-0.2px;">&#x1F4CA; Full Planning Report</div>
-                
-                <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
-                    <span style="background:rgba(255,255,255,0.15); color:#ffffff; font-size:11px; font-weight:700; padding:4px 12px; border-radius:20px; border:1px solid rgba(255,255,255,0.2); white-space:nowrap;">&#x1F4CB; {active_method_count} methods</span>
-                    <span style="background:rgba(255,255,255,0.15); color:#ffffff; font-size:11px; font-weight:700; padding:4px 12px; border-radius:20px; border:1px solid rgba(255,255,255,0.2); white-space:nowrap;">&#x1F4C5; {num_periods} periods</span>
-                    <span style="background:rgba(255,255,255,0.15); color:#ffffff; font-size:11px; font-weight:700; padding:4px 12px; border-radius:20px; border:1px solid rgba(255,255,255,0.2); white-space:nowrap;">&#x1F4C1; Excel .xlsx</span>
-                    {moq_badge_html}
-                </div>
-            </div>
-        </div>
+    # Banner atas — murni dekoratif, tidak mengandung f-string kompleks di dalam HTML
+    st.markdown(
+        '<div style="position:relative;background:linear-gradient(135deg,#4a0506 0%,#6a0708 55%,#8a1a1b 100%);border-radius:16px 16px 0 0;padding:32px 40px 24px 40px;box-shadow:0 8px 32px rgba(106,7,8,0.22);overflow:hidden;">'
+        '<div style="position:absolute;top:0;right:0;width:200px;height:200px;background:radial-gradient(circle,rgba(255,255,255,0.05) 0%,transparent 70%);border-radius:50%;transform:translate(60px,-60px);"></div>'
+        '<div style="position:relative;z-index:1;">'
+        '<div style="color:rgba(244,239,220,0.55);font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;">MRP Lot Sizing Calculator &middot; Export</div>'
+        '<div style="color:#ffffff;font-size:23px;font-weight:800;margin-bottom:12px;letter-spacing:-0.2px;">&#x1F4CA; Full Planning Report</div>'
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">',
+        unsafe_allow_html=True
+    )
 
-        <div style="background:#2d0304; padding:12px 40px; border-top:1px solid rgba(255,255,255,0.1);">
-            <span style="color:#ffffff; opacity:0.85; font-size:11px; font-weight:500; letter-spacing:0.3px;">
-                Contains: Baseline Framework &middot; <strong style="color:#ffffff; text-decoration: underline rgba(255,255,255,0.3);">{method_keys_str}</strong> &middot; All Planned Order Releases
-            </span>
-        </div>
+    # Badge pills — dirender terpisah agar f-string aman
+    st.markdown(
+        f'<span style="background:rgba(255,255,255,0.13);color:#f4efdc;font-size:11px;font-weight:600;padding:3px 11px;border-radius:20px;">&#x1F4CB; {active_method_count} methods</span>'
+        f'<span style="background:rgba(255,255,255,0.13);color:#f4efdc;font-size:11px;font-weight:600;padding:3px 11px;border-radius:20px;margin-left:6px;">&#x1F4C5; {num_periods} periods</span>'
+        '<span style="background:rgba(255,255,255,0.13);color:#f4efdc;font-size:11px;font-weight:600;padding:3px 11px;border-radius:20px;margin-left:6px;">&#x1F4C1; Excel .xlsx</span>'
+        f'{moq_badge_html}'
+        '</div>'
+        '</div>'
+        '</div>',
+        unsafe_allow_html=True
+    )
 
-    </div>
-    """
-    
-    st.markdown(mega_card_html, unsafe_allow_html=True)
+    # Footer strip — dirender terpisah agar method keys tidak merusak HTML
+    st.markdown(
+        f'<div style="background:rgba(74,5,6,0.97);border-radius:0 0 0 0;padding:10px 40px;border-top:1px solid rgba(255,255,255,0.08);">'
+        f'<span style="color:rgba(244,239,220,0.45);font-size:11px;">Contains: Baseline Framework &middot; {method_keys_str} &middot; All Planned Order Releases</span>'
+        f'</div>',
+        unsafe_allow_html=True
+    )
 
-    # BAGIAN 3: STYLE TOMBOL DOWNLOAD (Komentar CSS bermasalah sudah dihapus)
+    # Tombol download — full width, menempel langsung di bawah banner
     st.markdown(
         '<style>'
-        'div[data-testid="stDownloadButton"] {'
-        '  margin-top: -1px !important;'
-        '}'
         'div[data-testid="stDownloadButton"] > button {'
         '  background: #111111 !important;'
-        '  color: #ffffff !important;'
+        '  color: #f4efdc !important;'
         '  border: none !important;'
         '  border-radius: 0 0 16px 16px !important;'
         '  padding: 16px 0 !important;'
         '  font-size: 15px !important;'
         '  font-weight: 700 !important;'
-        '  letter-spacing: 0.5px !important;'
+        '  letter-spacing: 0.3px !important;'
         '  width: 100% !important;'
-        '  transition: background 0.2s ease !important;'
-        '  box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;'
+        '  transition: background 0.2s !important;'
         '}'
         'div[data-testid="stDownloadButton"] > button:hover {'
         '  background: #2a2a2a !important;'
-        '  color: #ffffff !important;'
         '}'
         '</style>',
         unsafe_allow_html=True
     )
-    
     st.download_button(
         label="📥  Download Plan Document Report",
         data=buffer,
