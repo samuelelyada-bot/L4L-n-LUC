@@ -1261,83 +1261,78 @@ if df_workbench is not None and not df_workbench.empty:
     
     buffer.seek(0)
 
-# ==========================================
-    # DOWNLOAD SECTION — Premium Redesign (Fixed Contrast)
+    # ==========================================
+    # DOWNLOAD SECTION — Premium redesign (fixed)
     # ==========================================
     st.markdown("<br>", unsafe_allow_html=True)
 
     active_method_count = len(biaya_dict)
     method_keys_str = " · ".join(list(biaya_dict.keys()))
     
-    # Badge MOQ dengan kontras tinggi (Latar belakang gelap marun, teks krem terang)
-    moq_badge_html = f'<span style="background:#4a0506; color:#f4efdc; font-size:11px; font-weight:700; padding:4px 12px; border-radius:20px; letter-spacing:0.5px; border:1px solid rgba(255,255,255,0.15); margin-left:6px;">&#x1F527; MOQ {moq_val} units</span>' if use_moq else ""
+    # 1. Handle Badge MOQ (Dipre-render dulu agar f-string aman)
+    moq_badge_html = f'<span style="background:rgba(255,255,255,0.15); color:#ffffff; font-size:11px; font-weight:700; padding:4px 12px; border-radius:20px; border:1px solid rgba(255,255,255,0.2);">&#x1F527; MOQ {moq_val} units</span>' if use_moq else ""
 
-    # Container Utama - Menggunakan background gelap solid/gradasi marun tua agar kontras dengan teks putih & krem
-    st.markdown(
-        '<div style="position:relative; background:linear-gradient(135deg, #3a0203 0%, #5a0506 60%, #6a0708 100%); border-radius:16px 16px 0 0; padding:32px 40px 24px 40px; box-shadow:0 8px 32px rgba(106,7,8,0.15); overflow:hidden;">'
-        '<div style="position:absolute; top:0; right:0; width:200px; height:200px; background:radial-gradient(circle, rgba(255,255,255,0.03) 0%, transparent 70%); border-radius:50%; transform:translate(60px,-60px);"></div>'
-        '<div style="position:relative; z-index:1;">'
-        '<div style="color:rgba(244,239,220,0.7); font-size:11px; font-weight:700; letter-spacing:2px; text-transform:uppercase; margin-bottom:8px;">MRP Lot Sizing Calculator &middot; Export</div>'
-        '<div style="color:#ffffff; font-size:24px; font-weight:800; margin-bottom:16px; letter-spacing:-0.2px;">&#x1F4CA; Full Planning Report</div>'
-        '<div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">',
-        unsafe_allow_html=True
-    )
+    # 2. SATUKAN SEMUA BANNER & BADGE DALAM SATU STRUKTUR HTML
+    # Ini menjamin badge TIDAK AKAN LEPAS atau melorot keluar ke latar belakang krem aplikasi.
+    full_banner_html = f"""
+    <div style="position:relative; background:linear-gradient(135deg, #4a0506 0%, #6a0708 55%, #8a1a1b 100%); border-radius:16px 16px 0 0; padding:32px 40px 28px 40px; box-shadow:0 8px 32px rgba(106,7,8,0.22); overflow:hidden;">
+        <!-- Dekorasi lingkaran transparan -->
+        <div style="position:absolute; top:0; right:0; width:200px; height:200px; background:radial-gradient(circle, rgba(255,255,255,0.05) 0%, transparent 70%); border-radius:50%; transform:translate(60px,-60px);"></div>
+        
+        <div style="position:relative; z-index:1;">
+            <!-- Subtitle -->
+            <div style="color:rgba(244,239,220,0.65); font-size:11px; font-weight:700; letter-spacing:2px; text-transform:uppercase; margin-bottom:8px;">MRP Lot Sizing Calculator &middot; Export</div>
+            <!-- Title -->
+            <div style="color:#ffffff; font-size:24px; font-weight:800; margin-bottom:18px; letter-spacing:-0.2px;">&#x1F4CA; Full Planning Report</div>
+            
+            <!-- Flex Container untuk Badge (Sekarang terkunci di dalam background gelap marun) -->
+            <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+                <span style="background:rgba(255,255,255,0.15); color:#ffffff; font-size:11px; font-weight:700; padding:4px 12px; border-radius:20px; border:1px solid rgba(255,255,255,0.2);">&#x1F4CB; {active_method_count} methods</span>
+                <span style="background:rgba(255,255,255,0.15); color:#ffffff; font-size:11px; font-weight:700; padding:4px 12px; border-radius:20px; border:1px solid rgba(255,255,255,0.2);">&#x1F4C5; {num_periods} periods</span>
+                <span style="background:rgba(255,255,255,0.15); color:#ffffff; font-size:11px; font-weight:700; padding:4px 12px; border-radius:20px; border:1px solid rgba(255,255,255,0.2);">&#x1F4C1; Excel .xlsx</span>
+                {moq_badge_html}
+            </div>
+        </div>
+    </div>
+    """
+    st.markdown(full_banner_html, unsafe_allow_html=True)
 
-    # Badge Pills - Menggunakan warna semi-transparan putih di atas background gelap agar teks krem di dalamnya menyala (kontras)
+    # 3. Footer Strip (Warna dipergelap sedikit agar kontras teks kecilnya tajam)
     st.markdown(
-        f'<span style="background:rgba(255,255,255,0.15); color:#ffffff; font-size:11px; font-weight:700; padding:4px 12px; border-radius:20px; border:1px solid rgba(255,255,255,0.10);">&#x1F4CB; {active_method_count} methods</span>'
-        f'<span style="background:rgba(255,255,255,0.15); color:#ffffff; font-size:11px; font-weight:700; padding:4px 12px; border-radius:20px; margin-left:6px; border:1px solid rgba(255,255,255,0.10);">&#x1F4C5; {num_periods} periods</span>'
-        f'<span style="background:rgba(255,255,255,0.15); color:#ffffff; font-size:11px; font-weight:700; padding:4px 12px; border-radius:20px; margin-left:6px; border:1px solid rgba(255,255,255,0.10);">&#x1F4C1; Excel .xlsx</span>'
-        f'{moq_badge_html}'
-        '</div>' # Menutup flex layout badge
-        '</div>' # Menutup z-index container
-        '</div>', # Menutup Banner utama
-        unsafe_allow_html=True
-    )
-
-    # Footer Strip - Menggunakan marun yang sangat tua/gelap agar teks krem berukuran kecil di dalamnya terbaca sempurna
-    st.markdown(
-        f'<div style="background:#2b0203; border-radius:0; padding:12px 40px; border-top:1px solid rgba(255,255,255,0.1);">'
-        f'<span style="color:#f4efdc; opacity:0.8; font-size:11px; font-weight:500; letter-spacing: 0.2px;">'
-        f'Contains: Baseline Framework &middot; <strong style="color:#ffffff;">{method_keys_str}</strong> &middot; All Planned Order Releases'
-        f'</span>'
+        f'<div style="background:#2d0304; padding:12px 40px; border-top:1px solid rgba(255,255,255,0.1);">'
+        f'<span style="color:#ffffff; opacity:0.85; font-size:11px; font-weight:500; letter-spacing:0.3px;">Contains: Baseline Framework &middot; <strong>{method_keys_str}</strong> &middot; All Planned Order Releases</span>'
         f'</div>',
         unsafe_allow_html=True
     )
 
-    # Tombol Download - Menggunakan basis warna Hitam Premium (#111111) dengan teks Krem (#f4efdc) agar terbaca jelas, 
-    # Serta efek hover abu-abu gelap (#262626) agar interaktif saat kursor mendekat.
+    # 4. Style Tombol Download (Memperbaiki teks tombol bawaan streamlit agar kontras)
     st.markdown(
         '<style>'
         'div[data-testid="stDownloadButton"] > button {'
         '  background: #111111 !important;'
-        '  color: #f4efdc !important;'
-        '  border: 1px solid #111111 !important;'
+        '  color: #ffffff !important;'
+        '  border: none !important;'
         '  border-radius: 0 0 16px 16px !important;'
         '  padding: 16px 0 !important;'
         '  font-size: 15px !important;'
         '  font-weight: 700 !important;'
         '  letter-spacing: 0.5px !important;'
         '  width: 100% !important;'
-        '  transition: all 0.2s ease !important;'
-        '  box-shadow: 0 4px 12px rgba(0,0,0,0.1);'
+        '  transition: background 0.2s ease !important;'
         '}'
         'div[data-testid="stDownloadButton"] > button:hover {'
-        '  background: #262626 !important;'
+        '  background: #2a2a2a !important;'
         '  color: #ffffff !important;'
-        '  border-color: #262626 !important;'
         '}'
         '</style>',
         unsafe_allow_html=True
     )
-    
     st.download_button(
-        label="📥 Download Plan Document Report",
+        label="📥  Download Plan Document Report",
         data=buffer,
         file_name="MRP_Lot_Sizing_Report.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         use_container_width=True
     )
 else:
-    st.info("Please initialize input values or upload transaction vectors to run calculation routines.")
     st.info("Please initialize input values or upload transaction vectors to run calculation routines.")
