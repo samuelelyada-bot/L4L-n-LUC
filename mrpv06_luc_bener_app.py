@@ -775,63 +775,215 @@ if df_workbench is not None and not df_workbench.empty:
         c_iuc_hold  = sum(max(0, x) for x in iuc_poh) * hold
 
         # ==========================================
-        # 11. WAGNER-WHITIN (WW) — Exact DP
+        # 11. WAGNER-WHITIN (WW) — MOQ-Aware Exact DP
+        #
+        # Tanpa MOQ: algoritma klasik O(n²)
+        # Dengan MOQ: enumerate semua kombinasi order window menggunakan
+        # forward DP dengan state (periode, surplus_inventory).
+        # Surplus terjadi karena MOQ memaksa order lebih dari yang dibutuhkan.
+        # DP ini menjamin solusi optimal global bahkan dengan constraint MOQ.
         # ==========================================
         INF = float('inf')
-        f = [INF] * (n + 1)
-        order_at = [0] * (n + 1)
-        f[0] = 0
-        
-        for j in range(1, n + 1):
-            if net_req[j-1] == 0:
-                f[j] = f[j-1]
-                order_at[j] = order_at[j-1]
-                continue
-            for i in range(1, j + 1):
-                holding = sum(net_req[k-1] * hold * (k - i) for k in range(i, j + 1))
-                cost = f[i-1] + setup + holding
-                if cost < f[j]:
-                    f[j] = cost
-                    order_at[j] = i
-                    
-        ww_rec = [0] * n
-        j = n
-        ww_windows = []
-        while j > 0:
-            if net_req[j-1] == 0:
-                j -= 1
-                continue
-            i = order_at[j]
-            if i == 0:
-                j -= 1
-                continue
-            ww_rec[i-1] = sum(net_req[i-1:j])
-            ww_windows.insert(0, (i, j))
-            j = i - 1
-            
-        ww_poh, ww_rel, ww_actual = generate_poh_and_release(ww_rec, moq_val)
+
+        if moq_val == 0:
+            # ── Tanpa MOQ: WW klasik ──
+            f_ww = [INF] * (n + 1)
+            order_at = [0] * (n + 1)
+            f_ww[0] = 0
+
+            for j in range(1, n + 1):
+                if net_req[j-1] == 0:
+                    f_ww[j] = f_ww[j-1]
+                    order_at[j] = order_at[j-1]
+                    continue
+                for i in range(1, j + 1):
+                    holding = sum(net_req[k-1] * hold * (k - i) for k in range(i, j + 1))
+                    cost = f_ww[i-1] + setup + holding
+                    if cost < f_ww[j]:
+                        f_ww[j] = cost
+                        order_at[j] = i
+
+            ww_rec = [0] * n
+            j = n
+            ww_windows = []
+            while j > 0:
+                if net_req[j-1] == 0:
+                    j -= 1
+                    continue
+                i = order_at[j]
+                if i == 0:
+                    j -= 1
+                    continue
+                ww_rec[i-1] = sum(net_req[i-1:j])
+                ww_windows.insert(0, (i, j))
+                j = i - 1
+
+            f_trace = f_ww
+            order_at_trace = order_at
+
+        else:
+            # ── Dengan MOQ: Forward DP enumerate semua order windows ──
+            #
+            # State: dp[j][surplus] = min cost untuk memenuhi semua demand
+            #        sampai akhir periode j, dengan surplus unit tersisa
+            #
+            # Transisi dari state (i-1, surplus_in):
+            #   Tempatkan order di awal periode i yang menutup demand i..j
+            #   Order qty = max(sum(net_req[i..j]) - surplus_in, MOQ) jika ada demand
+            #   Atau tidak order jika surplus sudah cukup
+            #
+            # dp[j][surplus] = (cost, prev_j, prev_surplus, order_at_period)
+
+            dp = [{} for _ in range(n + 1)]
+            dp[0][0] = (0.0, -1, -1, -1)  # (cost, prev_j, prev_surplus, order_period)
+
+            for i in range(n + 1):         # dari state i...
+                if not dp[i]:
+                    continue
+                for surplus_in, (cost_in, _, _, _) in dp[i].items():
+                    # Coba semua window [i..j] untuk lot berikutnya
+                    for j in range(i, n + 1):
+                        # Total demand yang perlu dipenuhi dari periode i sampai j
+                        # (0-indexed: periode i berarti index i dalam net_req)
+                        demand_window = sum(net_req[i:j+1]) if j < n else 0
+
+                        if j == n:
+                            # Akhir horizon — tidak perlu order lagi kalau surplus cukup
+                            if surplus_in >= 0:
+                                # Tidak ada order, carry surplus sampai akhir
+                                # Hitung holding cost sisa surplus
+                                h = 0.0
+                                rem = surplus_in
+                                for p in range(i, n):
+                                    rem -= net_req[p]
+                                    if rem < 0:
+                                        break  # surplus tidak cukup, skip
+                                    h += rem * hold
+                                else:
+                                    new_cost = cost_in + h
+                                    if 0 not in dp[n] or new_cost < dp[n][0][0]:
+                                        dp[n][0] = (new_cost, i, surplus_in, -1)
+                            break
+
+                        # Demand dari i sampai j (0-indexed periods i..j)
+                        total_demand = sum(net_req[i:j+1])
+
+                        if total_demand <= surplus_in:
+                            # Surplus cukup menutup semua demand i..j tanpa order baru
+                            # Hitung holding cost untuk surplus yang menginap
+                            h = 0.0
+                            rem = surplus_in
+                            for p in range(i, j + 1):
+                                rem -= net_req[p]
+                                if rem >= 0:
+                                    h += rem * hold
+                            surplus_out = surplus_in - total_demand
+                            new_cost = cost_in + h
+                            # Lanjut ke periode j+1 dengan surplus berkurang
+                            if surplus_out not in dp[j+1] or new_cost < dp[j+1][surplus_out][0]:
+                                dp[j+1][surplus_out] = (new_cost, i, surplus_in, -1)
+                            # Juga coba window yang lebih pendek
+                            continue
+
+                        # Perlu order baru di awal periode i untuk menutup i..j
+                        actual_need = total_demand - surplus_in
+                        moq_order = max(actual_need, moq_val)
+                        surplus_out = moq_order - actual_need  # sisa setelah menutup demand i..j
+
+                        # Hitung holding cost: inventory setelah order masuk di awal i
+                        h = 0.0
+                        inv = moq_order + surplus_in  # total inventory di awal periode i
+                        for p in range(i, j + 1):
+                            inv -= net_req[p]
+                            if inv >= 0:
+                                h += inv * hold
+                            # inv < 0 tidak seharusnya terjadi karena moq_order sudah cukup
+
+                        new_cost = cost_in + setup + h
+                        # Transisi ke state j+1 dengan surplus_out
+                        if surplus_out not in dp[j+1] or new_cost < dp[j+1][surplus_out][0]:
+                            dp[j+1][surplus_out] = (new_cost, i, surplus_in, i)
+
+            # Ambil solusi optimal di state n
+            best_cost_ww = INF
+            best_surplus_final = 0
+            for surplus, (cost, _, _, _) in dp[n].items():
+                if cost < best_cost_ww:
+                    best_cost_ww = cost
+                    best_surplus_final = surplus
+
+            # Backtrack untuk rekonstruksi ww_rec
+            ww_rec = [0] * n
+            ww_windows = []
+            j = n
+            cur_surplus = best_surplus_final
+
+            while j > 0:
+                if cur_surplus not in dp[j]:
+                    # Cari surplus terdekat
+                    if not dp[j]:
+                        break
+                    cur_surplus = min(dp[j].keys(), key=lambda s: dp[j][s][0])
+
+                cost_j, prev_j, prev_surplus, order_period = dp[j][cur_surplus]
+
+                if order_period >= 0:
+                    # Ada order di awal periode order_period yang menutup sampai j-1
+                    actual_need = sum(net_req[order_period:j]) - prev_surplus
+                    actual_need = max(0, actual_need)
+                    moq_order = max(actual_need, moq_val)
+                    ww_rec[order_period] = moq_order
+                    ww_windows.insert(0, (order_period + 1, j))
+
+                j = prev_j
+                cur_surplus = prev_surplus if prev_surplus >= 0 else 0
+
+            # Trace — untuk MOQ-aware tampilkan summary window saja
+            f_trace = None
+            order_at_trace = None
+
+        # Generate POH — ww_rec sudah mengandung actual order qty (sudah MOQ-aware)
+        # Panggil generate_poh_and_release dengan moq_val=0 agar tidak double-apply
+        ww_poh, ww_rel, ww_actual = generate_poh_and_release(ww_rec, 0)
         c_ww_setup = sum(1 for x in ww_actual if x > 0) * setup
         c_ww_hold  = sum(max(0, x) for x in ww_poh) * hold
-        
+
         ww_trace_logs = []
-        if build_trace:
+        if build_trace and moq_val == 0 and f_trace is not None:
+            # Trace log klasik — hanya tampil tanpa MOQ
             for (w_start, w_end) in ww_windows:
                 window_rows = []
                 for j_val in range(w_start, w_end + 1):
                     if net_req[j_val-1] == 0: continue
                     for i_val in range(w_start, j_val + 1):
                         holding = sum(net_req[k-1] * hold * (k - i_val) for k in range(i_val, j_val + 1))
-                        cost = f[i_val-1] + setup + holding
-                        is_optimal = (order_at[j_val] == i_val and cost == f[j_val])
+                        cost = f_trace[i_val-1] + setup + holding
+                        is_opt = (order_at_trace.get(j_val, 0) == i_val
+                                  if isinstance(order_at_trace, dict)
+                                  else order_at_trace[j_val] == i_val)
+                        is_opt = is_opt and abs(cost - f_trace[j_val]) < 1e-9
                         window_rows.append({
                             'Order Period': period_labels[i_val-1],
                             'Covers Until': period_labels[j_val-1],
                             'Cumulative Holding': holding,
                             'Evaluated Cost': cost,
-                            'Status': 'Optimal Selection ✅' if is_optimal else 'Feasible Combination'
+                            'Status': 'Optimal Selection ✅' if is_opt else 'Feasible Combination'
                         })
                 if window_rows:
                     ww_trace_logs.append(pd.DataFrame(window_rows))
+
+        elif build_trace and moq_val > 0:
+            # Dengan MOQ aktif: tampilkan order windows yang terpilih
+            for (w_start, w_end) in ww_windows:
+                order_qty = ww_rec[w_start - 1]
+                if order_qty > 0:
+                    ww_trace_logs.append(pd.DataFrame([{
+                        'Order Period': period_labels[w_start - 1],
+                        'Covers Until': period_labels[w_end - 1],
+                        'Cumulative Holding': '(MOQ-aware DP)',
+                        'Evaluated Cost': '(MOQ-aware DP)',
+                        'Status': f'Optimal Selection ✅  —  {order_qty} units ordered (MOQ={moq_val})'
+                    }]))
 
         return {
             'net_req': net_req,
@@ -1111,15 +1263,11 @@ if df_workbench is not None and not df_workbench.empty:
     if use_moq:
         st.info(f"🔧 **MOQ Constraint ({moq_val} units) is active.** All cost figures below reflect MOQ-adjusted order quantities.")
 
-    biaya_dict = {
-        'L4L': res['l4l']['total'],
-        'IUC': res['iuc']['total'],
-        'LTC': res['ltc']['total'],
-        'LUC': res['luc']['total'],
-        'PPB': res['ppb']['total'],
-        'SM':  res['sm']['total'],
-        'WW':  res['ww']['total'],
-    }
+    # biaya_dict dibangun dengan urutan tetap sesuai glossary
+    # Metode conditional (EOQ/POQ/FOQ/FPR) dimasukkan di posisi yang benar
+    # menggunakan OrderedDict pattern agar urutan terjaga
+    biaya_dict = {}
+    biaya_dict['L4L'] = res['l4l']['total']
     if holding_cost > 0:
         biaya_dict['EOQ'] = res['eoq']['total']
         biaya_dict['POQ'] = res['poq']['total']
@@ -1127,6 +1275,12 @@ if df_workbench is not None and not df_workbench.empty:
         biaya_dict['FOQ'] = res['foq']['total']
     if fpr_interval > 0:
         biaya_dict['FPR'] = res['fpr']['total']
+    biaya_dict['IUC'] = res['iuc']['total']
+    biaya_dict['LTC'] = res['ltc']['total']
+    biaya_dict['LUC'] = res['luc']['total']
+    biaya_dict['PPB'] = res['ppb']['total']
+    biaya_dict['SM']  = res['sm']['total']
+    biaya_dict['WW']  = res['ww']['total']
 
     min_cost = min(biaya_dict.values())
     best_methods = [k for k, v in biaya_dict.items() if v == min_cost]
@@ -1213,13 +1367,8 @@ if df_workbench is not None and not df_workbench.empty:
         fig2, ax2 = plt.subplots(figsize=(7, 4.2))
         fig2.patch.set_facecolor('#faf8f2')
         ax2.set_facecolor('#faf8f2')
+        # Plot urutan sesuai glossary: L4L→EOQ→POQ→FOQ→FPR→IUC→LTC→LUC→PPB→SM→WW
         ax2.plot(labels_pct, s_l4l, marker='o', label='L4L', color='#444444', linewidth=1.5)
-        ax2.plot(labels_pct, s_luc, marker='s', label='LUC', color='#6a0708', linewidth=1.5)
-        ax2.plot(labels_pct, s_ppb, marker='x', label='PPB', color='#2a7b4c', linewidth=1.5)
-        ax2.plot(labels_pct, s_sm,  marker='d', label='SM',  color='#0288d1', linewidth=1.5)
-        ax2.plot(labels_pct, s_ltc, marker='P', label='LTC', color='#1565c0', linewidth=1.5)
-        ax2.plot(labels_pct, s_iuc, marker='p', label='IUC', color='#e65c00', linewidth=1.5)
-        ax2.plot(labels_pct, s_ww,  marker='H', label='WW',  color='#2e7d32', linewidth=2.0, linestyle='--')
         if holding_cost > 0:
             ax2.plot(labels_pct, s_eoq, marker='^', label='EOQ', color='#d32f2f', linewidth=1.5)
             ax2.plot(labels_pct, s_poq, marker='v', label='POQ', color='#f57c00', linewidth=1.5)
@@ -1227,6 +1376,12 @@ if df_workbench is not None and not df_workbench.empty:
             ax2.plot(labels_pct, s_foq, marker='*', label='FOQ', color='#8d6e63', linewidth=1.5)
         if fpr_interval > 0:
             ax2.plot(labels_pct, s_fpr, marker='D', label='FPR', color='#7b1fa2', linewidth=1.5)
+        ax2.plot(labels_pct, s_iuc, marker='p', label='IUC', color='#e65c00', linewidth=1.5)
+        ax2.plot(labels_pct, s_ltc, marker='P', label='LTC', color='#1565c0', linewidth=1.5)
+        ax2.plot(labels_pct, s_luc, marker='s', label='LUC', color='#6a0708', linewidth=1.5)
+        ax2.plot(labels_pct, s_ppb, marker='x', label='PPB', color='#2a7b4c', linewidth=1.5)
+        ax2.plot(labels_pct, s_sm,  marker='d', label='SM',  color='#0288d1', linewidth=1.5)
+        ax2.plot(labels_pct, s_ww,  marker='H', label='WW',  color='#2e7d32', linewidth=2.0, linestyle='--')
         ax2.set_title("Demand Change Sensitivity Chart", fontsize=11, fontweight='bold', color='#6a0708', pad=12)
         ax2.set_ylabel('Simulated Total Incurred Cost', color='#111', fontsize=9, fontweight='bold')
         ax2.set_xlabel('Customer Demand Change Sensitivity', color='#111', fontsize=9, fontweight='bold')
