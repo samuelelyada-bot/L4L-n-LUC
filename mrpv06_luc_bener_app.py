@@ -353,11 +353,25 @@ if df_workbench is not None and not df_workbench.empty:
         # MOQ diterapkan di sini: actual_rec = rec setelah MOQ adjustment
         # ==========================================
         def generate_poh_and_release(rec_lot, moq_v=0):
-            actual_rec = []
-            for i in range(n):
-                raw = rec_lot[i]
-                actual = max(raw, moq_v) if (moq_v > 0 and raw > 0) else raw
-                actual_rec.append(actual)
+            # Tanpa MOQ: langsung pakai rec_lot apa adanya
+            if moq_v == 0:
+                actual_rec = list(rec_lot)
+            else:
+                # Dengan MOQ: track surplus carry-forward agar tidak double-order.
+                # Surplus dari MOQ periode sebelumnya bisa menutup demand berikutnya
+                # tanpa perlu order baru, meskipun rec_lot[i] > 0.
+                actual_rec = [0] * n
+                surplus = init_inv
+                for i in range(n):
+                    surplus += s_receipts[i]
+                    net_need = demands[i] + ss - surplus
+                    if rec_lot[i] > 0 and net_need > 0:
+                        order_qty = max(net_need, moq_v)
+                        actual_rec[i] = order_qty
+                        surplus = surplus + order_qty - demands[i]
+                    else:
+                        actual_rec[i] = 0
+                        surplus = surplus - demands[i]
 
             poh = []
             r_inv = init_inv
