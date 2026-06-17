@@ -239,7 +239,6 @@ if input_method == "Upload File":
 elif input_method == "Manual Entry":
     num_periods_input = st.number_input("Planning Horizon Length (Periods):", min_value=1, max_value=52, value=1, step=1)
     
-    # Default selalu 0 — user mengisi sendiri dari awal
     default_gr = [0] * num_periods_input
         
     init_data = {
@@ -282,12 +281,11 @@ if df_workbench is not None and not df_workbench.empty:
 
 
     # ==========================================
-    # TABS INITIALIZATION — urutan dari mudah ke advance
+    # TABS INITIALIZATION
     # ==========================================
     st.markdown("---")
     st.subheader("⚙️ Lot Sizing Operational Performance Strategy Modules")
 
-    # MOQ active banner di atas tabs
     if use_moq:
         st.info(f"🔧 **MOQ Constraint Active ({moq_val} units):** Applied as a post-fulfillment adjustment to all method order quantities. Note: Each method's lot grouping decision is based on original net requirements; MOQ scales up individual orders to meet the minimum threshold, and the resulting surplus inventory is reflected in the Projected On Hand.")
 
@@ -296,11 +294,9 @@ if df_workbench is not None and not df_workbench.empty:
         "💰 IUC", "💸 LTC", "🔍 LUC", "⚖️ PPB", "🚀 Silver-Meal", "🔬 Wagner-Whitin"
     ])
 
-    # FOQ input tetap di dalam tab seperti sebelumnya
     with tabs_list[3]:
         fixed_lot_size = st.number_input("Enter Fixed Order Size (FOQ Multiplier):", min_value=0, value=0, step=5)
 
-    # FPR interval input di dalam tab FPR — default 0 = terkunci
     with tabs_list[4]:
         fpr_interval = st.number_input(
             "FPR Interval (periods):",
@@ -314,8 +310,14 @@ if df_workbench is not None and not df_workbench.empty:
     # ==========================================
     def calculate_multi_mrp(demands, s_receipts, setup, hold, init_inv, ss, lt, f_lot, moq_val, fpr_interval, build_trace=True):
         n = len(demands)
-        
-        # Net Requirements Matrix
+
+        # ==========================================
+        # NET REQUIREMENTS — dihitung dari carry-forward POH teoritis
+        # (tanpa memperhitungkan surplus lot sizing)
+        # Ini dipakai sebagai INPUT untuk semua algoritma lot sizing.
+        # Net Requirements untuk DISPLAY per metode dihitung terpisah
+        # di fungsi compute_display_net_req() berdasarkan POH aktual.
+        # ==========================================
         net_req = []
         prev_inv = init_inv
         for i in range(n):
@@ -329,27 +331,40 @@ if df_workbench is not None and not df_workbench.empty:
                 prev_inv = available_stock - demands[i]
 
         # ==========================================
-        # generate_poh_and_release — sekarang return 3 nilai
+        # DISPLAY NET REQUIREMENTS — dihitung dari POH aktual setelah
+        # lot sizing selesai. Ini yang ditampilkan di MRP grid tiap metode.
+        # Logika: NR display periode i = max(0, GR_i + SS - POH_(i-1) - SR_i)
+        # di mana POH_(i-1) adalah sisa inventory aktual dari periode sebelumnya
+        # setelah memperhitungkan planned order receipt metode tersebut.
+        # ==========================================
+        def compute_display_net_req(actual_receipts):
+            display_nr = []
+            inv = init_inv
+            for i in range(n):
+                available_before_order = inv + s_receipts[i]
+                nr = max(0, demands[i] + ss - available_before_order)
+                display_nr.append(nr)
+                # Update inv dengan actual receipt (surplus dari lot sizing ikut terbawa)
+                inv = available_before_order + actual_receipts[i] - demands[i]
+            return display_nr
+
+        # ==========================================
+        # generate_poh_and_release — return 3 nilai
         # MOQ diterapkan di sini: actual_rec = rec setelah MOQ adjustment
-        # POH dan release dihitung dari actual_rec
-        # Cost dihitung dari actual_rec (bukan rec original)
         # ==========================================
         def generate_poh_and_release(rec_lot, moq_v=0):
-            # Step 1: terapkan MOQ per order
             actual_rec = []
             for i in range(n):
                 raw = rec_lot[i]
                 actual = max(raw, moq_v) if (moq_v > 0 and raw > 0) else raw
                 actual_rec.append(actual)
 
-            # Step 2: hitung POH dari actual_rec
             poh = []
             r_inv = init_inv
             for i in range(n):
                 r_inv += s_receipts[i] + actual_rec[i] - demands[i]
                 poh.append(r_inv)
 
-            # Step 3: release planning dari actual_rec
             rel_lot = [0] * n
             for i in range(n):
                 if actual_rec[i] > 0:
@@ -363,6 +378,7 @@ if df_workbench is not None and not df_workbench.empty:
         # ==========================================
         l4l_rec = list(net_req)
         l4l_poh, l4l_rel, l4l_actual = generate_poh_and_release(l4l_rec, moq_val)
+        l4l_display_nr = compute_display_net_req(l4l_actual)
         c_l4l_setup = sum(1 for x in l4l_actual if x > 0) * setup
         c_l4l_hold  = sum(max(0, x) for x in l4l_poh) * hold
 
@@ -421,6 +437,7 @@ if df_workbench is not None and not df_workbench.empty:
             idx = best_k + 1
             
         luc_poh, luc_rel, luc_actual = generate_poh_and_release(luc_rec, moq_val)
+        luc_display_nr = compute_display_net_req(luc_actual)
         c_luc_setup = sum(1 for x in luc_actual if x > 0) * setup
         c_luc_hold  = sum(max(0, x) for x in luc_poh) * hold
 
@@ -446,6 +463,7 @@ if df_workbench is not None and not df_workbench.empty:
                         rem_stok -= net_req[i]
                     
         eoq_poh, eoq_rel, eoq_actual = generate_poh_and_release(eoq_rec, moq_val)
+        eoq_display_nr = compute_display_net_req(eoq_actual)
         c_eoq_setup = sum(1 for x in eoq_actual if x > 0) * setup
         c_eoq_hold  = sum(max(0, x) for x in eoq_poh) * hold
 
@@ -520,6 +538,7 @@ if df_workbench is not None and not df_workbench.empty:
             idx = best_k + 1
             
         ppb_poh, ppb_rel, ppb_actual = generate_poh_and_release(ppb_rec, moq_val)
+        ppb_display_nr = compute_display_net_req(ppb_actual)
         c_ppb_setup = sum(1 for x in ppb_actual if x > 0) * setup
         c_ppb_hold  = sum(max(0, x) for x in ppb_poh) * hold
 
@@ -580,6 +599,7 @@ if df_workbench is not None and not df_workbench.empty:
             idx = best_k + 1
             
         sm_poh, sm_rel, sm_actual = generate_poh_and_release(sm_rec, moq_val)
+        sm_display_nr = compute_display_net_req(sm_actual)
         c_sm_setup = sum(1 for x in sm_actual if x > 0) * setup
         c_sm_hold  = sum(max(0, x) for x in sm_poh) * hold
 
@@ -599,6 +619,7 @@ if df_workbench is not None and not df_workbench.empty:
             i = window_end
             
         poq_poh, poq_rel, poq_actual = generate_poh_and_release(poq_rec, moq_val)
+        poq_display_nr = compute_display_net_req(poq_actual)
         c_poq_setup = sum(1 for x in poq_actual if x > 0) * setup
         c_poq_hold  = sum(max(0, x) for x in poq_poh) * hold
 
@@ -620,6 +641,7 @@ if df_workbench is not None and not df_workbench.empty:
                         rem_foq_stok -= net_req[i]
 
         foq_poh, foq_rel, foq_actual = generate_poh_and_release(foq_rec, moq_val)
+        foq_display_nr = compute_display_net_req(foq_actual)
         if f_lot > 0:
             c_foq_setup = sum(1 for x in foq_actual if x > 0) * setup
             c_foq_hold  = sum(max(0, x) for x in foq_poh) * hold
@@ -675,12 +697,12 @@ if df_workbench is not None and not df_workbench.empty:
             idx = best_k + 1
             
         ltc_poh, ltc_rel, ltc_actual = generate_poh_and_release(ltc_rec, moq_val)
+        ltc_display_nr = compute_display_net_req(ltc_actual)
         c_ltc_setup = sum(1 for x in ltc_actual if x > 0) * setup
         c_ltc_hold  = sum(max(0, x) for x in ltc_poh) * hold
 
         # ==========================================
         # 9. FIXED PERIOD REQUIREMENTS (FPR)
-        # fpr_interval=0 berarti terkunci, skip kalkulasi
         # ==========================================
         fpr_rec = [0] * n
         if fpr_interval > 0:
@@ -693,13 +715,12 @@ if df_workbench is not None and not df_workbench.empty:
                 i = window_end
 
         fpr_poh, fpr_rel, fpr_actual = generate_poh_and_release(fpr_rec, moq_val)
+        fpr_display_nr = compute_display_net_req(fpr_actual)
         c_fpr_setup = sum(1 for x in fpr_actual if x > 0) * setup if fpr_interval > 0 else 0.0
         c_fpr_hold  = sum(max(0, x) for x in fpr_poh) * hold if fpr_interval > 0 else 0.0
 
         # ==========================================
-        # 10. INCREMENTAL UNIT COST (IUC) — BARU
-        # Berbeda dari LUC: IUC menghitung delta cost / delta units per periode
-        # Zero-demand handling: update prev_total_cost tapi skip inc_uc calculation
+        # 10. INCREMENTAL UNIT COST (IUC)
         # ==========================================
         iuc_rec = [0] * n
         iuc_trace_logs = []
@@ -715,18 +736,13 @@ if df_workbench is not None and not df_workbench.empty:
             t_log = []
 
             for k in range(idx, n):
-                # Hitung total cost sampai periode k DULU
-                # termasuk holding cost untuk unit dari periode sebelumnya
                 acc_h_k = sum(net_req[m] * hold * (m - idx) for m in range(idx, k + 1))
                 total_cost_k = setup + acc_h_k
 
                 if net_req[k] == 0:
-                    # Zero demand: update prev_total_cost agar akurat
-                    # tapi tidak ada unit baru → tidak ada inc_uc → skip
                     prev_total_cost = total_cost_k
                     continue
 
-                # Hitung incremental unit cost
                 delta_cost  = total_cost_k - prev_total_cost
                 delta_units = net_req[k]
                 inc_uc = delta_cost / delta_units
@@ -771,22 +787,16 @@ if df_workbench is not None and not df_workbench.empty:
             idx = best_k + 1
 
         iuc_poh, iuc_rel, iuc_actual = generate_poh_and_release(iuc_rec, moq_val)
+        iuc_display_nr = compute_display_net_req(iuc_actual)
         c_iuc_setup = sum(1 for x in iuc_actual if x > 0) * setup
         c_iuc_hold  = sum(max(0, x) for x in iuc_poh) * hold
 
         # ==========================================
-        # 11. WAGNER-WHITIN (WW) — MOQ-Aware Exact DP
-        #
-        # Tanpa MOQ: algoritma klasik O(n²)
-        # Dengan MOQ: enumerate semua kombinasi order window menggunakan
-        # forward DP dengan state (periode, surplus_inventory).
-        # Surplus terjadi karena MOQ memaksa order lebih dari yang dibutuhkan.
-        # DP ini menjamin solusi optimal global bahkan dengan constraint MOQ.
+        # 11. WAGNER-WHITIN (WW)
         # ==========================================
         INF = float('inf')
 
         if moq_val == 0:
-            # ── Tanpa MOQ: WW klasik ──
             f_ww = [INF] * (n + 1)
             order_at = [0] * (n + 1)
             f_ww[0] = 0
@@ -822,42 +832,24 @@ if df_workbench is not None and not df_workbench.empty:
             order_at_trace = order_at
 
         else:
-            # ── Dengan MOQ: Forward DP enumerate semua order windows ──
-            #
-            # State: dp[j][surplus] = min cost untuk memenuhi semua demand
-            #        sampai akhir periode j, dengan surplus unit tersisa
-            #
-            # Transisi dari state (i-1, surplus_in):
-            #   Tempatkan order di awal periode i yang menutup demand i..j
-            #   Order qty = max(sum(net_req[i..j]) - surplus_in, MOQ) jika ada demand
-            #   Atau tidak order jika surplus sudah cukup
-            #
-            # dp[j][surplus] = (cost, prev_j, prev_surplus, order_at_period)
-
             dp = [{} for _ in range(n + 1)]
-            dp[0][0] = (0.0, -1, -1, -1)  # (cost, prev_j, prev_surplus, order_period)
+            dp[0][0] = (0.0, -1, -1, -1)
 
-            for i in range(n + 1):         # dari state i...
+            for i in range(n + 1):
                 if not dp[i]:
                     continue
                 for surplus_in, (cost_in, _, _, _) in dp[i].items():
-                    # Coba semua window [i..j] untuk lot berikutnya
                     for j in range(i, n + 1):
-                        # Total demand yang perlu dipenuhi dari periode i sampai j
-                        # (0-indexed: periode i berarti index i dalam net_req)
                         demand_window = sum(net_req[i:j+1]) if j < n else 0
 
                         if j == n:
-                            # Akhir horizon — tidak perlu order lagi kalau surplus cukup
                             if surplus_in >= 0:
-                                # Tidak ada order, carry surplus sampai akhir
-                                # Hitung holding cost sisa surplus
                                 h = 0.0
                                 rem = surplus_in
                                 for p in range(i, n):
                                     rem -= net_req[p]
                                     if rem < 0:
-                                        break  # surplus tidak cukup, skip
+                                        break
                                     h += rem * hold
                                 else:
                                     new_cost = cost_in + h
@@ -865,12 +857,9 @@ if df_workbench is not None and not df_workbench.empty:
                                         dp[n][0] = (new_cost, i, surplus_in, -1)
                             break
 
-                        # Demand dari i sampai j (0-indexed periods i..j)
                         total_demand = sum(net_req[i:j+1])
 
                         if total_demand <= surplus_in:
-                            # Surplus cukup menutup semua demand i..j tanpa order baru
-                            # Hitung holding cost untuk surplus yang menginap
                             h = 0.0
                             rem = surplus_in
                             for p in range(i, j + 1):
@@ -879,32 +868,26 @@ if df_workbench is not None and not df_workbench.empty:
                                     h += rem * hold
                             surplus_out = surplus_in - total_demand
                             new_cost = cost_in + h
-                            # Lanjut ke periode j+1 dengan surplus berkurang
                             if surplus_out not in dp[j+1] or new_cost < dp[j+1][surplus_out][0]:
                                 dp[j+1][surplus_out] = (new_cost, i, surplus_in, -1)
-                            # Juga coba window yang lebih pendek
                             continue
 
-                        # Perlu order baru di awal periode i untuk menutup i..j
                         actual_need = total_demand - surplus_in
+                        actual_need = max(0, actual_need)
                         moq_order = max(actual_need, moq_val)
-                        surplus_out = moq_order - actual_need  # sisa setelah menutup demand i..j
+                        surplus_out = moq_order - actual_need
 
-                        # Hitung holding cost: inventory setelah order masuk di awal i
                         h = 0.0
-                        inv = moq_order + surplus_in  # total inventory di awal periode i
+                        inv = moq_order + surplus_in
                         for p in range(i, j + 1):
                             inv -= net_req[p]
                             if inv >= 0:
                                 h += inv * hold
-                            # inv < 0 tidak seharusnya terjadi karena moq_order sudah cukup
 
                         new_cost = cost_in + setup + h
-                        # Transisi ke state j+1 dengan surplus_out
                         if surplus_out not in dp[j+1] or new_cost < dp[j+1][surplus_out][0]:
                             dp[j+1][surplus_out] = (new_cost, i, surplus_in, i)
 
-            # Ambil solusi optimal di state n
             best_cost_ww = INF
             best_surplus_final = 0
             for surplus, (cost, _, _, _) in dp[n].items():
@@ -912,7 +895,6 @@ if df_workbench is not None and not df_workbench.empty:
                     best_cost_ww = cost
                     best_surplus_final = surplus
 
-            # Backtrack untuk rekonstruksi ww_rec
             ww_rec = [0] * n
             ww_windows = []
             j = n
@@ -920,7 +902,6 @@ if df_workbench is not None and not df_workbench.empty:
 
             while j > 0:
                 if cur_surplus not in dp[j]:
-                    # Cari surplus terdekat
                     if not dp[j]:
                         break
                     cur_surplus = min(dp[j].keys(), key=lambda s: dp[j][s][0])
@@ -928,7 +909,6 @@ if df_workbench is not None and not df_workbench.empty:
                 cost_j, prev_j, prev_surplus, order_period = dp[j][cur_surplus]
 
                 if order_period >= 0:
-                    # Ada order di awal periode order_period yang menutup sampai j-1
                     actual_need = sum(net_req[order_period:j]) - prev_surplus
                     actual_need = max(0, actual_need)
                     moq_order = max(actual_need, moq_val)
@@ -938,19 +918,16 @@ if df_workbench is not None and not df_workbench.empty:
                 j = prev_j
                 cur_surplus = prev_surplus if prev_surplus >= 0 else 0
 
-            # Trace — untuk MOQ-aware tampilkan summary window saja
             f_trace = None
             order_at_trace = None
 
-        # Generate POH — ww_rec sudah mengandung actual order qty (sudah MOQ-aware)
-        # Panggil generate_poh_and_release dengan moq_val=0 agar tidak double-apply
         ww_poh, ww_rel, ww_actual = generate_poh_and_release(ww_rec, 0)
+        ww_display_nr = compute_display_net_req(ww_actual)
         c_ww_setup = sum(1 for x in ww_actual if x > 0) * setup
         c_ww_hold  = sum(max(0, x) for x in ww_poh) * hold
 
         ww_trace_logs = []
         if build_trace and moq_val == 0 and f_trace is not None:
-            # Trace log klasik — hanya tampil tanpa MOQ
             for (w_start, w_end) in ww_windows:
                 window_rows = []
                 for j_val in range(w_start, w_end + 1):
@@ -973,7 +950,6 @@ if df_workbench is not None and not df_workbench.empty:
                     ww_trace_logs.append(pd.DataFrame(window_rows))
 
         elif build_trace and moq_val > 0:
-            # Dengan MOQ aktif: tampilkan order windows yang terpilih
             for (w_start, w_end) in ww_windows:
                 order_qty = ww_rec[w_start - 1]
                 if order_qty > 0:
@@ -986,20 +962,20 @@ if df_workbench is not None and not df_workbench.empty:
                     }]))
 
         return {
-            'net_req': net_req,
+            'net_req': net_req,  # theoretical NR (input algoritma)
             'total_demand_gross': total_demand_gross,
             'avg_demand_gross': avg_demand_gross,
-            'l4l':  {'poh': l4l_poh,  'rec': l4l_actual,  'rel': l4l_rel,  'setup': c_l4l_setup,  'hold': c_l4l_hold,  'total': c_l4l_setup  + c_l4l_hold},
-            'luc':  {'poh': luc_poh,  'rec': luc_actual,  'rel': luc_rel,  'setup': c_luc_setup,  'hold': c_luc_hold,  'total': c_luc_setup  + c_luc_hold,  'iters': luc_trace_logs},
-            'eoq':  {'poh': eoq_poh,  'rec': eoq_actual,  'rel': eoq_rel,  'setup': c_eoq_setup,  'hold': c_eoq_hold,  'total': c_eoq_setup  + c_eoq_hold,  'raw_size': eoq_raw_size, 'size': eoq_size},
-            'ppb':  {'poh': ppb_poh,  'rec': ppb_actual,  'rel': ppb_rel,  'setup': c_ppb_setup,  'hold': c_ppb_hold,  'total': c_ppb_setup  + c_ppb_hold,  'iters': ppb_trace_logs, 'epp': epp_limit},
-            'sm':   {'poh': sm_poh,   'rec': sm_actual,   'rel': sm_rel,   'setup': c_sm_setup,   'hold': c_sm_hold,   'total': c_sm_setup   + c_sm_hold,   'iters': sm_trace_logs},
-            'poq':  {'poh': poq_poh,  'rec': poq_actual,  'rel': poq_rel,  'setup': c_poq_setup,  'hold': c_poq_hold,  'total': c_poq_setup  + c_poq_hold,  'raw_interval': poq_raw_interval, 'interval': poq_interval},
-            'foq':  {'poh': foq_poh,  'rec': foq_actual,  'rel': foq_rel,  'setup': c_foq_setup,  'hold': c_foq_hold,  'total': c_foq_setup  + c_foq_hold,  'size': f_lot},
-            'ltc':  {'poh': ltc_poh,  'rec': ltc_actual,  'rel': ltc_rel,  'setup': c_ltc_setup,  'hold': c_ltc_hold,  'total': c_ltc_setup  + c_ltc_hold,  'iters': ltc_trace_logs},
-            'fpr':  {'poh': fpr_poh,  'rec': fpr_actual,  'rel': fpr_rel,  'setup': c_fpr_setup,  'hold': c_fpr_hold,  'total': c_fpr_setup  + c_fpr_hold,  'interval': fpr_interval},
-            'iuc':  {'poh': iuc_poh,  'rec': iuc_actual,  'rel': iuc_rel,  'setup': c_iuc_setup,  'hold': c_iuc_hold,  'total': c_iuc_setup  + c_iuc_hold,  'iters': iuc_trace_logs},
-            'ww':   {'poh': ww_poh,   'rec': ww_actual,   'rel': ww_rel,   'setup': c_ww_setup,   'hold': c_ww_hold,   'total': c_ww_setup   + c_ww_hold,   'iters': ww_trace_logs}
+            'l4l':  {'poh': l4l_poh,  'rec': l4l_actual,  'rel': l4l_rel,  'display_nr': l4l_display_nr,  'setup': c_l4l_setup,  'hold': c_l4l_hold,  'total': c_l4l_setup  + c_l4l_hold},
+            'luc':  {'poh': luc_poh,  'rec': luc_actual,  'rel': luc_rel,  'display_nr': luc_display_nr,  'setup': c_luc_setup,  'hold': c_luc_hold,  'total': c_luc_setup  + c_luc_hold,  'iters': luc_trace_logs},
+            'eoq':  {'poh': eoq_poh,  'rec': eoq_actual,  'rel': eoq_rel,  'display_nr': eoq_display_nr,  'setup': c_eoq_setup,  'hold': c_eoq_hold,  'total': c_eoq_setup  + c_eoq_hold,  'raw_size': eoq_raw_size, 'size': eoq_size},
+            'ppb':  {'poh': ppb_poh,  'rec': ppb_actual,  'rel': ppb_rel,  'display_nr': ppb_display_nr,  'setup': c_ppb_setup,  'hold': c_ppb_hold,  'total': c_ppb_setup  + c_ppb_hold,  'iters': ppb_trace_logs, 'epp': epp_limit},
+            'sm':   {'poh': sm_poh,   'rec': sm_actual,   'rel': sm_rel,   'display_nr': sm_display_nr,   'setup': c_sm_setup,   'hold': c_sm_hold,   'total': c_sm_setup   + c_sm_hold,   'iters': sm_trace_logs},
+            'poq':  {'poh': poq_poh,  'rec': poq_actual,  'rel': poq_rel,  'display_nr': poq_display_nr,  'setup': c_poq_setup,  'hold': c_poq_hold,  'total': c_poq_setup  + c_poq_hold,  'raw_interval': poq_raw_interval, 'interval': poq_interval},
+            'foq':  {'poh': foq_poh,  'rec': foq_actual,  'rel': foq_rel,  'display_nr': foq_display_nr,  'setup': c_foq_setup,  'hold': c_foq_hold,  'total': c_foq_setup  + c_foq_hold,  'size': f_lot},
+            'ltc':  {'poh': ltc_poh,  'rec': ltc_actual,  'rel': ltc_rel,  'display_nr': ltc_display_nr,  'setup': c_ltc_setup,  'hold': c_ltc_hold,  'total': c_ltc_setup  + c_ltc_hold,  'iters': ltc_trace_logs},
+            'fpr':  {'poh': fpr_poh,  'rec': fpr_actual,  'rel': fpr_rel,  'display_nr': fpr_display_nr,  'setup': c_fpr_setup,  'hold': c_fpr_hold,  'total': c_fpr_setup  + c_fpr_hold,  'interval': fpr_interval},
+            'iuc':  {'poh': iuc_poh,  'rec': iuc_actual,  'rel': iuc_rel,  'display_nr': iuc_display_nr,  'setup': c_iuc_setup,  'hold': c_iuc_hold,  'total': c_iuc_setup  + c_iuc_hold,  'iters': iuc_trace_logs},
+            'ww':   {'poh': ww_poh,   'rec': ww_actual,   'rel': ww_rel,   'display_nr': ww_display_nr,   'setup': c_ww_setup,   'hold': c_ww_hold,   'total': c_ww_setup   + c_ww_hold,   'iters': ww_trace_logs}
         }
 
     # Run kalkulasi utama
@@ -1014,12 +990,17 @@ if df_workbench is not None and not df_workbench.empty:
     if holding_cost == 0:
         st.warning("⚠️ **Holding Cost set to 0:** LTC and iterative models will automatically consolidate all parameters into a single bulk launch load pattern.")
 
+    # ==========================================
+    # render_mrp_grid_view — DIPERBAIKI
+    # Sekarang pakai data_dict['display_nr'] untuk Net Requirements
+    # sehingga NR konsisten dengan POH aktual tiap metode
+    # ==========================================
     def render_mrp_grid_view(data_dict, max_cap, ss):
         df = pd.DataFrame({
             'Gross Requirements': gross_req,
             'Scheduled Receipts': sched_rec,
             'Projected On Hand': data_dict['poh'],
-            'Net Requirements': res['net_req'],
+            'Net Requirements': data_dict['display_nr'],   # <-- PERBAIKAN: pakai display_nr per metode
             'Planned Order Receipts': data_dict['rec'],
             'Planned Order Releases': data_dict['rel']
         }, index=period_labels).T
@@ -1048,7 +1029,7 @@ if df_workbench is not None and not df_workbench.empty:
 
 
     # ==========================================
-    # TAB CONTENT — urutan dari mudah ke advance
+    # TAB CONTENT
     # ==========================================
 
     # TAB 0: L4L
@@ -1162,7 +1143,7 @@ if df_workbench is not None and not df_workbench.empty:
             render_mrp_grid_view(res['fpr'], max_capacity, safety_stock)
             render_cost_audit_window(res['fpr'], setup_cost, holding_cost, res['fpr']['rec'], res['fpr']['poh'])
 
-    # TAB 5: IUC — BARU
+    # TAB 5: IUC
     with tabs_list[5]:
         st.subheader("💰 Incremental Unit Cost (IUC) Marginal Cost Heuristic")
         st.markdown("##### Incremental Decision Log Blocks Trace:")
@@ -1263,9 +1244,6 @@ if df_workbench is not None and not df_workbench.empty:
     if use_moq:
         st.info(f"🔧 **MOQ Constraint ({moq_val} units) is active.** All cost figures below reflect MOQ-adjusted order quantities.")
 
-    # biaya_dict dibangun dengan urutan tetap sesuai glossary
-    # Metode conditional (EOQ/POQ/FOQ/FPR) dimasukkan di posisi yang benar
-    # menggunakan OrderedDict pattern agar urutan terjaga
     biaya_dict = {}
     biaya_dict['L4L'] = res['l4l']['total']
     if holding_cost > 0:
@@ -1367,7 +1345,6 @@ if df_workbench is not None and not df_workbench.empty:
         fig2, ax2 = plt.subplots(figsize=(7, 4.2))
         fig2.patch.set_facecolor('#faf8f2')
         ax2.set_facecolor('#faf8f2')
-        # Plot urutan sesuai glossary: L4L→EOQ→POQ→FOQ→FPR→IUC→LTC→LUC→PPB→SM→WW
         ax2.plot(labels_pct, s_l4l, marker='o', label='L4L', color='#444444', linewidth=1.5)
         if holding_cost > 0:
             ax2.plot(labels_pct, s_eoq, marker='^', label='EOQ', color='#d32f2f', linewidth=1.5)
@@ -1416,15 +1393,11 @@ if df_workbench is not None and not df_workbench.empty:
     
     buffer.seek(0)
 
-    # ==========================================
-    # DOWNLOAD SECTION — Fixed rendering
-    # ==========================================
     st.markdown("<br>", unsafe_allow_html=True)
 
     active_method_count = len(biaya_dict)
     method_keys_str = " &middot; ".join(list(biaya_dict.keys()))
 
-    # Build badge pills sebagai string biasa tanpa emoji HTML entity
     moq_pill = f'<span style="background:rgba(255,255,255,0.18);color:#ffffff;font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;margin-left:6px;">MOQ {moq_val} units</span>' if use_moq else ""
 
     st.markdown(
@@ -1444,7 +1417,6 @@ if df_workbench is not None and not df_workbench.empty:
         unsafe_allow_html=True
     )
 
-    # Tombol download menempel langsung di bawah — border radius hanya di bawah
     st.markdown(
         '<style>'
         'div[data-testid="stDownloadButton"] > button {'
