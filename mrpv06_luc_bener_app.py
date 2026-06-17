@@ -1223,12 +1223,19 @@ if df_workbench is not None and not df_workbench.empty:
     with tabs_list[10]:
         st.subheader("🔬 Wagner-Whitin (WW) Exact Dynamic Programming Matrix")
         st.success("🎯 **Global Optimal Solution:** This exact algorithmic model evaluates all valid multi-period paths to secure the global cost minimum.")
-        fmt_ww = {'Cumulative Holding': '{:.2f}', 'Evaluated Cost': '{:.2f}'}
         if res['ww']['iters']:
             for w_idx, df_window in enumerate(res['ww']['iters']):
                 if df_window is None or df_window.empty: continue
                 with st.expander(f"Order Window Segment Block {w_idx + 1}", expanded=True):
-                    st.dataframe(df_window.style.apply(style_iteration_rows, axis=None).format(fmt_ww), hide_index=True, use_container_width=True)
+                    # Ketika MOQ aktif, kolom Cumulative Holding & Evaluated Cost berisi string
+                    # sehingga format angka tidak bisa dipakai — deteksi otomatis per df
+                    is_numeric_cols = pd.to_numeric(df_window.get('Cumulative Holding', pd.Series()), errors='coerce').notna().all()
+                    if is_numeric_cols:
+                        fmt_ww = {'Cumulative Holding': '{:.2f}', 'Evaluated Cost': '{:.2f}'}
+                        st.dataframe(df_window.style.apply(style_iteration_rows, axis=None).format(fmt_ww), hide_index=True, use_container_width=True)
+                    else:
+                        # MOQ mode — tampilkan tanpa format angka agar tidak error
+                        st.dataframe(df_window.style.apply(style_iteration_rows, axis=None), hide_index=True, use_container_width=True)
         else:
             st.info("No trace operations needed for zero net requirement arrays.")
         render_mrp_grid_view(res['ww'], max_capacity, safety_stock)
